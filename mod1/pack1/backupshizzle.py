@@ -27,10 +27,6 @@ USERID = int(999)
 INSTANCES = {}
 LOGFILE = os.path.join(CONFIG_PATH, 'log.log')
 
-if not os.path.isdir(CONFIG_PATH):
-    os.makedirs(CONFIG_PATH, 755)
-logging.basicConfig(filename=LOGFILE, format='[%(asctime)s] %(levelname)s:%(filename)s:%(funcName)s:%(msg)s', level=logging.INFO)
-
 
 """
 class backupSet(object):
@@ -703,64 +699,103 @@ class dbFiles(object):
 ###########
 
 
-class MainWindow(QtGui.QMainWindow):
 
-    sizeXMin = 0
-    sizeXMax = 0
-    sizeYMin = 0
-    sizeYMax = 0
+class MainWindow_UI(QtGui.QMainWindow):
+
+    sizeXMin = 640
+    sizeXMax = 1024
+    sizeYMin = 480
+    sizeYMax = 768
 
     def __init__(self):
 
-        super(MainWindow, self).__init__()
-        self.sizeXMin = 640
-        self.sizeXMax = 1024
-        self.sizeYMin = 480
-        self.sizeYMax = 768
+        super(MainWindow_UI, self).__init__()
         
         self.initUI()
 
     def initUI(self):
         
-        self.setMinimumSize(self.sizeXMin, self.sizeYMin)
-        self.setMaximumSize(self.sizeXMax, self.sizeYMax)
-        self.setWindowTitle("Main Window")
         # actions
         self.actionExit = QtGui.QAction(QtGui.QIcon('img/favicon.png'), '&Exit', self)
         self.actionExit.setStatusTip("Exit")
         self.actionExit.setShortcut('Ctrl+Q')
-        self.actionExit.triggered.connect(self.closeWindow)
+        self.actionExit.triggered.connect(self.softExit)
         
         self.actionLogout = QtGui.QAction(QtGui.QIcon(), '&Logout', self)
         self.actionLogout.setStatusTip("Logout")
         self.actionLogout.setShortcut('Ctrl+L')
-        self.actionLogout.triggered.connect(lambda: self.updateCentralWidget("UserLoginWidget"))
+        self.actionLogout.setEnabled(False)
+        self.actionLogout.triggered.connect(lambda: self.updateCentralWidget(Login_CTR(self.window())))
+        
+        self.setMinimumSize(self.sizeXMin, self.sizeYMin)
+        self.setMaximumSize(self.sizeXMax, self.sizeYMax)
+        self.setWindowTitle("Login - BackupShizzle")
         # menu: file
         self.menuFile = QtGui.QMenu("&File", self)
         self.menuFile.addAction(self.actionLogout)
         self.menuFile.addAction(self.actionExit)
-        # menu bar
+        # menu-bar
         self.menuBar = QtGui.QMenuBar(self)
         self.menuBar.addMenu(self.menuFile)
         self.setMenuBar(self.menuBar)
-        # status bar
+        # status-bar
         self.statusBar = QtGui.QStatusBar()
         self.setStatusBar(self.statusBar)
 
-        self.updateCentralWidget("UserLoginWidget")
+
+
+class MainWindow_CTR(MainWindow_UI):
+    
+    def __init__(self):
+        
+        super(MainWindow_CTR, self).__init__()
+
+        # set-up config
+        self.createConfig()
+        
+        # set-up logging
+        logging.basicConfig(filename=LOGFILE, format='[%(asctime)s] %(levelname)s:%(filename)s:%(funcName)s:%(msg)s', level=logging.INFO)
+        
+        # init login UI
+        self.updateCentralWidget(Login_CTR(self))
         
         self.show()
         
-    def updateCentralWidget(self, widgetClass):
+        
+    def createConfig(self):
         '''
-        MainWindow.setCentralWidget()
-            Accepts a widget class that it sets as its active central widget.
+        Creates config/config-db and sets-up the structure
         '''
-        if widgetClass == "UserLoginWidget":
-            self.mainWidget = UserLoginWidget(self)
-        elif widgetClass == "BackupOperationsWidget":
-            self.mainWidget = BackupOperationsWidget(self)
-        self.setCentralWidget(self.mainWidget)
+        # if config path does not exist
+        if not os.path.isdir(CONFIG_PATH):
+            try:
+                os.makedirs(CONFIG_PATH, 755)
+            except:
+                self.showNotification()
+            
+        # if db file does not exist
+        if not os.path.isfile(CONFIGDB_PATH):
+
+            conn = sqlite3.connect(CONFIGDB_PATH)
+            cursor = sqlite3.Cursor(conn)
+            cursor.execute("CREATE TABLE `users` (username TEXT, password TEXT)")
+            cursor.execute("CREATE TABLE `sources` (id TEXT, userId INTEGER, sourcePath TEXT)")
+            cursor.execute("CREATE TABLE `sets` (setId INTEGER, userId INTEGER, title TEXT, sources TEXT, filters TEXT, targets TEXT)")
+            cursor.execute("CREATE TABLE `filters` (id TEXT, userId INTEGER)")
+            cursor.execute("CREATE TABLE `targets` (userId INTEGER, targetTitle INTEGER, targetId INTEGER)")
+            conn.commit()
+            cursor.close()
+            conn.close()
+        
+
+    def forceExit(self, msg):
+        '''
+        forceExit()
+            Forces the application to exit, promting an error message beforehand
+        '''
+        QtGui.QMessageBox.question(self, 'Error', msg, QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+#        if reply == QtGui.QMessageBox.Ok:
+        self.close()
 
 
     def showNotification(self, **kwargs):
@@ -794,31 +829,9 @@ class MainWindow(QtGui.QMainWindow):
     
     
     
-    def updateStatusBarMsg(self, msg):
-        # set message
-        self.statusBar.showMessage(msg, 3000)
-        
-
-    def forceExit(self, msg):
+    def softExit(self):
         '''
-        forceExit()
-            Forces the application to exit, promting an error message beforehand
-        '''
-        QtGui.QMessageBox.question(self, 'Error', msg, QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-#        if reply == QtGui.QMessageBox.Ok:
-        self.close()
-        
-#    def openMsgWindow(self):
-#        '''
-#        MainWindow.openMsgBox()
-#            Opens a popup alert/message window
-#        '''
-#        msgWindow = QtGui.QDialog()
-##        msgWindow.show()
-    
-    def closeWindow(self):
-        '''
-        MainWindow.closeWindow()
+        MainWindow_UI.softExit()
             Asks for confirmation and preps/executes shutdown
         '''
         msgBox = QtGui.QMessageBox()
@@ -837,72 +850,31 @@ class MainWindow(QtGui.QMainWindow):
         msgBox.open()
         msgBox.move(self.x()+(self.width()/2-msgBox.width()/2), self.y()+(self.height()/2-msgBox.height()/2))
         msgBox.exec_()
-
-
-
-class UserLoginWidget(QtGui.QWidget):
+        
+        
+    def updateCentralWidget(self, widget):
+        '''
+        MainWindow_UI.setCentralWidget()
+            Accepts a widget class that it sets as its active central widget.
+        '''
+        self.setCentralWidget(widget)
     
-    _username = ''
-    _passwordHashed = ''
-    _dbPath = CONFIGDB_PATH
+    
+    
+    def updateStatusBarMsg(self, msg):
+        # set message
+        self.statusBar.showMessage(msg, 3000)
+
+
+
+class Login_UI(QtGui.QWidget):
     
     def __init__(self, parent):
         
-        super(UserLoginWidget, self).__init__()
+        super(Login_UI, self).__init__(parent)
         
         self.parent = parent
         
-        # set-up menu
-        self.parent.actionLogout.setDisabled(1)
-        
-        # if db file exists
-            # check validity:pass
-            # else: exit
-        # else
-            # attempt creation, set-up, pass
-
-
-        # if db file exists
-        if os.path.isfile(self._dbPath):
-            # check validity:pass
-            try:
-                res = sqlite3.connect(self._dbPath)
-                cursor = sqlite3.Cursor(res)
-                
-                cursor.execute("SELECT `rowid` FROM `users`")
-            # else: exit
-            except:
-                logging.critical("EC0000: globalConfig database exists but does not contain a user table. Application has to quit quit.")
-                self.parent.forceExit("EC0000: The main application database exists but seems to contain no useful data. Try deleting\n\n"+str(self._dbPath)+"\n\nmanually and try again. You will have to (re-)create your user account(s).\nApplication has to quit.")
-        # if db file does NOT exist
-        else:
-            # attempt creation, set-up, pass
-            # create dir
-            if not os.path.isdir(os.path.basename(self._dbPath)):
-                try:
-                    os.makedirs(os.path.basename(self._dbPath), 755)
-                except:
-                    logging.critical("EC0001: Folder "+str(os.path.basename(self._dbPath))+" could not be created.")
-                    self.parent.forceExit("EC0001: The application could not create the following folder:\n\n"+str(os.path.dirname(self._dbPath))+"\n\nPlease make sure that you have write access to this location.")
-            # create db
-            try:
-                res = sqlite3.connect(self._dbPath)
-                cursor = sqlite3.Cursor(res)
-                # set-up tables
-                cursor.execute("CREATE TABLE `users` (username TEXT, password TEXT)")
-                cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a')")
-                cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114')")
-                cursor.execute("CREATE TABLE `sources` (id TEXT, userId INTEGER, sourcePath TEXT)")
-                cursor.execute("CREATE TABLE `sets` (setId INTEGER, userId INTEGER, title TEXT, sources TEXT, filters TEXT, targets TEXT)")
-                cursor.execute("CREATE TABLE `filters` (id TEXT, userId INTEGER)")
-                cursor.execute("CREATE TABLE `targets` (userId INTEGER, targetTitle INTEGER, targetId INTEGER)")
-            except:
-                logging.critical("EC0002: An error occurred trying to access the database.")
-                self.parent.forceExit("EC0002: An error occurred trying to access the database. Application must quit.")
-
-            # open account management to add new user
-            self.openAccountManagementWindow()
-
         self.initUI()
         
         
@@ -918,7 +890,7 @@ class UserLoginWidget(QtGui.QWidget):
         
         self.GL1.WG1.GL1 = QtGui.QGridLayout(self.GL1.WG1)
         self.GL1.WG1.GL1.setSpacing(10)
-#        
+
         self.GL1.WG1.GL1.usernameLabel = QtGui.QLabel("Username: ")
         self.GL1.WG1.GL1.addWidget(self.GL1.WG1.GL1.usernameLabel, 0, 0, 1, 2)
         self.GL1.WG1.GL1.usernameInput = QtGui.QLineEdit()
@@ -936,16 +908,53 @@ class UserLoginWidget(QtGui.QWidget):
         self.GL1.WG1.GL1.submitBtn.clicked.connect(self.validateCredentials)
         self.GL1.WG1.GL1.exitBtn = QtGui.QPushButton("Exit")
         self.GL1.WG1.GL1.addWidget(self.GL1.WG1.GL1.exitBtn, 2, 5, 1, 5)
-        self.GL1.WG1.GL1.exitBtn.clicked.connect(self.parent.closeWindow)
+        self.GL1.WG1.GL1.exitBtn.clicked.connect(self.parent.softExit)
         self.GL1.WG1.GL1.userManagementBtn = QtGui.QPushButton("User Management")
         self.GL1.WG1.GL1.addWidget(self.GL1.WG1.GL1.userManagementBtn, 3, 0, 1, 10)
         self.GL1.WG1.GL1.userManagementBtn.clicked.connect(self.openAccountManagementWindow)
+            
+            
+            
+class Login_CTR(Login_UI):
+    
+    def __init__(self, parent):
         
+        super(Login_CTR, self).__init__(parent)
         
+        self.parent = parent
+        
+        # check if user account(s) exist and open Accounts_CTR if False
+        if self.userAccountExists() == False:
+            self.openAccountManagementWindow()
+            
+            
+    def keyPressEvent(self, e):
+
+        if e.key() == QtCore.Qt.Key_Enter or e.key() == QtCore.Qt.Key_Return:
+            self.validateCredentials()
+        
+    
     def openAccountManagementWindow(self):
         
-        self.accountManagementWindow = ManageAccountsWindow(self)
+        self.accountManagementWindow = Accounts_CTR()
         self.accountManagementWindow.exec_()
+       
+        
+    def userAccountExists(self):
+        '''
+        Checks if at least one user exists in the DB.
+        '''
+        
+        conn = sqlite3.connect(CONFIGDB_PATH)
+        cursor = sqlite3.Cursor(conn)
+        res = cursor.execute("SELECT * FROM `users`").fetchall()
+        cursor.close()
+        conn.close()
+        
+        if len(res) >= 1:
+            return True
+        else:
+            return False
         
 
     def validateCredentials(self):
@@ -958,30 +967,25 @@ class UserLoginWidget(QtGui.QWidget):
         passwordHash.update(str(password))
         passwordHash = passwordHash.hexdigest()
         
-        conn = sqlite3.connect(self._dbPath)
+        conn = sqlite3.connect(CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         res = cursor.execute("SELECT `rowid`, * FROM `users` WHERE `username` = ? AND `password` = ?", (str(username), str(passwordHash), )).fetchone()
         
         if res != None:
             USERID = res[0]
-            self.parent.updateCentralWidget("BackupOperationsWidget")
+            self.parent.updateCentralWidget(BBase_CTR(self.parent))
         else:
-            self.window().showNotification(title = "Login Error", message = "Invalid credentials", description = "The username/password combination you entered is invalid. Please try again.")
-            
-            
-    def keyPressEvent(self, e):
-
-        if e.key() == QtCore.Qt.Key_Enter or e.key() == QtCore.Qt.Key_Return:
-            self.validateCredentials()
+            self.parent.showNotification(title = "Login Error", message = "Invalid credentials", description = "The username/password combination you entered is invalid. Please try again.")
+        
+        
 
 
-class ManageAccountsWindow(QtGui.QDialog):
+
+class Accounts_UI(QtGui.QDialog):
     
-    def __init__(self, parent):
+    def __init__(self):
         
-        super(ManageAccountsWindow, self).__init__()
-        
-        self.parent = parent
+        super(Accounts_UI, self).__init__()
         
         self.initUI()
         
@@ -989,62 +993,107 @@ class ManageAccountsWindow(QtGui.QDialog):
         
         pass
     
+    
+    
+class Accounts_CTR(Accounts_UI):
+    
+    def __init__(self):
+        
+        super(Accounts_CTR, self).__init__()
+        
+        self.KILLME_createDefaultAccounts()
+        
+        
+    def KILLME_createDefaultAccounts(self):
+        '''
+        Create default accounts for testing purposes
+        '''
+        print ("x")
+        conn = sqlite3.connect(CONFIGDB_PATH)
+        cursor = sqlite3.Cursor(conn)
+        cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a')")
+        cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114')")
+        conn.commit()
+        cursor.close()
+        conn.close()
+    
 
-class BackupOperationsWidget(QtGui.QWidget):
+class BBase_UI(QtGui.QWidget):
     
     def __init__(self, parent):
         
-        super(BackupOperationsWidget, self).__init__()
+        super(BBase_UI, self).__init__()
         
         self.parent = parent
-        
-        # set-up menu
-        self.parent.actionLogout.setDisabled(0)
         
         self.initUI()
     
     def initUI(self):
+
+        self.TW1 = QtGui.QTabWidget()
         
-        self.mainTabWidget = MainTabWidget()
+        self.TW1.tabSources = Sources_Tab_CTR()
+        self.TW1.addTab(self.TW1.tabSources, "Sou&rces")
+        
+        self.TW1.tabTargets = Targets_Tab_CTR()
+        self.TW1.addTab(self.TW1.tabTargets, "Tar&gets")
+        
+        self.TW1.tabFilters = Filters_Tab_CTR()
+        self.TW1.addTab(self.TW1.tabFilters, "F&ilters")
+        
+        self.TW1.tabBackupSets = Sets_Tab_CTR()
+        self.TW1.addTab(self.TW1.tabBackupSets, "Backup &Sets")
         
         self.HL1 = QtGui.QHBoxLayout(self)
-        self.HL1.addWidget(self.mainTabWidget)
+        self.HL1.addWidget(self.TW1)
         
-        # define target(s)
         
-        # define source(s) (aka backup set(s))
         
-        # schedule/execution stack
+class BBase_CTR(BBase_UI):
+    
+    def __init__(self, parent):
         
-        # backup set maintenance section
+        super(BBase_CTR, self).__init__(parent)
+
+        self.parent = parent
         
-        # [restore section]
+        # set-up menu
+        self.parent.actionLogout.setDisabled(0)
 
 
 
-class MainTabWidget(QtGui.QTabWidget):
+class Filters_Tab_UI(QtGui.QWidget):
     
     def __init__(self):
         
-        super(MainTabWidget, self).__init__()
-        
-        self.tabSources = tabSources()
-        self.addTab(self.tabSources, "Sou&rces")
-        
-        self.tabBackupSets = tabBackupSets()
-        self.addTab(self.tabBackupSets, "Backup &Sets")
-        
-        self.tabTargets = tabTargets()
-        self.addTab(self.tabTargets, "Tar&gets")
-        
-        self.tabFilters = tabFilters()
-        self.addTab(self.tabFilters, "Filters")
+        super(Filters_Tab_UI, self).__init__()
 
 
 
-### TAB: BACKUP SETS ###
+class Filters_Tab_CTR(Filters_Tab_UI):
+    
+    def __init__(self):
+        
+        super(Filters_Tab_CTR, self).__init__()
+        
+        
+        
+class Filters_Manip_UI(QtGui.QDialog):
+    
+    def __init__(self):
+        
+        super(Filters_Manip_UI, self).__init__()
+        
+        self.initUI()
+        
+    
+    def initUI(self):
+        
+        pass
 
-class tabBackupSets(QtGui.QWidget):
+
+
+class Sets_Tab_UI(QtGui.QWidget):
     
     @property
     def _dbData(self):
@@ -1061,7 +1110,7 @@ class tabBackupSets(QtGui.QWidget):
     
     def __init__(self):
         
-        super(tabBackupSets, self).__init__()
+        super(Sets_Tab_UI, self).__init__()
         
         self.initUI()
         
@@ -1106,7 +1155,7 @@ class tabBackupSets(QtGui.QWidget):
         
     def addBackupSet(self):
         
-        self.winAddBS = winManipSet(self, "new")
+        self.winAddBS = Sets_Manip_UI(self, "new")
         self.winAddBS.acceptBtnTitle = "&Add"
         
         # process return data
@@ -1131,7 +1180,7 @@ class tabBackupSets(QtGui.QWidget):
         if self.TW1.currentItem() != None:
             setId = int(self.TW1.currentItem().text(1))
             
-            self.winAddBS = winManipSet(self, setId)
+            self.winAddBS = Sets_Manip_UI(self, setId)
             self.winAddBS.acceptBtnTitle = "&OK"
             
             # process return data
@@ -1181,7 +1230,7 @@ class tabBackupSets(QtGui.QWidget):
         # only if SOMETHING is selected
         if self.TW1.currentItem() != None:
             setId = int(self.TW1.currentItem().text(1))
-            self.winRunBS = winBackupExecManager(setId)
+            self.winRunBS = WinBackupExecManager(setId)
             if self.winRunBS.exec_():
                 print("Done!")
         else:
@@ -1205,10 +1254,18 @@ class tabBackupSets(QtGui.QWidget):
         self.TW1.resizeColumnToContents(0)
         self.TW1.resizeColumnToContents(1)
         self.TW1.resizeColumnToContents(2)
+
+
+
+class Sets_Tab_CTR(Sets_Tab_UI):
+    
+    def __init__(self):
+        
+        super(Sets_Tab_CTR, self).__init__()
             
             
             
-class winManipSet(QtGui.QDialog):
+class Sets_Manip_UI(QtGui.QDialog):
     
     _setId = -1
     _setTitle = ""
@@ -1229,7 +1286,7 @@ class winManipSet(QtGui.QDialog):
 
     def __init__(self, parent, setId):
         
-        super(winManipSet, self).__init__()
+        super(Sets_Manip_UI, self).__init__()
         
         self.parent = parent
         
@@ -1606,46 +1663,14 @@ class winManipSet(QtGui.QDialog):
         setTargets = json.dumps([x[2] for x in self._setTargets])
         
         return(setId, title, setSources, setFilters, setTargets)
-        
-
-
-class winBackupExecManager(QtGui.QDialog):
-    
-    _setId = -1
-    _dbSetData = []
-    
-    def __init__(self, setId):
-        
-        super(winBackupExecManager, self).__init__()
-        
-        self._setId = setId
-        
-        # get set data
-        conn = sqlite3.connect(CONFIGDB_PATH)
-        cursor = sqlite3.Cursor(conn)
-        self._dbSetData = cursor.execute("SELECT * FROM `sets` WHERE `setId` = ? AND `userId` = ?", (self._setId, USERID)).fetchone()
-        cursor.close()
-        conn.close()
-        
-        # launch UI
-        self.initUI()
-        
-    
-    def initUI(self):
-        
-        # set title
-        title = "Backup - "+str(self._dbSetData[2])+" ("+str(self._setId)+")"
-        self.setWindowTitle(title)
 
 
 
-### TAB: SOURCES ###
-
-class tabSources(QtGui.QWidget):
+class Sources_Tab_UI(QtGui.QWidget):
     
     def __init__(self):
         
-        super(tabSources, self).__init__()
+        super(Sources_Tab_UI, self).__init__()
         self.initUI()
         self.folderIcon = QtGui.QIcon
         
@@ -1810,16 +1835,22 @@ class tabSources(QtGui.QWidget):
                 # expand
                 self.TW1.expandAll()
                 self.TW1.resizeColumnToContents(0)
-        
 
 
-### TAB: TARGETS ###
 
-class tabTargets(QtGui.QWidget):
+class Sources_Tab_CTR(Sources_Tab_UI):
     
     def __init__(self):
         
-        super(tabTargets, self).__init__()
+        super(Sources_Tab_CTR, self).__init__()
+        
+
+
+class Targets_Tab_UI(QtGui.QWidget):
+    
+    def __init__(self):
+        
+        super(Targets_Tab_UI, self).__init__()
         self.initUI()
         
     def initUI(self):
@@ -1863,7 +1894,7 @@ class tabTargets(QtGui.QWidget):
         Opens a dialog to add a new Backup Target to the set
         '''
         # open add-target dialog
-        self.winAddTarget = winManipTarget(self)
+        self.winAddTarget = Targets_Manip_UI(self)
         # set-up window
         self.winAddTarget.setWindowTitle("Add Backup Target")
         self.winAddTarget.acceptBtnTitle = "&Add"
@@ -1935,7 +1966,7 @@ class tabTargets(QtGui.QWidget):
             if currentItem.text(1) in nsOs.getDrives(): # making sure BT is currently available
                 oldTargetTitle = currentItem.text(0)
                 # instantiate window
-                self.winEditTarget = winManipTarget(self)
+                self.winEditTarget = Targets_Manip_UI(self)
                 # set-up window
                 self.winEditTarget.setWindowTitle("Edit Backup Target")
                 self.winEditTarget.acceptBtnTitle = "&Edit"
@@ -2007,15 +2038,24 @@ class tabTargets(QtGui.QWidget):
         self.TW1.resizeColumnToContents(0)
         self.TW1.resizeColumnToContents(1)
         self.TW1.resizeColumnToContents(2)
+
+
+
+class Targets_Tab_CTR(Targets_Tab_UI):
+    
+    def __init__(self):
+        
+        super(Targets_Tab_CTR, self).__init__()
         
 
-class winManipTarget(QtGui.QDialog):
+
+class Targets_Manip_UI(QtGui.QDialog):
     
     _dbData = []
     
     def __init__(self, parent):
         
-        super(winManipTarget, self).__init__()
+        super(Targets_Manip_UI, self).__init__()
         
         self.parent = parent
         
@@ -2173,19 +2213,42 @@ class winManipTarget(QtGui.QDialog):
         title = unicode(str(self.titleQLE.text()))
         drive = unicode(str(self.driveSelectionQCB.currentText()))
         return(title, drive)
-
-
-
-class tabFilters(QtGui.QWidget):
-    
-    def __init__(self):
         
-        super(tabFilters, self).__init__()
+
+
+class WinBackupExecManager(QtGui.QDialog):
+    
+    _setId = -1
+    _dbSetData = []
+    
+    def __init__(self, setId):
+        
+        super(WinBackupExecManager, self).__init__()
+        
+        self._setId = setId
+        
+        # get set data
+        conn = sqlite3.connect(CONFIGDB_PATH)
+        cursor = sqlite3.Cursor(conn)
+        self._dbSetData = cursor.execute("SELECT * FROM `sets` WHERE `setId` = ? AND `userId` = ?", (self._setId, USERID)).fetchone()
+        cursor.close()
+        conn.close()
+        
+        # launch UI
+        self.initUI()
+        
+    
+    def initUI(self):
+        
+        # set title
+        title = "Backup - "+str(self._dbSetData[2])+" ("+str(self._setId)+")"
+        self.setWindowTitle(title)
+
 
 
 def main():
     app = QtGui.QApplication(sys.argv)
-    ex = MainWindow()
+    ex = MainWindow_CTR()
     sys.exit(app.exec_())
     
 if __name__ == '__main__':
