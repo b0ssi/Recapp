@@ -18,9 +18,9 @@ class BOp_Activity_UI(QtGui.QWidget):
     
     def __init__(self, parent):
         
-        super(BOp_Activity_UI, self).__init__()
-        
         self.parent = parent
+        
+        super(BOp_Activity_UI, self).__init__()
         
         self.initUI()
     
@@ -46,6 +46,8 @@ class BOp_Activity_UI(QtGui.QWidget):
 class BOp_Activity_CTR(BOp_Activity_UI):
     
     def __init__(self, parent):
+        
+        self.parent = parent
         
         super(BOp_Activity_CTR, self).__init__(self.parent)
         

@@ -4,25 +4,20 @@ Created on 19/11/2012
 
 @author: frieder.czeschla
 '''
-from bop.activity import BOp_Activity_CTR
 from PyQt4 import QtCore, QtGui
+from bop.activity import BOp_Activity_CTR
+from bop.jobs import BOp_Jobs_CTR, BOp_Job_CTR
 from mod1.pack1 import nsOs
 import hashlib
 import json
 import logging
-import os.path
+import os
 import re
 import sqlite3
 import sys
 import time
 
-
 # imports
-
-#import sqlite3, os, re, hashlib, time, sys, logging, json
-#from mod1.pack1 import nsOs
-#from BOp.Activity import *
-#from PyQt4 import QtGui, QtCore
 #import shutil, datetime, random, win32file, win32api
 
 print sys.version
@@ -65,13 +60,11 @@ class MainWindow_UI(QtGui.QMainWindow):
         self.actionExit = QtGui.QAction(QtGui.QIcon('img/favicon.png'), '&Exit', self)
         self.actionExit.setStatusTip("Exit")
         self.actionExit.setShortcut('Ctrl+Q')
-        self.actionExit.triggered.connect(self.close)
         
         self.actionLogout = QtGui.QAction(QtGui.QIcon(), '&Logout', self)
         self.actionLogout.setStatusTip("Logout")
         self.actionLogout.setShortcut('Ctrl+L')
         self.actionLogout.setEnabled(False)
-        self.actionLogout.triggered.connect(lambda: self.updateCentralWidget(Login_CTR(self.window())))
         # menu: File
         self.menuFile = QtGui.QMenu("&File", self)
         self.menuFile.addAction(self.actionLogout)
@@ -80,7 +73,6 @@ class MainWindow_UI(QtGui.QMainWindow):
         self.actionOpenBOp_Activity = QtGui.QAction(QtGui.QIcon('img/favicon.png'), '&Activity Window', self)
         self.actionOpenBOp_Activity.setStatusTip("Open Backup Activity Window")
         self.actionOpenBOp_Activity.setShortcut('Ctrl+1')
-        self.actionOpenBOp_Activity.triggered.connect(self.open_BOp_Activity)
         # menu: Backup
         self.menuBackup = QtGui.QMenu("&Backup", self)
         self.menuBackup.addAction(self.actionOpenBOp_Activity)
@@ -109,6 +101,14 @@ class MainWindow_CTR(MainWindow_UI):
         
         # init login UI
         self.updateCentralWidget(Login_CTR(self))
+
+        # init job wrangler
+        self.BOp_Job_CTR = BOp_Jobs_CTR(self)
+        
+        # connect signals
+        self.actionExit.triggered.connect(self.close)
+        self.actionLogout.triggered.connect(lambda: self.updateCentralWidget(Login_CTR(self.window())))
+        self.actionOpenBOp_Activity.triggered.connect(self.BOp_Job_CTR.open_BOp_Activity)
         
         self.show()
         
@@ -123,7 +123,7 @@ class MainWindow_CTR(MainWindow_UI):
         if msg == QtGui.QMessageBox.Ok:
             
             # close Backup Activity window
-            try: self.BOp_Activity.close()
+            try: self.BOp_Job_CTR.BOp_Activity.close()
             except: pass
             
             e.accept()
@@ -145,6 +145,7 @@ class MainWindow_CTR(MainWindow_UI):
         # if db file does not exist
         if not os.path.isfile(CONFIGDB_PATH):
 
+
             conn = sqlite3.connect(CONFIGDB_PATH)
             cursor = sqlite3.Cursor(conn)
             cursor.execute("CREATE TABLE `users` (username TEXT, password TEXT)")
@@ -155,15 +156,6 @@ class MainWindow_CTR(MainWindow_UI):
             conn.commit()
             cursor.close()
             conn.close()
-        
-        
-    def open_BOp_Activity(self):
-        '''
-        Opens the Backup Operations Activity window.
-        '''
-        self.BOp_Activity = BOp_Activity_CTR(self)
-#        if self.BOp_Activity.exec_():
-#            print("Done!")
 
 
     def showNotification(self, **kwargs):
@@ -354,7 +346,6 @@ class Accounts_CTR(Accounts_UI):
         '''
         Create default accounts for testing purposes
         '''
-        print ("x")
         conn = sqlite3.connect(CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a')")
@@ -491,7 +482,7 @@ class Sets_Tab_UI(QtGui.QWidget):
         self.TB1.addAction(self.TB1.reloadList)
         
         self.TB1.runBackup = QtGui.QAction(QtGui.QIcon("img/icons_run.png"), "Run Backup", self)
-        self.TB1.runBackup.triggered.connect(self.runBackup)
+        self.TB1.runBackup.triggered.connect(self.submitJob)
         self.TB1.addAction(self.TB1.runBackup)
         
         self.GL1.addWidget(self.TB1, 0, 0, 1, 1)
@@ -570,19 +561,6 @@ class Sets_Tab_UI(QtGui.QWidget):
         else:
             self.window().updateStatusBarMsg("Please select a Backup Set to forget.")
             
-            
-            
-    def runBackup(self):
-        
-        # only if SOMETHING is selected
-        if self.TW1.currentItem() != None:
-            setId = int(self.TW1.currentItem().text(1))
-            self.winRunBS = WinBackupExecManager(setId)
-            if self.winRunBS.exec_():
-                print("Done!")
-        else:
-            self.window().updateStatusBarMsg("Please select a Backup Set to run.")
-            
     
     
     def refreshList(self):
@@ -609,6 +587,20 @@ class Sets_Tab_CTR(Sets_Tab_UI):
     def __init__(self):
         
         super(Sets_Tab_CTR, self).__init__()
+            
+            
+            
+    def submitJob(self):
+        
+        # only if SOMETHING is selected
+        if self.TW1.currentItem() != None:
+            setId = int(self.TW1.currentItem().text(1))
+            # submit job to wrangler
+            self.window().BOp_Job_CTR.submitJob(setId, 3)
+        else:
+            self.window().updateStatusBarMsg("Please select a Backup Set to run.")
+        
+    
             
             
             

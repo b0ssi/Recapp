@@ -7,6 +7,7 @@ Created on 19/11/2012
 These classes define the 'queue' module which draws and controls an individual stack/slot of submitted backup-jobs.
 '''
 from PyQt4 import QtGui, QtCore
+import time
 
 
 
@@ -14,9 +15,9 @@ class BOp_Queue_UI(QtGui.QFrame):
     
     def __init__(self, parent):
         
-        super(BOp_Queue_UI, self).__init__()
-        
         self.parent = parent
+        
+        super(BOp_Queue_UI, self).__init__(self.parent)
         
         self.initUI()
         
@@ -35,7 +36,7 @@ class BOp_Queue_UI(QtGui.QFrame):
         # slots
         self.slots = []
         for i in range(9):
-            self.slots.append(BOp_Queue_Slot_CTR(self))
+            self.slots.append(BOp_Queue_Slot_CTR(self, i))
             self.GL.addWidget(self.slots[-1], 0, i, 1, 1)
             
 #            self.slots[-1].timer = QtCore.QTimer(self.slots[-1])
@@ -84,21 +85,27 @@ class BOp_Queue_Slot_UI(QtGui.QFrame):
         
         # TEST ##################################################
         self.btns = []
-        for i in range(20):
-            self.btns.append(QtGui.QPushButton(str(20-i)))
-            self.GL.addWidget(self.btns[-1], i, 0, 1, 1)
-        self.setMinimumHeight(self.GL.count()*40)
+#        for i in range(20):
+#            self.btns.append(QtGui.QPushButton(str(20-i)))
+#            self.GL.addWidget(self.btns[-1], i, 0, 1, 1)
+#        self.setMinimumHeight(self.GL.count()*40)
         # /TEST ##################################################
         
         
         
 class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
     
-    def __init__(self, parent):
+    slotNo = -1
+    
+    def __init__(self, parent, slotNo):
         
         self.parent = parent
+        self.slotNo = slotNo
         
         super(BOp_Queue_Slot_CTR, self).__init__(self.parent)
+        
+        # connect update signal from BOp_Jobs...
+        self.parent.parent.parent.BOp_update.connect(self.addJob)
         
         
     def wheelEvent(self, e):
@@ -125,9 +132,14 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
             self.setGeometry(QtCore.QRect(x, y+delta, w, h))
 
 
-    def addJob(self):
+    def addJob(self, id, slotNo):
         
-        pass
+        # if it's me
+        if (slotNo == self.slotNo):
+            print("Job submission received: "+str(id)+" "+str(slotNo))
+            self.btns.append(QtGui.QPushButton(str(time.time())))
+            self.GL.addWidget(self.btns[-1], self.GL.count()+1, 0, 1, 1)
+            self.update()
     
     
     def removeJob(self):
