@@ -27,10 +27,10 @@ class BOp_Jobs_CTR(QtCore.QObject):
         '''
         Opens the Backup Operations Activity window.
         '''
-        
         # close if already open
         try:
-            self.BOp_Activity
+            if self.BOp_Activity.isHidden() == True:
+                self.BOp_Activity = BOp_Activity_CTR(self)
         except:
             # (re-)initialize
             self.BOp_Activity = BOp_Activity_CTR(self)
@@ -41,12 +41,22 @@ class BOp_Jobs_CTR(QtCore.QObject):
         Submits a job to this manager that then broadcasts a signal communicating the update.
         '''
         newJob = [id, slotNo]
-        self._jobs.append(object)
-        self.open_BOp_Activity()
+        self._jobs.append(newJob)
         
-        # submit updte signal broadcast
+        # submit update signal broadcast
         self.BOp_update.emit(id, slotNo)
         
+        
+    def getJobs(self):
+        '''
+        Returns a list with all current jobs and metadata in the queue for specified slot.
+        '''
+        return self._jobs
+    
+    
+    
+    
+
         
 
 class BOp_Job_CTR(object):

@@ -35,13 +35,13 @@ class BOp_Queue_UI(QtGui.QFrame):
         self.GL.setSpacing(3)
         # slots
         self.slots = []
-        for i in range(9):
+        for i in range(6):
             self.slots.append(BOp_Queue_Slot_CTR(self, i))
             self.GL.addWidget(self.slots[-1], 0, i, 1, 1)
             
-#            self.slots[-1].timer = QtCore.QTimer(self.slots[-1])
-#            self.slots[-1].timer.singleShot(500, self.slots[-1].update)
-#            self.slots[-1].update()
+#        self.slots[3].update()
+#        self.slots[3].timer = QtCore.QTimer(self.slots[3])
+#        self.slots[3].timer.singleShot(10, self.slots[3].update)
     
     
     def paintEvent(self, e):
@@ -76,15 +76,16 @@ class BOp_Queue_Slot_UI(QtGui.QFrame):
         
     def initUI(self):
         
-        self.setStyleSheet("background: #888")
+        self.setStyleSheet("background: orange")
         
         # layout
+        self.setMaximumHeight(0)
         self.GL = QtGui.QGridLayout(self)
         self.GL.setMargin(0)
         self.GL.setSpacing(0)
         
         # TEST ##################################################
-        self.btns = []
+        self.BOp_Queue_Job = []
 #        for i in range(20):
 #            self.btns.append(QtGui.QPushButton(str(20-i)))
 #            self.GL.addWidget(self.btns[-1], i, 0, 1, 1)
@@ -106,6 +107,11 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         
         # connect update signal from BOp_Jobs...
         self.parent.parent.parent.BOp_update.connect(self.addJob)
+        
+        # fill slot with existing jobs in BOp_Jobs_CTR
+        for job in self.parent.parent.parent.getJobs():
+            if job[1] == self.slotNo:
+                self.addJob(job[0], job[1])
         
         
     def wheelEvent(self, e):
@@ -136,10 +142,10 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         
         # if it's me
         if (slotNo == self.slotNo):
-            print("Job submission received: "+str(id)+" "+str(slotNo))
-            self.btns.append(QtGui.QPushButton(str(time.time())))
-            self.GL.addWidget(self.btns[-1], self.GL.count()+1, 0, 1, 1)
-            self.update()
+            self.BOp_Queue_Job.append(BOp_Queue_Job_CTR())
+            self.GL.addWidget(self.BOp_Queue_Job[-1], self.GL.count()+1, 0, 1, 1)
+            
+            self.updateQueue()
     
     
     def removeJob(self):
@@ -147,13 +153,52 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         pass
     
     
-    def update(self):
+    def updateQueue(self):
         
         # update height of container (depending on # of items/backup job widgets in it
-        self.setMinimumHeight(self.GL.count()*40)
+        # get job widget's height
+        height = self.BOp_Queue_Job[0].height()
+        self.setMinimumHeight(self.GL.count()*height)
+        self.setMaximumHeight(self.GL.count()*height)
         # move into pos
         y = self.parent.height() - self.height() - self.parent.GL.margin()
         self.setGeometry(QtCore.QRect(self.x(), y, self.width(), self.height()))
+        
+        
+        
+class BOp_Queue_Job_UI(QtGui.QWidget):
+    
+    def __init__(self):
+        
+        super(BOp_Queue_Job_UI, self).__init__()
+        
+        self.bg_pm = QtGui.QPixmap("img/BOp_Queue_Job.png")
+        
+        self.setMinimumSize(self.bg_pm.width(), self.bg_pm.height())
+        self.setMaximumSize(self.bg_pm.width(), self.bg_pm.height())
+        
+        self.initUI()
+        
+    
+    def initUI(self):
+        
+        pass
+                
+    
+    def paintEvent(self, e):
+        
+        qp = QtGui.QPainter()
+        qp.begin(self)
+        qp.drawPixmap(e.rect(), self.bg_pm)
+        qp.end()
+        
+        
+        
+class BOp_Queue_Job_CTR(BOp_Queue_Job_UI):
+    
+    def __init__(self):
+        
+        super(BOp_Queue_Job_CTR, self).__init__()
 
 
 #class BOp_Queue_UI(QtGui.QFrame):

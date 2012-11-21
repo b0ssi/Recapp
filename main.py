@@ -103,12 +103,12 @@ class MainWindow_CTR(MainWindow_UI):
         self.updateCentralWidget(Login_CTR(self))
 
         # init job wrangler
-        self.BOp_Job_CTR = BOp_Jobs_CTR(self)
+        self.BOp_Jobs_CTR = BOp_Jobs_CTR(self)
         
         # connect signals
         self.actionExit.triggered.connect(self.close)
         self.actionLogout.triggered.connect(lambda: self.updateCentralWidget(Login_CTR(self.window())))
-        self.actionOpenBOp_Activity.triggered.connect(self.BOp_Job_CTR.open_BOp_Activity)
+        self.actionOpenBOp_Activity.triggered.connect(self.BOp_Jobs_CTR.open_BOp_Activity)
         
         self.show()
         
@@ -123,7 +123,7 @@ class MainWindow_CTR(MainWindow_UI):
         if msg == QtGui.QMessageBox.Ok:
             
             # close Backup Activity window
-            try: self.BOp_Job_CTR.BOp_Activity.close()
+            try: self.BOp_Jobs_CTR.BOp_Activity.close()
             except: pass
             
             e.accept()
@@ -596,7 +596,9 @@ class Sets_Tab_CTR(Sets_Tab_UI):
         if self.TW1.currentItem() != None:
             setId = int(self.TW1.currentItem().text(1))
             # submit job to wrangler
-            self.window().BOp_Job_CTR.submitJob(setId, 3)
+            self.window().BOp_Jobs_CTR.submitJob(setId, 3)
+            # launch activity
+            self.window().BOp_Jobs_CTR.open_BOp_Activity()
         else:
             self.window().updateStatusBarMsg("Please select a Backup Set to run.")
         
