@@ -38,10 +38,6 @@ class BOp_Queue_UI(QtGui.QFrame):
         for i in range(6):
             self.slots.append(BOp_Queue_Slot_CTR(self, i))
             self.GL.addWidget(self.slots[-1], 0, i, 1, 1)
-            
-#        self.slots[3].update()
-#        self.slots[3].timer = QtCore.QTimer(self.slots[3])
-#        self.slots[3].timer.singleShot(10, self.slots[3].update)
     
     
     def paintEvent(self, e):
@@ -63,7 +59,7 @@ class BOp_Queue_CTR(BOp_Queue_UI):
         
         
         
-class BOp_Queue_Slot_UI(QtGui.QFrame):
+class BOp_Queue_Slot_UI(QtGui.QWidget):
     
     def __init__(self, parent):
         
@@ -105,13 +101,13 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         
         super(BOp_Queue_Slot_CTR, self).__init__(self.parent)
         
-        # connect update signal from BOp_Jobs...
-        self.parent.parent.parent.BOp_update.connect(self.addJob)
-        
         # fill slot with existing jobs in BOp_Jobs_CTR
         for job in self.parent.parent.parent.getJobs():
             if job[1] == self.slotNo:
                 self.addJob(job[0], job[1])
+        
+        # connect update signal from BOp_Jobs...
+        self.parent.parent.parent.BOp_update.connect(self.addJob)
         
         
     def wheelEvent(self, e):
@@ -143,10 +139,10 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         # if it's me
         if (slotNo == self.slotNo):
             self.BOp_Queue_Job.append(BOp_Queue_Job_CTR())
-            self.GL.addWidget(self.BOp_Queue_Job[-1], self.GL.count()+1, 0, 1, 1)
+            print self.GL.addWidget(self.BOp_Queue_Job[-1])
             
             self.updateQueue()
-    
+
     
     def removeJob(self):
         
@@ -157,11 +153,14 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         
         # update height of container (depending on # of items/backup job widgets in it
         # get job widget's height
-        height = self.BOp_Queue_Job[0].height()
+        try:
+            height = self.BOp_Queue_Job[0].height()
+        except:
+            height = 0
         self.setMinimumHeight(self.GL.count()*height)
         self.setMaximumHeight(self.GL.count()*height)
         # move into pos
-        y = self.parent.height() - self.height() - self.parent.GL.margin()
+        y = 180#self.parent.height() - self.height() - self.parent.GL.margin()
         self.setGeometry(QtCore.QRect(self.x(), y, self.width(), self.height()))
         
         

@@ -9,6 +9,7 @@ Designed to start at application runtime initiation and stop at application exit
 '''
 from PyQt4 import QtCore
 from bop.activity import BOp_Activity_CTR
+from bop.prep import BOp_Prep_CTR
 
 
 class BOp_Jobs_CTR(QtCore.QObject):
@@ -34,17 +35,43 @@ class BOp_Jobs_CTR(QtCore.QObject):
         except:
             # (re-)initialize
             self.BOp_Activity = BOp_Activity_CTR(self)
+        
+        
+    def open_BOp_Prep(self):
+        '''
+        Opens the Backup Operations Activity window.
+        '''
+        # close if already open
+        try:
+            if self.BOp_Prep.isHidden() == True:
+                self.BOp_Prep = BOp_Prep_CTR()
+        except:
+            # (re-)initialize
+            self.BOp_Prep = BOp_Prep_CTR()
        
         
-    def submitJob(self, id, slotNo):
+    def prepJob(self, setId):
+        '''
+        Opens BOp_Prep_CTR to run prep checks on given job
+        '''
+        # create new BOp_Job_CTR
+        BOp_Job = BOp_Job_CTR(self)
+        
+        slotNo = -1
+        newJob = { slotNo : [ BOp_Job, slotNo ] }
+        self._jobs.append(newJob)
+        
+        # open BOp_Prep_CTR
+        self.BOp_Prep = BOp_Prep_CTR(self, setId)
+        
+        
+    def submitJob(self, setId, slotNo):
         '''
         Submits a job to this manager that then broadcasts a signal communicating the update.
         '''
-        newJob = [id, slotNo]
-        self._jobs.append(newJob)
         
         # submit update signal broadcast
-        self.BOp_update.emit(id, slotNo)
+        self.BOp_update.emit(setId, slotNo)
         
         
     def getJobs(self):
@@ -61,6 +88,8 @@ class BOp_Jobs_CTR(QtCore.QObject):
 
 class BOp_Job_CTR(object):
     
-    def __init__(self):
+    def __init__(self, parent):
+        
+        self.parent = parent
         
         super(BOp_Job_CTR, self).__init__()
