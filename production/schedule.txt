@@ -1,0 +1,37 @@
+................................
+[X]		NEXT MILESTONE
+		........................
+[X]		automatically create default user
+[X]		user can log in, out
+[X]		sources, targets, sets, filters can be loaded/saved/removed
+................................
+[.]		Q/A
+		........................
+[.]		clean-up old code
+[ ]		clean-up current code:
+			update represenations
+			address warnings/errors
+			make sure all logging messages are very *specific* in regards to
+				- origin of message
+[ ]		check module-structure
+[ ]		validate user-input
+		write test/test
+		manage conditional exception-handling
+		implement correct return data for *everything*
+[ ]		document code
+................................
+[ ]		NEXT MILESTONE
+		........................
+[ ]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
+[ ]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
+[ ]		SessionsModel:
+			figure out how to identify a session
+			remove_session()
+[ ]		.
+................................
+[ ]		Q/A
+		........................
+[ ]		.
+[ ]		.
+[ ]		.
+................................
