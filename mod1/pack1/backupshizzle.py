@@ -702,3 +702,8 @@ def fcReplCharInStr(standIn, string, index):
 #myBackupSet = backupSet("backupSet0001FB1")
 #x.sort(key=lambda tup: tup[2][2] )
 #o = [z[2][0] for z in x]
+
+#try:
+#    pass
+#except Exception, e:
+#    print e

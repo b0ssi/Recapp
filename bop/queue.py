@@ -134,7 +134,7 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
             self.setGeometry(QtCore.QRect(x, y+delta, w, h))
 
 
-    def addJob(self, id, slotNo):
+    def addJob(self, setId, slotNo):
         
         # if it's me
         if (slotNo == self.slotNo):

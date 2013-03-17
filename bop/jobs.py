@@ -37,17 +37,17 @@ class BOp_Jobs_CTR(QtCore.QObject):
             self.BOp_Activity = BOp_Activity_CTR(self)
         
         
-    def open_BOp_Prep(self):
+    def open_BOp_Prep(self, setId):
         '''
         Opens the Backup Operations Activity window.
         '''
         # close if already open
         try:
             if self.BOp_Prep.isHidden() == True:
-                self.BOp_Prep = BOp_Prep_CTR()
+                self.BOp_Prep = BOp_Prep_CTR(self)
         except:
             # (re-)initialize
-            self.BOp_Prep = BOp_Prep_CTR()
+            self.BOp_Prep = BOp_Prep_CTR(self, setId)
        
         
     def prepJob(self, setId):
@@ -65,7 +65,7 @@ class BOp_Jobs_CTR(QtCore.QObject):
         self.BOp_Prep = BOp_Prep_CTR(self, setId)
         
         
-    def submitJob(self, setId, slotNo):
+    def submitJobToPrep(self, setId, slotNo):
         '''
         Submits a job to this manager that then broadcasts a signal communicating the update.
         '''
