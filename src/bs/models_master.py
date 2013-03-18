@@ -15,25 +15,17 @@
 ##                                                                           ##
 ###############################################################################
 
-
-import config
+import bs.config
+import bs.messages.database
 import inspect
 import logging
-import messages.database
 import re
 import sqlite3
-
-# logging
-#logger = logging.Logger('root')
-logging.basicConfig(format="--------------- %(module)s: %(lineno)s (%(funcName)s)\r%(levelname)s      \t%(message)s", level=logging.DEBUG)
 
 
 class BSModel(object):
     def __init__(self):
         super(BSModel, self).__init__()
-
-    def __repr__(self):
-        return "<Instance: %s>" % (self.__class__.__name__,)
 
     def _get_class_attributes(self):
         """
@@ -72,7 +64,7 @@ class BSModel(object):
             raise SystemExit()
         logging.info("Saving data to database...")
         # check that
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         try:
             db_table_name = self._get_model_superclass().__name__.lower()
             conn.executemany("INSERT INTO %s (%s) VALUES (%s)" % (db_table_name, columns, str("?, " * len(datasets[0]))[:-2], ), datasets)
@@ -89,8 +81,8 @@ class BSModel(object):
             logging.critical("A database programming-error occurred, the "\
                              "object could only be partially saved: '%s'" % e)
         except Exception as e:
-            logging.critical(messages.database.access_denied(config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(messages.database.access_denied(config.CONFIGDB_PATH, e)[1])
+            logging.critical(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
         conn.close()
 
     def get(self, columns, conditions=""):
@@ -103,7 +95,7 @@ class BSModel(object):
         # allowed: a-z0-9_
         # first character only: _a-z
         # at least 4 characters
-        if not re.search(config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, str(columns)) \
+        if not re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, str(columns)) \
             and columns != "*":
             logging.critical("Argument 'columns' has invalid data. It needs "
                 "to start with a Latin lowercase character (a-z), can only "\
@@ -119,7 +111,7 @@ class BSModel(object):
                              "(!=, =, >, <).")
             raise SystemExit()
 
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         try:
             logging.info("Loading data from columns '%s' with conditions "\
                          "\"%s\"..." % (columns, conditions, ))
@@ -140,14 +132,14 @@ class BSModel(object):
                          % (columns, conditions, ))
             return res
         except Exception as e:
-            logging.critical(messages.database.access_denied(config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(messages.database.access_denied(config.CONFIGDB_PATH, e)[1])
+            logging.critical(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
 
         conn.commit()
         conn.close()
 
     def remove(self, conditions=""):
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         try:
             logging.info("Removing data with conditions \"%s\"..."
                          % (conditions, ))
@@ -168,8 +160,8 @@ class BSModel(object):
             conn.commit()
             return res
         except Exception as e:
-            logging.critical(messages.database.access_denied(config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(messages.database.access_denied(config.CONFIGDB_PATH, e)[1])
+            logging.critical(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
 
         conn.commit()
         conn.close()

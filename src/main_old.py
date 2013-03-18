@@ -143,10 +143,10 @@ class MainWindow_CTR(MainWindow_UI):
                 self.showNotification()
             
         # if db file does not exist
-        if not os.path.isfile(config.CONFIGDB_PATH):
+        if not os.path.isfile(bs.config.CONFIGDB_PATH):
 
 
-            conn = sqlite3.connect(config.CONFIGDB_PATH)
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             cursor = sqlite3.Cursor(conn)
             cursor.execute("CREATE TABLE `users` (username TEXT, password TEXT)")
             cursor.execute("CREATE TABLE `sources` (id TEXT, userId INTEGER, sourcePath TEXT)")
@@ -283,7 +283,7 @@ class Login_CTR(Login_UI):
         Checks if at least one user exists in the DB.
         '''
         
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         res = cursor.execute("SELECT * FROM `users`").fetchall()
         cursor.close()
@@ -305,7 +305,7 @@ class Login_CTR(Login_UI):
         passwordHash.update(str(password))
         passwordHash = passwordHash.hexdigest()
         
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         res = cursor.execute("SELECT `rowid`, * FROM `users` WHERE `username` = ? AND `password` = ?", (str(username), str(passwordHash), )).fetchone()
         
@@ -346,7 +346,7 @@ class Accounts_CTR(Accounts_UI):
         '''
         Create default accounts for testing purposes
         '''
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a')")
         cursor.execute("INSERT INTO `users` (`username`, `password`) VALUES ('2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114')")
@@ -438,7 +438,7 @@ class Sets_Tab_UI(QtGui.QWidget):
         pass
     @_dbData.getter
     def _dbData(self):
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         data = cursor.execute("SELECT * FROM `sets` WHERE `userId` = ?", (config.USERID,)).fetchall()
         cursor.close()
@@ -501,7 +501,7 @@ class Sets_Tab_UI(QtGui.QWidget):
             setId, setTitle, setSources, setFilters, setTargets = self.winAddBS.returnData()
             
 #            # commit new data to db
-            conn = sqlite3.connect(config.CONFIGDB_PATH)
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             cursor = sqlite3.Cursor(conn)
             res = cursor.execute("INSERT INTO `sets` (`title`, `sources`, `filters`, `targets`, `setId`, `userId`) VALUES (?, ?, ?, ?, ?, ?)", (setTitle, setSources, setFilters, setTargets, setId, config.USERID))
             conn.commit()
@@ -526,7 +526,7 @@ class Sets_Tab_UI(QtGui.QWidget):
                 setId, setTitle, setSources, setFilters, setTargets = self.winAddBS.returnData()
                 
                 # commit new data to db
-                conn = sqlite3.connect(config.CONFIGDB_PATH)
+                conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
                 cursor = sqlite3.Cursor(conn)
                 res = cursor.execute("UPDATE `sets` SET `title` = ?, `sources` = ?, `filters` = ?, `targets` = ? WHERE `setId` = ? AND `userId` = ?", (setTitle, setSources, setFilters, setTargets, setId, config.USERID))
                 conn.commit()
@@ -548,7 +548,7 @@ class Sets_Tab_UI(QtGui.QWidget):
             msg = self.window().showNotification(title = "Confirm", message = "Confirm forget", description = "Forgetting this Backup-Set will forget all settings and configurations made. The actual backup-data on Targets will not be deleted.", mode = 1)
             if msg == QtGui.QMessageBox.Ok:
                 # delete data set from db
-                conn = sqlite3.connect(config.CONFIGDB_PATH)
+                conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
                 cursor = sqlite3.Cursor(conn)
                 res = cursor.execute("DELETE FROM `sets` WHERE `setId` = ? AND `userId` = ?", (int(setId), int(config.USERID)))
                 conn.commit()
@@ -631,7 +631,7 @@ class Sets_Manip_UI(QtGui.QDialog):
         
         self.parent = parent
         
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         
         # if setId == "new", create a new empty data set
@@ -809,7 +809,7 @@ class Sets_Manip_UI(QtGui.QDialog):
         pass
     @currentSetSourcesData.getter
     def currentSetSourcesData(self):
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         res = cursor.execute("SELECT `sources` FROM `sets` WHERE `setId` = ?", (self._setId,)).fetchone()[0]
         res = json.loads(res)
@@ -1045,7 +1045,7 @@ class Sources_Tab_UI(QtGui.QWidget):
 #        self.TW1.customContextMenuRequested.connect(self.test)
 
         # open db connection
-        self.conn = sqlite3.connect(config.CONFIGDB_PATH)
+        self.conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         self.cursor = sqlite3.Cursor(self.conn)
         
         self.rescanSources()
@@ -1258,14 +1258,14 @@ class Targets_Tab_UI(QtGui.QWidget):
                         json.dump(jsonData, f)
                         f.close()
                         # add to db
-                        conn = sqlite3.connect(config.CONFIGDB_PATH)
+                        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
                         cursor = conn.cursor()
                         res = cursor.execute("INSERT INTO `targets` (`userId`, `targetId`, `targetTitle`) VALUES (?, ?, ?)", (config.USERID, newTargetId, newTargetTitle))
                         conn.commit()
                         cursor.close()
                         conn.close()
                     except:
-                        self.window().showNotification(title = "Database Failure", message = "Database access failed.", description = "An error has occurred when accessing the database. Please make sure you have sufficient write permissions to the config file and folder ("+unicode(config.CONFIGDB_PATH)+") and try again.")
+                        self.window().showNotification(title = "Database Failure", message = "Database access failed.", description = "An error has occurred when accessing the database. Please make sure you have sufficient write permissions to the config file and folder ("+unicode(bs.config.CONFIGDB_PATH)+") and try again.")
                 except:
                     self.window().showNotification(title = "Access Failure", message = "Permission denied.", description = "An access error occurred when setting-up the Backup-Target. Please make sure you have appropriate access-permissions on this volume and try again.")
             else:
@@ -1285,7 +1285,7 @@ class Targets_Tab_UI(QtGui.QWidget):
             msg = self.window().showNotification(title = "Confirm", message = "Confirm forget", description = "Forgetting this Backup-Target will forget all associations to it within backupshizzle. Data on associated volume(s) will NOT be deleted. However, if you wish to access the backup-data again at a later point you will have to re-integrate/restore the volume into the system.", mode = 1)
             if msg == QtGui.QMessageBox.Ok:
                 # delete data set from db
-                conn = sqlite3.connect(config.CONFIGDB_PATH)
+                conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
                 cursor = sqlite3.Cursor(conn)
                 res = cursor.execute("DELETE FROM `targets` WHERE `targetId` = ? AND `userId` = ? AND `targetTitle` = ?", (int(targetId), int(config.USERID), unicode(targetTitle)))
                 conn.commit()
@@ -1320,7 +1320,7 @@ class Targets_Tab_UI(QtGui.QWidget):
                     # get new data
                     newTargetTitle, newTargetDriveLetter = self.winEditTarget.returnData()
                     # update data in db
-                    conn = sqlite3.connect(config.CONFIGDB_PATH)
+                    conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
                     cursor = sqlite3.Cursor(conn)
                     res = cursor.execute("UPDATE `targets` SET `targetTitle` = ? WHERE `userId` = ? AND `targetTitle` = ?", (unicode(newTargetTitle), unicode(config.USERID), unicode(oldTargetTitle)))
                     conn.commit()
@@ -1334,7 +1334,7 @@ class Targets_Tab_UI(QtGui.QWidget):
         
     def refreshList(self):
         
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = conn.cursor()
         # clear list
         self.TW1.clear()
@@ -1401,7 +1401,7 @@ class Targets_Manip_UI(QtGui.QDialog):
         self.parent = parent
         
         # get existing dbData
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         self._dbData = cursor.execute("SELECT * FROM `targets` WHERE `userId` = ?", (config.USERID,)).fetchall()
         cursor.close()
@@ -1569,7 +1569,7 @@ class WinBackupExecManager(QtGui.QDialog):
         self._setId = setId
         
         # get set data
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         self._dbSetData = cursor.execute("SELECT * FROM `sets` WHERE `setId` = ? AND `userId` = ?", (self._setId, config.USERID)).fetchone()
         cursor.close()

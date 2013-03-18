@@ -17,9 +17,7 @@ import os
 ##                                                                           ##
 ###############################################################################
 
-#
-# current error code: EC0003
-# set up logging
+
 # create config dir
 CONFIG_PATH = os.path.normcase(os.path.join(str(QtCore.QDir.homePath()), ".backupshizzle"))
 

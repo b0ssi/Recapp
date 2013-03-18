@@ -105,7 +105,7 @@ class BOp_Prep_Sources_CTR(BOp_Prep_Sources_UI):
         global config
         
         # get sources, filters, targets data
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
         resSets = cursor.execute("SELECT `sources`, `filters`, `targets` FROM `sets` WHERE `setId` = ? AND `userId` = ?", (self._setId, config.USERID)).fetchone()
         resSources = cursor.execute("SELECT * FROM `sources` WHERE `userId` = ?", (config.USERID,)).fetchall()

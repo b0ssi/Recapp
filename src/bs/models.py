@@ -15,10 +15,10 @@
 ##                                                                           ##
 ###############################################################################
 
-import models_master
+import bs.models_master
 
 
-class Users(models_master.BSModel):
+class Users(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     username = ["TEXT", "UNIQUE"]
     password = ["TEXT"]
@@ -27,7 +27,7 @@ class Users(models_master.BSModel):
         pass
 
 
-class Sources(models_master.BSModel):
+class Sources(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     source_path = ["TEXT"]
@@ -36,7 +36,7 @@ class Sources(models_master.BSModel):
         pass
 
 
-class Targets(models_master.BSModel):
+class Targets(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     target_path = ["TEXT"]
@@ -45,10 +45,21 @@ class Targets(models_master.BSModel):
         pass
 
 
-class Filters(models_master.BSModel):
+class Filters(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     filter_pattern = ["TEXT"]
+
+    def __init__(self):
+        pass
+
+
+class Sets(bs.models_master.BSModel):
+    id = ["INTEGER", "PRIMARY KEY"]
+    user_id = ["INTEGER"]
+    sources = ["TEXT"]
+    targets = ["TEXT"]
+    filters = ["TEXT"]
 
     def __init__(self):
         pass

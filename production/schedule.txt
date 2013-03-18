@@ -16,9 +16,9 @@
 ................................
 [.]		Q/A
 		........................
-[.]		clean-up old code
-[ ]		check module-structure
-[ ]		clean-up current code:
+[X]		clean-up old code
+[X]		check module-structure
+[.]		clean-up current code:
 			update represenations
 			address warnings/errors
 			make sure all logging messages are very *specific* in regards to

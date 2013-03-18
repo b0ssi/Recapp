@@ -15,10 +15,11 @@
 ##                                                                           ##
 ###############################################################################
 
-import _db
+import bs._db
+import bs.session
 import logging
 import os
-import session
+
 
 # logging
 #logger = logging.Logger('root')
@@ -31,14 +32,16 @@ logging.basicConfig(format="--------------- "\
 
 # PREP
 # sync db if necessary
-sync_db = _db.SyncDb()
+sync_db = bs._db.SyncDb()
 sync_db.sync()
 
 # create a sessions host
-SESSIONS = session.SessionsModel()
+SESSIONS = bs.session.SessionsModel()
 # log-in
 SESSIONS.current_session.user.log_in("2", "2")
 SESSIONS.current_session.backup_sources.add("user_id, source_path",
                                              ((SESSIONS.current_session.user.id,
                                                os.path.realpath("Z:/x")), ))
 SESSIONS.current_session.backup_sources.remove((("user_id", "=", 2, ), ))
+
+print(SESSIONS)

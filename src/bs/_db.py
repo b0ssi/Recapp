@@ -15,101 +15,14 @@
 ##                                                                           ##
 ###############################################################################
 
-import config
+import bs.config
+import bs.models
 import inspect
 import logging
-import models
 import random
 import re
 import sqlite3
 import time
-
-# logging
-#logger = logging.Logger('root')
-logging.basicConfig(format="--------------- "\
-                           "%(module)s: %(lineno)s "\
-                           "(%(funcName)s)\r"\
-                           "%(levelname)s      \t"\
-                           "%(message)s",
-                    level=logging.DEBUG)
-
-#class Db(object):
-#    _configdb_path = config.CONFIGDB_PATH
-#
-#    def __init__(self):
-#        super(Db, self).__init__()
-#
-#    def initialize(self):
-#        """
-#        Checks existence of DB and creates a new db with a basic
-#        structural set-up if required.
-#        Checks structural validity.
-#        """
-#        logging.info("Checking, if database file exists...")
-#        # If exists
-#        if os.path.isfile(self._configdb_path):
-#            # pass
-#            logging.info("Database file found at '%s'." % self._configdb_path)
-#        # If not exists
-#        else:
-#            logging.info("No database file found at '%s', attempting to "\
-#                         "create a new database..." % self._configdb_path)
-#            # create
-#            try:
-#                # set-up new database
-#                conn = sqlite3.connect(self._configdb_path)
-#                conn.execute("CREATE TABLE `users` (id INTEGER PRIMARY KEY, "\
-#                                                    "username TEXT, "\
-#                                                    "password TEXT)")
-#                conn.execute("CREATE TABLE `sets` (id INTEGER PRIMARY KEY, "\
-#                                                   "userId INTEGER, "\
-#                                                   "name TEXT, "\
-#                                                   "sources TEXT, "\
-#                                                   "filters TEXT, "\
-#                                                   "targets TEXT)")
-#                conn.execute("CREATE TABLE `filters` (id INTEGER PRIMARY KEY, "\
-#                                                      "userId INTEGER)")
-#                conn.execute("CREATE TABLE `targets` (id INTEGER PRIMARY KEY, "\
-#                                                      "userId INTEGER, "\
-#                                                      "targetTitle TEXT")
-#                conn.execute("INSERT INTO `users` (`username`, `password`) \
-#                    VALUES ('1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a')")
-#                conn.execute("INSERT INTO `users` (`username`, `password`) \
-#                    VALUES ('2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114')")
-#                conn.execute("INSERT INTO `sources` (`userId`, `sourcePath`) "\
-#                             "VALUES (2, 'Z:\\test')")
-#                conn.commit()
-#                conn.close()
-#                logging.info("New database set-up successfully.")
-#                return True
-#            except Exception as e:
-#                logging.critical("Database file is unaccessible or doesn't "\
-#                                 "exist and cannot be created at location "\
-#                                 "'%s' (\"%s\").\r" % (self._configdb_path, e))
-#                raise SystemExit("EXIT: The attempt to create a new database "\
-#                                 "file failed. Backupshizzle can not proceed "\
-#                                 "without access to its database. Please make "\
-#                                 "sure that write/read permissions to '%s' is "\
-#                                 "are granted.")
-#        # Check integrity
-#        try:
-#            conn = sqlite3.connect(self._configdb_path)
-#            conn.execute("SELECT `id`, `username`, `password` FROM `users` "\
-#                            "WHERE `rowid` = 0")
-#            conn.execute("SELECT `id`, `userId`, `sourcePath` FROM `sources` "\
-#                            "WHERE `rowid` = 0")
-#            conn.execute("SELECT `id`, `userId`, `name`, `sources`, `filters`, `targets` FROM `sets` "\
-#                            "WHERE `rowid` = 0")
-#            conn.execute("SELECT `id`, `userId` FROM `filters` "\
-#                            "WHERE `rowid` = 0")
-#            conn.execute("SELECT `id`, `userId`, `targetTitle`, `targetId` FROM `targets` "\
-#                            "WHERE `rowid` = 0")
-#            conn.close()
-#            logging.info("Valid database found.")
-#            return True
-#        except Exception as e:
-#            logging.critical(messages.database.access_denied(self._configdb_path, e)[0])
-#            raise SystemExit(messages.database.access_denied(self._configdb_path, e)[1])
 
 
 class SyncDb(object):
@@ -118,13 +31,13 @@ class SyncDb(object):
         pass
 
     @property
-    def schema_datas(self, models_module=models):
+    def schema_datas(self, models_module=bs.models):
         out = {}
         for member_name, member_object in sorted(inspect.getmembers(models_module), key=lambda x: x[0]):
             if inspect.isclass(member_object):
                 class_attributes = {}
                 for class_attribute_name, class_attribute_value in inspect.getmembers(member_object):
-                    if re.search(config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, class_attribute_name):
+                    if re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, class_attribute_name):
                         # filter through different attribute types in model
                         # lists (regular attributes
                         if isinstance(class_attribute_value, list):
@@ -149,7 +62,7 @@ class SyncDb(object):
     def db_datas(self):
 #        {table: {column: datatype, column: datatype}, ... }
         out = {}
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         db_table_names = [x[0] for x in conn.execute("SELECT `name` FROM `sqlite_master` WHERE type='table'").fetchall()]
         for db_table_name in db_table_names:
             db_table_datas_raw = conn.execute("PRAGMA table_info (%s)" % (db_table_name,)).fetchall()
@@ -190,13 +103,13 @@ class SyncDb(object):
             if compact_db:
                 logging.info("Compacting database...")
                 timer_start = time.clock()
-                conn = sqlite3.connect(config.CONFIGDB_PATH)
+                conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
                 conn.execute("VACUUM")
                 conn.commit()
                 conn.close
                 logging.info("Compacting successful (%.2f sec)." % (time.clock() - timer_start, ))
 
-    def _verify_schema(self, models_module=models):
+    def _verify_schema(self, models_module=bs.models):
         """
         Checks schema-data for its validity
         """
@@ -206,7 +119,7 @@ class SyncDb(object):
                 # allowed: a-z0-9_
                 # first character only: _a-z
                 # 4-32 characters
-                if not re.search(config.VALID_NAME_MODEL_TABLE_PATTERN, member_name):
+                if not re.search(bs.config.VALID_NAME_MODEL_TABLE_PATTERN, member_name):
                     logging.critical("Model '%s' has an invalid name. It needs "
                 "to start with a Latin lowercase character (a-z), can only "\
                 "contain alpha-numeric characters plus `_` and needs "\
@@ -214,7 +127,7 @@ class SyncDb(object):
                     raise SystemExit()
                 class_attributes = [[x[0], x[1]] for x in inspect.getmembers(member_object) \
                                     if isinstance(x[1], list) and \
-                                    re.search(config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, x[0])]
+                                    re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, x[0])]
                 if len(class_attributes) == 0:
                     logging.critical("The model '%s' needs to have at least "\
                                      "one attribute with a valid name." % (member_name, ))
@@ -248,7 +161,7 @@ class SyncDb(object):
         Create tables that exist in the schema but not in the database.
         """
         action_taken = False
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         schema_table_names = sorted(self.schema_datas.keys(), key=lambda x: x[0])
         db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
         out = ""
@@ -289,7 +202,7 @@ class SyncDb(object):
         Delete tables that (still) exist in the database but not in the schema.
         """
         action_taken = False
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         out = ""
         db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
         schema_table_names = sorted(self.schema_datas.keys(), key=lambda x: x[0])
@@ -360,7 +273,7 @@ class SyncDb(object):
         Rebuilds the specified table.
         """
         # A) create new db from new schema
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
         db_table_name_temp = ""
         while db_table_name_temp in db_table_names or db_table_name_temp == "":
@@ -398,7 +311,7 @@ class SyncDb(object):
         db_columns_to_transfer_formatted = (str("%s, " * len(db_columns_to_transfer)) % tuple(db_columns_to_transfer))[:-2]
         logging.info("Rewriting table '%s'..." % (db_table_name_to_rebuild))
         timer_start = time.clock()
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         # only transfer data IF there actually is a column to transfer...
         if len(db_columns_to_transfer) > 0:
             res = conn.execute("SELECT %s FROM %s" % (db_columns_to_transfer_formatted, db_table_name_to_rebuild)).fetchall()

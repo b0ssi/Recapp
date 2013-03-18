@@ -347,7 +347,7 @@ import time
 
 ###############################################################################
 #
-#conn = sqlite3.connect(config.CONFIGDB_PATH)
+#conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
 #try:
 #    conn.execute("DROP TABLE users")
 #except:
