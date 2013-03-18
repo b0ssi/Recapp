@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
 
-################################################################################
-##    strings                                                                 ##
-################################################################################
-################################################################################
-##    Author:         Bossi                                                   ##
-##                    © 2013 All rights reserved                              ##
-##                    www.isotoxin.de                                         ##
-##                    frieder.czeschla@isotoxin.de                            ##
-##    Creation Date:  Mar 11, 2013                                            ##
-##    Version:        0.0.000000                                              ##
-##                                                                            ##
-##    Usage:                                                                  ##
-##                                                                            ##
-################################################################################
+###############################################################################
+##    strings                                                                ##
+###############################################################################
+###############################################################################
+##    Author:         Bossi                                                  ##
+##                    © 2013 All rights reserved                             ##
+##                    www.isotoxin.de                                        ##
+##                    frieder.czeschla@isotoxin.de                           ##
+##    Creation Date:  Mar 11, 2013                                           ##
+##    Version:        0.0.000000                                             ##
+##                                                                           ##
+##    Usage:                                                                 ##
+##                                                                           ##
+###############################################################################
+
 
 def access_denied(path, e):
     exception_msg = "Database file does exist at location '%s' but is either an invalid Backupshizzle database, currently accessed by a different process or inaccessible (\"%s\").\r" % (path, e)

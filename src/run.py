@@ -27,7 +27,7 @@ import sqlite3
 #logger = logging.Logger('root')
 logging.basicConfig(format="--------------- %(module)s: %(lineno)s (%(funcName)s)\r%(levelname)s      \t%(message)s", level=logging.DEBUG)
 
-logging.info("Backupshizzle is initializing...")
+#logging.info("Backupshizzle is initializing...")
 
 ## create DB
 #def db_create():
@@ -71,93 +71,93 @@ logging.info("Backupshizzle is initializing...")
 #db_create()
 
 
-class SessionsModel(object):
-    _sessions = []
-
-    def __init__(self):
-        super(SessionsModel, self).__init__()
-
-    def add_session(self, session):
-        logging.info("Adding a new session to runtime...")
-        self._sessions.append(session)
-        logging.info("New session successfully added to runtime.")
-
-    def __repr__(self):
-        return str(self._sessions)
-
-
-class SessionModel(object):
-    _user = None
-    _sources = None
-    __backup_targets= None
-    __backup_filters= None
-    __backup_sets= None
-
-    def __init__(self, user):
-        super(SessionModel, self).__init__()
-
-        logging.info("Initializing session...")
-        if user.is_logged_in() == True:
-            self._user = user
-            logging.info("Session with user '%s' successfully created." % user._username)
-        else:
-            logging.critical("User '%s' is not logged in. Exiting." % user._username)
-            exit()
-
-    def __repr__(self):
-        return(str((self._user, self._sources, self.__backup_targets self._filters, self._sets)))
-
-
-class UserModel(object):
-    _username = ""
-    _is_logged_in = False
-
-    def __init__(self, username):
-        super(UserModel, self).__init__()
-
-        logging.info("Checking if user '%s' exists in db..." % username)
-        self._username = username
-        # check that user exists in db
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
-        cursor = sqlite3.Cursor(conn)
-        res = cursor.execute("SELECT `username` FROM `users` WHERE `username`=?", (username,)).fetchone()
-        conn.close()
-        try:
-            username_db = res[0]
-            username_db == username
-            logging.info("User '%s' successfully found in db." % username)
-        except Exception as e:
-            logging.critical("User '%s' does not exist in db (%s).\r" % (username, e))
-            raise
-
-        self._is_logged_in = False
-
-    def log_in(self, password):
-        logging.info("Authenticating user '%s'..." % (self._username,))
-        # Authenticate user
-        password_hash = hashlib.sha512()
-        password_hash.update(password.encode())
-        password_hash = password_hash.hexdigest()
-
-        conn = sqlite3.connect(config.CONFIGDB_PATH)
-        cursor = sqlite3.Cursor(conn)
-        password = cursor.execute("SELECT `password` FROM `users` WHERE `username`=? AND `password`=?", (self._username, password_hash)).fetchone()
-        if password == None:
-            logging.error("Authentication unsuccessful. Please try again.")
-            return False
-        elif len(password[0]) == 128:
-            self._is_logged_in = True
-            logging.info("Authentication successful, user '%s' logged-in." % (self._username,))
-            return True
-
-    def log_out(self):
-        self._is_logged_in = False
-
-    def is_logged_in(self):
-        return self._is_logged_in
-
-    def __repr__(self):
-        return(str(self._username))
+#class SessionsModel(object):
+#    _sessions = []
+#
+#    def __init__(self):
+#        super(SessionsModel, self).__init__()
+#
+#    def add_session(self, session):
+#        logging.info("Adding a new session to runtime...")
+#        self._sessions.append(session)
+#        logging.info("New session successfully added to runtime.")
+#
+#    def __repr__(self):
+#        return str(self._sessions)
+#
+#
+#class SessionModel(object):
+#    _user = None
+#    _sources = None
+#    __backup_targets= None
+#    __backup_filters= None
+#    __backup_sets= None
+#
+#    def __init__(self, user):
+#        super(SessionModel, self).__init__()
+#
+#        logging.info("Initializing session...")
+#        if user.is_logged_in() == True:
+#            self._user = user
+#            logging.info("Session with user '%s' successfully created." % user._username)
+#        else:
+#            logging.critical("User '%s' is not logged in. Exiting." % user._username)
+#            exit()
+#
+#    def __repr__(self):
+#        return(str((self._user, self._sources, self.__backup_targets self._filters, self._sets)))
+#
+#
+#class UserModel(object):
+#    _username = ""
+#    _is_logged_in = False
+#
+#    def __init__(self, username):
+#        super(UserModel, self).__init__()
+#
+#        logging.info("Checking if user '%s' exists in db..." % username)
+#        self._username = username
+#        # check that user exists in db
+#        conn = sqlite3.connect(config.CONFIGDB_PATH)
+#        cursor = sqlite3.Cursor(conn)
+#        res = cursor.execute("SELECT `username` FROM `users` WHERE `username`=?", (username,)).fetchone()
+#        conn.close()
+#        try:
+#            username_db = res[0]
+#            username_db == username
+#            logging.info("User '%s' successfully found in db." % username)
+#        except Exception as e:
+#            logging.critical("User '%s' does not exist in db (%s).\r" % (username, e))
+#            raise
+#
+#        self._is_logged_in = False
+#
+#    def log_in(self, password):
+#        logging.info("Authenticating user '%s'..." % (self._username,))
+#        # Authenticate user
+#        password_hash = hashlib.sha512()
+#        password_hash.update(password.encode())
+#        password_hash = password_hash.hexdigest()
+#
+#        conn = sqlite3.connect(config.CONFIGDB_PATH)
+#        cursor = sqlite3.Cursor(conn)
+#        password = cursor.execute("SELECT `password` FROM `users` WHERE `username`=? AND `password`=?", (self._username, password_hash)).fetchone()
+#        if password == None:
+#            logging.error("Authentication unsuccessful. Please try again.")
+#            return False
+#        elif len(password[0]) == 128:
+#            self._is_logged_in = True
+#            logging.info("Authentication successful, user '%s' logged-in." % (self._username,))
+#            return True
+#
+#    def log_out(self):
+#        self._is_logged_in = False
+#
+#    def is_logged_in(self):
+#        return self._is_logged_in
+#
+#    def __repr__(self):
+#        return(str(self._username))
 
 
 #UI = False

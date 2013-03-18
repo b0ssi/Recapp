@@ -1,5 +1,14 @@
+## TYPES OF COMMITS
+################################
+[<runCode>] Milestone Commit		Just at the end of a major Q/A cycle before initiating work on the next milestone
+[<runCode>] Q/A Start Commit		Just before starting a Q/A run
+[<runCode>] End of Day Commit		Periodic routine End of Day commit
+
+
+# SCHEDULE
+################################
 ................................
-[X]		NEXT MILESTONE
+[X]		NEXT MILESTONE: 0001
 		........................
 [X]		automatically create default user
 [X]		user can log in, out
@@ -8,19 +17,19 @@
 [.]		Q/A
 		........................
 [.]		clean-up old code
+[ ]		check module-structure
 [ ]		clean-up current code:
 			update represenations
 			address warnings/errors
 			make sure all logging messages are very *specific* in regards to
 				- origin of message
-[ ]		check module-structure
 [ ]		validate user-input
 		write test/test
 		manage conditional exception-handling
 		implement correct return data for *everything*
 [ ]		document code
 ................................
-[ ]		NEXT MILESTONE
+[ ]		NEXT MILESTONE: 0002
 		........................
 [ ]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
 [ ]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...

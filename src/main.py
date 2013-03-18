@@ -15,7 +15,9 @@
 ##                                                                           ##
 ###############################################################################
 
+import _db
 import logging
+import os
 import session
 
 # logging
@@ -27,29 +29,16 @@ logging.basicConfig(format="--------------- "\
                            "%(message)s",
                     level=logging.DEBUG)
 
-logging.info("Backupshizzle is initializing...")
-# setting up SESSIONS data store
+# PREP
+# sync db if necessary
+sync_db = _db.SyncDb()
+sync_db.sync()
+
+# create a sessions host
 SESSIONS = session.SessionsModel()
-# starting first session
-SESSIONS.add_session()
-# logging in user
+# log-in
 SESSIONS.current_session.user.log_in("2", "2")
-# saving user-data
-SESSIONS.current_session.user.sadd)
-
-# loading sources
-SESSIONS.current_session.sources.load()
-# saving sources
-SESSIONS.current_session.sources.sadd)
-# adding source to db
-SESSIONS.current_session.sources.add("Z:\\test1")
-SESSIONS.current_session.sources.sadd)
-# remove source from db
-SESSIONS.current_session.sources.remove("Z:\\testd1")
-SESSIONS.current_session.sources.sadd)
-
-
-print(SESSIONS)
-print(SESSIONS._current_session)
-print(SESSIONS._current_session.user)
-print(SESSIONS._current_session.user.is_logged_in)
+SESSIONS.current_session.backup_sources.add("user_id, source_path",
+                                             ((SESSIONS.current_session.user.id,
+                                               os.path.realpath("Z:/x")), ))
+SESSIONS.current_session.backup_sources.remove((("user_id", "=", 2, ), ))

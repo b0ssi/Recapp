@@ -139,7 +139,7 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
         # if it's me
         if (slotNo == self.slotNo):
             self.BOp_Queue_Job.append(BOp_Queue_Job_CTR())
-            print self.GL.addWidget(self.BOp_Queue_Job[-1])
+            print(self.GL.addWidget(self.BOp_Queue_Job[-1]))
             
             self.updateQueue()
 

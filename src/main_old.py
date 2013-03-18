@@ -20,7 +20,7 @@ import time
 # imports
 #import shutil, datetime, random, win32file, win32api
 
-print sys.version
+print(sys.version)
 # current error code: EC0003
 # set up logging
 # create config dir
