@@ -18,24 +18,25 @@
 		........................
 [X]		clean-up old code
 [X]		check module-structure
-[.]		clean-up current code:
-			update represenations
-			address warnings/errors
-			make sure all logging messages are very *specific* in regards to
+[X]		clean-up current code:
+		[X]	update representations
+[.]		maintain integrity:
+		[.]	document code
+		[.]	validate user-input
+		[.]	write test/test
+		[.]	manage conditional exception-handling
+		[.]	implement correct return data for *everything*
+		[.]	address warnings/errors
+		[ ]	make sure all logging messages are very *specific* in regards to
 				- origin of message
-[ ]		validate user-input
-		write test/test
-		manage conditional exception-handling
-		implement correct return data for *everything*
-[ ]		document code
 ................................
 [ ]		NEXT MILESTONE: 0002
 		........................
 [ ]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
 [ ]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
 [ ]		SessionsModel:
-			figure out how to identify a session
-			remove_session()
+		[ ]	figure out how to identify a session
+		[ ]	remove_session()
 [ ]		.
 ................................
 [ ]		Q/A

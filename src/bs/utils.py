@@ -20,6 +20,10 @@ class Event(object):
     def __init__(self):
         self.handlers = set()
 
+    def __repr__(self):
+        return "Event (%s) <%s>" % (self.num_handlers(),
+                                    self.__class__.__name__, )
+
     def add_handler(self, handler):
         self.handlers.add(handler)
         print("'%s' successfully added to handlers." % (handler,))

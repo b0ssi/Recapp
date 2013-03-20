@@ -32,7 +32,7 @@ logging.basicConfig(format="--------------- "\
 
 # PREP
 # sync db if necessary
-sync_db = bs._db.SyncDb()
+sync_db = bs._db.SyncDb("bs.models")
 sync_db.sync()
 
 # create a sessions host

@@ -1,86 +1,208 @@
 # -*- coding: utf-8 -*-
 
-################################################################################
-##    test__db                                                                ##
-################################################################################
-################################################################################
-##    Author:         Bossi                                                   ##
-##                    © 2013 All rights reserved                              ##
-##                    www.isotoxin.de                                         ##
-##                    frieder.czeschla@isotoxin.de                            ##
-##    Creation Date:  Mar 9, 2013                                             ##
-##    Version:        0.0.000000                                              ##
-##                                                                            ##
-##    Usage:                                                                  ##
-##                                                                            ##
-################################################################################
+###############################################################################
+##    test__db                                                               ##
+###############################################################################
+###############################################################################
+##    Author:         Bossi                                                  ##
+##                    © 2013 All rights reserved                             ##
+##                    www.isotoxin.de                                        ##
+##                    frieder.czeschla@isotoxin.de                           ##
+##    Creation Date:  Mar 9, 2013                                            ##
+##    Version:        0.0.000000                                             ##
+##                                                                           ##
+##    Usage:                                                                 ##
+##                                                                           ##
+###############################################################################
 
-import _db
+import bs._db
 import os
+import time
 import unittest
 
-class TestDb(unittest.TestCase):
-    _mock_db_file_path = os.path.join(os.path.dirname(__file__), "unitTestDb.sqlite")
-    
-    def clean_db_mock_file(self):
-        # delete mock db file if exists...
-        try:
-            if os.path.isfile(self._mock_db_file_path):
-                os.remove(self._mock_db_file_path)
-        except Exception as e:
-            raise Exception(e)
+_mock_module_file_path_base = os.path.join(os.path.dirname(__file__), )
+_mock_module_module_path_base = "bs.tests"
 
-    def test_database_file_does_exist_and_is_valid(self):
-        # clean-up mock db (file) if still exists...
-        self.clean_db_mock_file()
-        # create mock db (file)
-        my_class = _db.Db()
-        my_class._configdb_path = self._mock_db_file_path
-        my_class.initialize()
-        
-        self.assertTrue(my_class.initialize())
-        # clean-up mock db (file)
-        self.clean_db_mock_file()
-    
-    def test_database_file_does_exist_but_is_invalid_or_access_denied(self):
-        my_class = _db.Db()
-        my_class._configdb_path = __file__
-        
-        with self.assertRaises(SystemExit):
-            my_class.initialize()
-    
-    def test_database_file_does_exist_but_is_invalid_and_of_zero_lenght(self):
-        # clean-up mock db (file) if still exists...
-        self.clean_db_mock_file()
-        # create mock database (file)
-        f = open(self._mock_db_file_path, "w")
+
+# need to generate new name for each test to make sure the module using that
+# name has a unique name every time (to prevent caching)
+def get_free_filename():
+    free_filename = str(int(time.time() * 100))
+    while os.path.isfile(os.path.join(_mock_module_file_path_base,
+                                      free_filename) + ".py"):
+        free_filename = int(time.time() * 100)
+    return free_filename
+
+
+def remove_mock_class(file_path):
+    try:
+        while os.path.isfile(file_path):
+            os.remove(file_path)
+        return True
+    except Exception as e:
+        raise
+
+
+def write_mock_class_empty(file_path):
+    try:
+        with open(file_path, "w") as f:
+            print("", file=f)
         f.close()
+        return True
+    except Exception as e:
+        raise SystemExit("An Error Occurred: %s" % (e, ))
 
-        my_class = _db.Db()
-        my_class._configdb_path = self._mock_db_file_path
-        
-        with self.assertRaises(SystemExit):
-            my_class.initialize()
-        # clean-up mock db (file)
-        self.clean_db_mock_file()
 
-    def test_database_file_does_not_exist_but_can_be_initialized(self):
-        # clean-up mock db (file) if still exists...
-        self.clean_db_mock_file()
-        
-        my_class = _db.Db()
-        my_class._configdb_path = self._mock_db_file_path
-        
-        self.assertTrue(my_class.initialize())
-        # clean-up mock db (file)
-        self.clean_db_mock_file()
-    
-    def test_database_file_does_not_exist_and_can_not_be_initialized(self):
-        # mock db...
-        mock_db_file_path = os.path.realpath("B:/testdb.sqlite")
-        
-        my_class = _db.Db()
-        my_class._configdb_path = mock_db_file_path
-        
+def write_mock_class_only_invalid_class_name(file_path):
+    try:
+        with open(file_path, "w") as f:
+            out = "class 9Test(object):\n"
+            out += "\ttest_attr = ['INTEGER']\n"
+
+            print(out, file=f)
+        f.close()
+        return True
+    except Exception as e:
+        raise SystemExit("An Error Occurred: %s" % (e, ))
+
+
+def write_mock_class_member(file_path, contents):
+    try:
+        with open(file_path, "w") as f:
+            out = contents
+
+            print(out, file=f)
+        f.close()
+        return True
+    except Exception as e:
+        raise SystemExit("An Error Occurred: %s" % (e, ))
+
+
+class TestSyncDb_verify_schema(unittest.TestCase):
+    """
+    Tests `_verify_schema` to validate schema module correctly and raise
+    exceptions appropriately if necessary.
+
+    filter module name in:
+        - start with [_A-Z]
+        - length 4-32
+        if module is empty:
+            return: True
+        else:
+            if class completely empty:
+                return: SystemExit
+            if class is filled with invalid attributes (effectively empty):
+                return: SystemExit
+            if class has >= 1 valid attribute with invalid name:
+                return: SystemExit
+            if class has >= 1 valid attribute with valid name:
+                return True
+    """
+
+    def test_module_is_empty(self):
+        # create mock module
+        filename = get_free_filename()
+        file_path = os.path.join(_mock_module_file_path_base, filename) + ".py"
+        module_path = _mock_module_module_path_base + "." + filename
+
+        write_mock_class_empty(file_path)
+
+        sync_db = bs._db.SyncDb(module_path)
+        self.assertTrue(sync_db._verify_schema())
+
+        # clean-up mock-module
+        remove_mock_class(file_path)
+
+    def test_module_has_only_invalid_class_1(self):
+        # create mock module
+        filename = get_free_filename()
+        file_path = os.path.join(_mock_module_file_path_base, filename) + ".py"
+        module_path = _mock_module_module_path_base + "." + filename
+
+        write_mock_class_only_invalid_class_name(file_path)
+
         with self.assertRaises(SystemExit):
-            my_class.initialize()
+            sync_db = bs._db.SyncDb(module_path)
+
+        # clean-up mock-module
+        remove_mock_class(file_path)
+
+    def test_member_has_invalid_data_only(self):
+        contents_combinations = [
+                                 "class Tetdjhhhhhhhhfhfhfhfhfhfhfhfhfhfd(object):\n"\
+                                 "    testattr = ['INTEGER']",
+                                 "class Tet(object):\n"\
+                                 "    testattr = ['INTEGER']",
+                                 "class Test(object):\n"\
+                                 "    pass",
+                                 "class Test(object):\n"\
+                                 "    def test2(self):\n"
+                                 "        pass",
+                                 "class Test(object):\n"\
+                                 "    def test2(self):\n"
+                                 "        _test = ['INTEGER']",
+                                 "class Test(object):\n"\
+                                 "    test = []",
+                                 "class Test(object):\n"\
+                                 "    test = [\"WHATEVER\", \"UNIQUE\", \"17\"]",
+                                 "class Test(object):\n"\
+                                 "    test = [\"WHATEVER\", \"UNIQUE\"]",
+                                 "class Test(object):\n"\
+                                 "    test = [\"TEXT\", \"WHATEVER\"]",
+                                 "class Test(object):\n"\
+                                 "    test = [\"TEXT\", \"PRIMARY KEY\"]",
+                                 "class Test(object):\n"\
+                                 "    test = (\"one\", \"two\", )",
+                                 "class Test(object):\n"\
+                                 "    @property\n"
+                                 "    def test2(self):\n"
+                                 "        return list(['INTEGER'])",
+                                 "class Test(object):\n"\
+                                 "    @property\n"
+                                 "    def test2(self):\n"
+                                 "        return ['INTEGER']",
+                                 "class Test(object):\n"\
+                                 "    def test2(self):\n"
+                                 "        return list(['INTEGER'])",
+                                 "class Test(object):\n"\
+                                 "    def test2(self):\n"
+                                 "        return ['INTEGER']",
+                                 ]
+        for contents_combination in contents_combinations:
+            # create mock module
+            filename = get_free_filename()
+            file_path = os.path.join(_mock_module_file_path_base, filename) + ".py"
+            module_path = _mock_module_module_path_base + "." + filename
+
+            write_mock_class_member(file_path, contents_combination)
+
+            sync_db = bs._db.SyncDb(module_path)
+            with self.assertRaises(SystemExit):
+                sync_db._verify_schema()
+
+            # clean-up mock-module
+            remove_mock_class(file_path)
+
+    def test_member_has_valid_data_only(self):
+        contents_combinations = [
+                                 "class Test(object):\n"\
+                                 "    test = ['INTEGER', 'PRIMARY KEY']",
+                                 "class Test(object):\n"\
+                                 "    test = ['INTEGER']",
+                                 ]
+        for contents_combination in contents_combinations:
+            # create mock module
+            filename = get_free_filename()
+            file_path = os.path.join(_mock_module_file_path_base, filename) + ".py"
+            module_path = _mock_module_module_path_base + "." + filename
+
+            write_mock_class_member(file_path, contents_combination)
+
+            sync_db = bs._db.SyncDb(module_path)
+            self.assertTrue(sync_db._verify_schema())
+
+            # clean-up mock-module
+            remove_mock_class(file_path)
+#
+#    def test_member_has_valid_attribute_with_valid_name(self):
+#        pass

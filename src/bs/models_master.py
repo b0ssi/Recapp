@@ -81,8 +81,8 @@ class BSModel(object):
             logging.critical("A database programming-error occurred, the "\
                              "object could only be partially saved: '%s'" % e)
         except Exception as e:
-            logging.critical(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
+            logging.critical(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
         conn.close()
 
     def get(self, columns, conditions=""):
@@ -132,8 +132,8 @@ class BSModel(object):
                          % (columns, conditions, ))
             return res
         except Exception as e:
-            logging.critical(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
+            logging.critical(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
 
         conn.commit()
         conn.close()
@@ -160,8 +160,8 @@ class BSModel(object):
             conn.commit()
             return res
         except Exception as e:
-            logging.critical(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
+            logging.critical(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
 
         conn.commit()
         conn.close()

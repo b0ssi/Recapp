@@ -16,7 +16,7 @@
 ###############################################################################
 
 import bs.config
-import bs.models
+import importlib
 import inspect
 import logging
 import random
@@ -26,14 +26,35 @@ import time
 
 
 class SyncDb(object):
+    _models_module = None
+
+    """
+    Synchronizes schema-structure with db-structure.
+    `schema_module_path` is the module-path to the module to use relative to
+    the `PYTHONPATH`
+    """
     # scan models modules and extract structural
-    def __init__(self):
-        pass
+    def __init__(self, schema_module_path):
+        try:
+            self._models_module = importlib.import_module(str(schema_module_path))
+        except SyntaxError as e:
+            logging.critical("The models schema contains errors, %s needs to "\
+                             "quit: %s" % (bs.config.PROJECT_NAME, e))
+            raise SystemExit()
 
     @property
-    def schema_datas(self, models_module=bs.models):
+    def _schema_datas(self, models_module=""):
+        """
+        Scans all classes in the passed models_module and returns data in the
+        following format:
+        ["<classname>": ["<attributename>": [<attributevalues>], ...], ...],
+        where <attributename> would be only a custom attribute (none of the
+        built-in and/or inherited attributes such as "__doc__")
+        and <attributevalues> would always have to be a (2)-list.
+        """
+        models_module = self._models_module
         out = {}
-        for member_name, member_object in sorted(inspect.getmembers(models_module), key=lambda x: x[0]):
+        for member_name, member_object in sorted(inspect.getmembers(self._models_module), key=lambda x: x[0]):
             if inspect.isclass(member_object):
                 class_attributes = {}
                 for class_attribute_name, class_attribute_value in inspect.getmembers(member_object):
@@ -54,12 +75,12 @@ class SyncDb(object):
                 out[member_name.lower()] = class_attributes
         return out
 
-    @schema_datas.setter
-    def schema_datas(self):
+    @_schema_datas.setter
+    def _schema_datas(self):
         return False
 
     @property
-    def db_datas(self):
+    def _db_datas(self):
 #        {table: {column: datatype, column: datatype}, ... }
         out = {}
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
@@ -86,8 +107,8 @@ class SyncDb(object):
         conn.close()
         return out
 
-    @db_datas.setter
-    def db_datas(self):
+    @_db_datas.setter
+    def _db_datas(self):
         return False
 
     def sync(self, execute=True):
@@ -109,51 +130,93 @@ class SyncDb(object):
                 conn.close
                 logging.info("Compacting successful (%.2f sec)." % (time.clock() - timer_start, ))
 
-    def _verify_schema(self, models_module=bs.models):
+    def _verify_schema(self):
         """
-        Checks schema-data for its validity
+        Checks schema-data for its validity. Raises exception if any issues
+        exist, True if verification passess the test.
         """
-        for member_name, member_object in sorted(inspect.getmembers(models_module), key=lambda x: x[0]):
+        # warning trigger if no class has been found in module
+        out_no_class_found = True
+        # run through *all* members in module
+        members = sorted(inspect.getmembers(self._models_module), key=lambda x: x[0])
+        for member_name, member_object in members:
+            # filter members down to classes
             if inspect.isclass(member_object):
+                out_no_class_found = False
                 # validate class name
-                # allowed: a-z0-9_
-                # first character only: _a-z
+                # allowed: a-zA-Z0-9_
+                # first character only: _a-zA-Z
                 # 4-32 characters
-                if not re.search(bs.config.VALID_NAME_MODEL_TABLE_PATTERN, member_name):
-                    logging.critical("Model '%s' has an invalid name. It needs "
-                "to start with a Latin lowercase character (a-z), can only "\
-                "contain alpha-numeric characters plus `_` and needs "\
-                "to have a length between 2 and 32 characters." % (member_name, ))
+                if not re.search(bs.config.VALID_NAME_MODEL_TABLE_PATTERN,
+                                 member_name):
+                    logging.critical("Model '%s' has an invalid name. It "\
+                                     "needs to start with a Latin lower-case "\
+                                     "character (a-z, A-Z), can only contain "\
+                                     "alpha-numeric characters plus `_` and "\
+                                     "needs to have a length between 2 and "\
+                                     "32 characters." % (member_name, ))
                     raise SystemExit()
+                # create list of valid attributes
+                # checks validity of attribute value (list with 2 <= n <= 4 attr)
+                # checks validity of attribute name
                 class_attributes = [[x[0], x[1]] for x in inspect.getmembers(member_object) \
-                                    if isinstance(x[1], list) and \
-                                    re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, x[0])]
+                                    if re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, x[0]) and \
+                                    isinstance(x[1], list) and \
+                                    1 <= len(x[1]) <= 2]
+                # if no valid attributes were found
                 if len(class_attributes) == 0:
                     logging.critical("The model '%s' needs to have at least "\
-                                     "one attribute with a valid name." % (member_name, ))
+                                     "one attribute with valid name and value."
+                                     % (member_name, ))
                     raise SystemExit()
+                # run through valid attributes
                 for class_attribute_name, class_attribute_value in class_attributes:
-                    # iterate over all class-attributes here
-                    if isinstance(class_attribute_value, list):
-                        # data type
-                        allowed_values_types = ("NULL", "INTEGER", "REAL", "TEXT", "BLOB")
-                        if class_attribute_value[0] not in allowed_values_types:
-                            logging.critical("The attribute '%s' in model '%s' has an invalid defined data-type, aborting: '%s'" % (class_attribute_name, member_name, class_attribute_value[0]))
-                            return False
-                        allowed_values_constraints = ((("NULL", "INTEGER", "REAL", "TEXT", "BLOB", ), "UNIQUE", ), (("INTEGER", ), "PRIMARY KEY", ), )
-                        # column-constraint
-                        #
-                        # this basically checks, that, if constraint is in
-                        # any of the 2-typles in allowed_values_constraints
-                        # on pos 2, its type is in the corresponding tuple
-                        # on position 1.
-                        # (((<tupleOfAllowedTypesForConstraint>), <constraintL, ), ...)
-                        if len(class_attribute_value) > 1:
-                            if class_attribute_value[1] not in [x[1] for x in allowed_values_constraints] or \
-                                class_attribute_value[0] not in [x[0] for x in allowed_values_constraints if x[1] == class_attribute_value[1]][0]:
-                                logging.critical("The attribute '%s' in model '%s' has an invalid constraint defined (for data-type '%s'), aborting: '%s'" % (class_attribute_name, member_name, class_attribute_value[0], class_attribute_value[1]))
-                                return False
-                        # all good, proceed
+                    # validate attribute value
+                    allowed_values_types = ("NULL",
+                                            "INTEGER",
+                                            "REAL",
+                                            "TEXT",
+                                            "BLOB",
+                                            )
+                    if class_attribute_value[0] not in allowed_values_types:
+                        logging.critical("The attribute '%s' in model '%s' "\
+                                         "has an invalid defined data-type, "\
+                                         "aborting: '%s'"
+                                         % (class_attribute_name,
+                                            member_name,
+                                            class_attribute_value[0],
+                                            )
+                                         )
+                        raise SystemExit()
+                    # column-constraint
+                    #
+                    # this basically checks, that, if constraint is in
+                    # any of the 2-typles in allowed_values_constraints
+                    # on pos 2, its type is in the corresponding tuple
+                    # on position 1.
+                    # (((<tupleOfAllowedTypesForConstraint>), <constraintL, ), ...)
+                    allowed_values_constraints = ((("NULL", "INTEGER", "REAL", "TEXT", "BLOB", ), "UNIQUE", ),
+                                                  (("INTEGER", ), "PRIMARY KEY", ),
+                                                  )
+                    if len(class_attribute_value) > 1:
+                        if class_attribute_value[1] not in [x[1] for x in allowed_values_constraints] or \
+                            class_attribute_value[0] not in [x[0] for x in allowed_values_constraints if x[1] == class_attribute_value[1]][0]:
+                            logging.critical("The attribute '%s' in model "\
+                                             "'%s' has an invalid constraint "\
+                                             "defined (for data-type '%s'), "\
+                                             "aborting: '%s'"
+                                             % (class_attribute_name,
+                                                member_name,
+                                                class_attribute_value[0],
+                                                class_attribute_value[1],
+                                                )
+                                             )
+                            raise SystemExit()
+                    # all good, proceed
+        # if no valid class has been found, output warning
+        if out_no_class_found:
+            logging.warning("No class has been found in schema; database "\
+                            "will be rendered empty.")
         return True
 
     def _create_missing_tables(self, execute):
@@ -162,17 +225,17 @@ class SyncDb(object):
         """
         action_taken = False
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
-        schema_table_names = sorted(self.schema_datas.keys(), key=lambda x: x[0])
-        db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
+        schema_table_names = sorted(self._schema_datas.keys(), key=lambda x: x[0])
+        db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         out = ""
         for schema_table_name in schema_table_names:
             if schema_table_name not in db_table_names:
                 out += "CREATE TABLE IF NOT EXISTS %s\n\t(\n" % (schema_table_name,)
-                schema_column_names = sorted(self.schema_datas[schema_table_name].keys(), key=lambda x: x[0])
+                schema_column_names = sorted(self._schema_datas[schema_table_name].keys(), key=lambda x: x[0])
                 i = 0
                 for schema_column_name in schema_column_names:
-                    schema_data_type = self.schema_datas[schema_table_name][schema_column_name][0]
-                    schema_constraint = self.schema_datas[schema_table_name][schema_column_name][1]
+                    schema_data_type = self._schema_datas[schema_table_name][schema_column_name][0]
+                    schema_constraint = self._schema_datas[schema_table_name][schema_column_name][1]
                     if schema_constraint == 1:
                         schema_constraint = " PRIMARY KEY"
                     elif schema_constraint == 2:
@@ -204,8 +267,8 @@ class SyncDb(object):
         action_taken = False
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         out = ""
-        db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
-        schema_table_names = sorted(self.schema_datas.keys(), key=lambda x: x[0])
+        db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
+        schema_table_names = sorted(self._schema_datas.keys(), key=lambda x: x[0])
         for db_table_name in db_table_names:
             if db_table_name not in schema_table_names:
                 out += "DROP TABLE IF EXISTS `%s`" % db_table_name
@@ -230,10 +293,10 @@ class SyncDb(object):
         """
         action_taken = False
         # look for foster columns and inconsistent column specifications
-        db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
+        db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         for db_table_name in db_table_names:
-            db_column_names = sorted(self.db_datas[db_table_name].keys(), key=lambda x: x[0])
-            schema_column_names = sorted(self.schema_datas[db_table_name].keys(), key=lambda x: x[0])
+            db_column_names = sorted(self._db_datas[db_table_name].keys(), key=lambda x: x[0])
+            schema_column_names = sorted(self._schema_datas[db_table_name].keys(), key=lambda x: x[0])
             # if column-structure between db, schema is inconsistent
             if len(schema_column_names) != len([x for x in db_column_names if x in schema_column_names]) or len(schema_column_names) != len(db_column_names):
                 logging.debug("Columns have changed:\n\t\tdb_column_names:\t%s\n\t\tschema_column_names:\t%s" % (db_column_names, schema_column_names, ))
@@ -246,10 +309,10 @@ class SyncDb(object):
                     # check if it exists in schema
                     if db_column_name in schema_column_names:
                     # if exists in schema
-                        db_column_data_type = self.db_datas[db_table_name][db_column_name][0]
-                        db_column_primary_key = self.db_datas[db_table_name][db_column_name][1]
-                        schema_column_data_type = self.schema_datas[db_table_name][db_column_name][0]
-                        schema_column_primary_key = self.schema_datas[db_table_name][db_column_name][1]
+                        db_column_data_type = self._db_datas[db_table_name][db_column_name][0]
+                        db_column_primary_key = self._db_datas[db_table_name][db_column_name][1]
+                        schema_column_data_type = self._schema_datas[db_table_name][db_column_name][0]
+                        schema_column_primary_key = self._schema_datas[db_table_name][db_column_name][1]
                         # check if specifications are consistent with schema
                         # if specifications are inconsistent
                         if db_column_data_type != schema_column_data_type or \
@@ -274,15 +337,15 @@ class SyncDb(object):
         """
         # A) create new db from new schema
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
-        db_table_names = sorted(self.db_datas.keys(), key=lambda x: x[0])
+        db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         db_table_name_temp = ""
         while db_table_name_temp in db_table_names or db_table_name_temp == "":
             db_table_name_temp = "_%s" % str(random.randint(1000000000000, 9999999999999))
         # get column+definitions string for CREATE TABLE...
         db_columns_to_creat_sql = ""
-        schema_column_names = sorted(self.schema_datas[db_table_name_to_rebuild].keys(), key=lambda x: x[0])
+        schema_column_names = sorted(self._schema_datas[db_table_name_to_rebuild].keys(), key=lambda x: x[0])
         for schema_column_name in schema_column_names:
-            schema_column_data = self.schema_datas[db_table_name_to_rebuild][schema_column_name]
+            schema_column_data = self._schema_datas[db_table_name_to_rebuild][schema_column_name]
             if schema_column_data[1] == 1:
                 schema_column_data[1] = " PRIMARY KEY"
             elif schema_column_data[1] == 2:
@@ -296,7 +359,7 @@ class SyncDb(object):
         conn.close()
         # B) run through old table and copying data for all columns that are
         # still present in new db over
-        db_column_names = sorted(self.db_datas[db_table_name_to_rebuild].keys(), key=lambda x: x[0])
+        db_column_names = sorted(self._db_datas[db_table_name_to_rebuild].keys(), key=lambda x: x[0])
         # for all columns in old db table that still exist in new table/schema
         db_columns_to_transfer = []
         for db_column_name in db_column_names:

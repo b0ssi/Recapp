@@ -1,13 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-import config
-import mod1
-import os
-import random
-import re
-import sqlite3
-import time
-
 #from PyQt4.QtGui import *
 #from PyQt4.QtCore import *
 # 
@@ -386,10 +378,20 @@ import time
 ###############################################################################
 
 
-x = re.search("^([\_a-zA-Z]){1}([\_a-zA-Z0-9]){3,}$", "_a12")
+#x = re.search("^([\_a-zA-Z]){1}([\_a-zA-Z0-9]){3,}$", "_a12")
+#
+#print(x.group(0))
+#print(x.group(1))
+#print(x.group(2))
 
-print(x.group(0))
-print(x.group(1))
-print(x.group(2))
+###############################################################################
+
+import importlib
+import inspect
+
+try:
+    x = importlib.import_module(str("bs.tests.unitTestModule"))
+except SyntaxError as e:
+    print("shit! %s" % (e, ))
 
 ###############################################################################

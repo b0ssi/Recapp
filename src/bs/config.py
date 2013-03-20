@@ -17,6 +17,7 @@ import os
 ##                                                                           ##
 ###############################################################################
 
+PROJECT_NAME = "Backupshizzle"
 
 # create config dir
 CONFIG_PATH = os.path.normcase(os.path.join(str(QtCore.QDir.homePath()), ".backupshizzle"))
