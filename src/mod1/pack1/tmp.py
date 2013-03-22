@@ -1,4 +1,7 @@
 # -*- encoding: utf-8 -*-
+import random
+import sqlite3
+import time
 
 #from PyQt4.QtGui import *
 #from PyQt4.QtCore import *
@@ -386,12 +389,28 @@
 
 ###############################################################################
 
-import importlib
-import inspect
+#import importlib
+#import inspect
+#
+#try:
+#    x = importlib.import_module(str("bs.tests.unitTestModule"))
+#except SyntaxError as e:
+#    print("shit! %s" % (e, ))
 
-try:
-    x = importlib.import_module(str("bs.tests.unitTestModule"))
-except SyntaxError as e:
-    print("shit! %s" % (e, ))
+###############################################################################
+
+start = time.clock()
+for n in range(10000):
+    conn = sqlite3.connect("Z:\\test.sqlite")
+#    conn.execute("CREATE TABLE benchmark (id INTEGER PRIMARY KEY, name TEXT)")
+    res = conn.execute("SELECT * FROM benchmark").fetchall()
+#    res = conn.execute("INSERT INTO benchmark (name) VALUES (?)", (str(random.randint(1000000, 9999999)), ))
+    conn.commit()
+#    conn.execute("DROP TABLE test")
+    conn.close()
+end = time.clock()
+print("Finished in %ss" % (end - start))
+
+
 
 ###############################################################################

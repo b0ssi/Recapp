@@ -111,13 +111,9 @@ class UserModelNew(bs.models.Users):
         # create default user
         if len(self.get("*")) == 0:
             self.add("username, password",
-                      [['1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851"\
-                      "f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f"\
-                      "9bd058a12a280433ed6fa46510a']])
+                      [['1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']])
             self.add("username, password",
-                      [['2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a442"\
-                      "57b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314da"\
-                      "fe580ac0bcbf115aeca9e8dc114']])
+                      [['2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']])
 
     def __repr__(self):
         return "User '%s' <%s>" % (self._username, self.__class__.__name__, )
@@ -142,7 +138,7 @@ class UserModelNew(bs.models.Users):
                 self._is_logged_in = True
                 return True
             elif len(res) > 1:
-                logging.critical("More than one user exists with the same "\
+                logging.critical("More than one user exist with the same "\
                                  "username/password combination! Please check "\
                                  "consistency of the database.")
                 raise SystemExit()

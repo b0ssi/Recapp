@@ -16,6 +16,7 @@
 ###############################################################################
 
 import bs.config
+import bs.messages.database
 import importlib
 import inspect
 import logging
@@ -43,7 +44,7 @@ class SyncDb(object):
             raise SystemExit()
 
     @property
-    def _schema_datas(self, models_module=""):
+    def _schema_datas(self):
         """
         Scans all classes in the passed models_module and returns data in the
         following format:
@@ -52,7 +53,6 @@ class SyncDb(object):
         built-in and/or inherited attributes such as "__doc__")
         and <attributevalues> would always have to be a (2)-list.
         """
-        models_module = self._models_module
         out = {}
         for member_name, member_object in sorted(inspect.getmembers(self._models_module), key=lambda x: x[0]):
             if inspect.isclass(member_object):
@@ -81,30 +81,36 @@ class SyncDb(object):
 
     @property
     def _db_datas(self):
-#        {table: {column: datatype, column: datatype}, ... }
-        out = {}
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
-        db_table_names = [x[0] for x in conn.execute("SELECT `name` FROM `sqlite_master` WHERE type='table'").fetchall()]
-        for db_table_name in db_table_names:
-            db_table_datas_raw = conn.execute("PRAGMA table_info (%s)" % (db_table_name,)).fetchall()
-            db_table_data_formatted = {}
-            for db_table_data_raw in db_table_datas_raw:
-                db_column_name = db_table_data_raw[1]
-                db_data_type = db_table_data_raw[2]
-                # check for PRIMARY KEY
-                db_constraint = db_table_data_raw[5]
-                # check for UNIQUE
-                if db_constraint == 0:
-                    db_unique_index_names = [x[1] for x in conn.execute("PRAGMA index_list ('%s')" % (db_table_name, )).fetchall()]
-                    db_unique_index_columns = []
-                    for db_unique_index_name in db_unique_index_names:
-                        db_unique_index_columns.append(conn.execute("PRAGMA index_info (%s)" % (db_unique_index_name, )).fetchall()[0][2])
-                    if db_column_name in db_unique_index_columns:
-                        db_constraint = 2
-
-                db_table_data_formatted[db_column_name] = [db_data_type, db_constraint]
-            out[db_table_name] = db_table_data_formatted
-        conn.close()
+        """
+        Calls db metadata and returns it in a multi-dimensional dictionary:
+        {table: {column: datatype, column: datatype}, ... }
+        """
+        try:
+            out = {}
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            db_table_names = [x[0] for x in conn.execute("SELECT `name` FROM `sqlite_master` WHERE type='table'").fetchall()]
+            for db_table_name in db_table_names:
+                db_table_datas_raw = conn.execute("PRAGMA table_info (%s)" % (db_table_name,)).fetchall()
+                db_table_data_formatted = {}
+                for db_table_data_raw in db_table_datas_raw:
+                    db_column_name = db_table_data_raw[1]
+                    db_data_type = db_table_data_raw[2]
+                    # check for PRIMARY KEY
+                    db_constraint = db_table_data_raw[5]
+                    # check for UNIQUE
+                    if db_constraint == 0:
+                        db_unique_index_names = [x[1] for x in conn.execute("PRAGMA index_list ('%s')" % (db_table_name, )).fetchall()]
+                        db_unique_index_columns = []
+                        for db_unique_index_name in db_unique_index_names:
+                            db_unique_index_columns.append(conn.execute("PRAGMA index_info (%s)" % (db_unique_index_name, )).fetchall()[0][2])
+                        if db_column_name in db_unique_index_columns:
+                            db_constraint = 2
+                    db_table_data_formatted[db_column_name] = [db_data_type, db_constraint]
+                out[db_table_name] = db_table_data_formatted
+            conn.close()
+        except Exception as e:
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
         return out
 
     @_db_datas.setter
@@ -112,6 +118,8 @@ class SyncDb(object):
         return False
 
     def sync(self, execute=True):
+        logging.info("## Synchronizing database-structure with Schema... #############"\
+                     "################################################################")
         compact_db = False
         # verifying that schema-data is true...
         if self._verify_schema():
@@ -129,16 +137,20 @@ class SyncDb(object):
                 conn.commit()
                 conn.close
                 logging.info("Compacting successful (%.2f sec)." % (time.clock() - timer_start, ))
+        logging.info("## Synchronization successfully completed. #####################"\
+                     "################################################################")
 
     def _verify_schema(self):
         """
         Checks schema-data for its validity. Raises exception if any issues
         exist, True if verification passess the test.
         """
+        logging.info("Validating schema...")
         # warning trigger if no class has been found in module
         out_no_class_found = True
         # run through *all* members in module
-        members = sorted(inspect.getmembers(self._models_module), key=lambda x: x[0])
+        members = sorted(inspect.getmembers(self._models_module),
+                         key=lambda x: x[0])
         for member_name, member_object in members:
             # filter members down to classes
             if inspect.isclass(member_object):
@@ -149,7 +161,7 @@ class SyncDb(object):
                 # 4-32 characters
                 if not re.search(bs.config.VALID_NAME_MODEL_TABLE_PATTERN,
                                  member_name):
-                    logging.critical("Model '%s' has an invalid name. It "\
+                    logging.critical("The model '%s' has an invalid name. It "\
                                      "needs to start with a Latin lower-case "\
                                      "character (a-z, A-Z), can only contain "\
                                      "alpha-numeric characters plus `_` and "\
@@ -179,7 +191,7 @@ class SyncDb(object):
                                             "BLOB",
                                             )
                     if class_attribute_value[0] not in allowed_values_types:
-                        logging.critical("The attribute '%s' in model '%s' "\
+                        logging.critical("The attribute '%s' on model '%s' "\
                                          "has an invalid defined data-type, "\
                                          "aborting: '%s'"
                                          % (class_attribute_name,
@@ -201,7 +213,7 @@ class SyncDb(object):
                     if len(class_attribute_value) > 1:
                         if class_attribute_value[1] not in [x[1] for x in allowed_values_constraints] or \
                             class_attribute_value[0] not in [x[0] for x in allowed_values_constraints if x[1] == class_attribute_value[1]][0]:
-                            logging.critical("The attribute '%s' in model "\
+                            logging.critical("The attribute '%s' on model "\
                                              "'%s' has an invalid constraint "\
                                              "defined (for data-type '%s'), "\
                                              "aborting: '%s'"
@@ -215,24 +227,34 @@ class SyncDb(object):
                     # all good, proceed
         # if no valid class has been found, output warning
         if out_no_class_found:
-            logging.warning("No class has been found in schema; database "\
+            logging.warning("No class has been found in the schema; database "\
                             "will be rendered empty.")
+        logging.info("Schema successfully validated.")
         return True
 
     def _create_missing_tables(self, execute):
         """
-        Create tables that exist in the schema but not in the database.
+        Creates all tables that exist in the schema but not in the database.
         """
-        action_taken = False
+        # ABSTRACT #####################
+        ################################
+        # if schema_table not in db_tables
+        #    create if exists
+        # else
+        #    continue
+
+        # activity trigger
+        activity_trigger = False
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         schema_table_names = sorted(self._schema_datas.keys(), key=lambda x: x[0])
         db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
-        out = ""
+        # run through schema and compare with db status quo
         for schema_table_name in schema_table_names:
+            # if inconsistency detected... 
             if schema_table_name not in db_table_names:
-                out += "CREATE TABLE IF NOT EXISTS %s\n\t(\n" % (schema_table_name,)
+                # ...compile SQL instructions
+                out = "CREATE TABLE IF NOT EXISTS %s\n\t(\n" % (schema_table_name,)
                 schema_column_names = sorted(self._schema_datas[schema_table_name].keys(), key=lambda x: x[0])
-                i = 0
                 for schema_column_name in schema_column_names:
                     schema_data_type = self._schema_datas[schema_table_name][schema_column_name][0]
                     schema_constraint = self._schema_datas[schema_table_name][schema_column_name][1]
@@ -243,100 +265,118 @@ class SyncDb(object):
                     else:
                         schema_constraint = ""
                     out += "\t%s %s%s" % (schema_column_name, schema_data_type, schema_constraint)
-                    if i == len(schema_column_names) - 1:
+                    if schema_column_name == schema_column_names[-1]:
                         out += "\n"
                     else:
                         out += ",\n"
-                    i += 1
                 out += "\t)\n\n"
                 # commit
-                conn.execute(out)
-                conn.commit()
-                logging.info("Created missing table: '%s'." % (schema_table_name, ))
-                out = ""
-                action_taken = True
-        conn.close()
-        # return
-        if action_taken: return True
-        else: return False
+                try:
+                    logging.info("Adding table '%s' to database..." % (schema_table_name, ))
+                    conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+                    conn.execute(out)
+                    conn.commit()
+                    conn.close()
+                    action_taken = True
+                    logging.info("Table '%s' successfully added to database."
+                                 % (schema_table_name, ))
+                    activity_trigger = True
+                except Exception as e:
+                    logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+                    raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
+        if activity_trigger:
+            return True
+        else:
+            return False
 
     def _delete_foster_tables(self, execute):
         """
-        Delete tables that (still) exist in the database but not in the schema.
+        Delete tables that exist in the database but not in the schema.
         """
-        action_taken = False
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
-        out = ""
+        activity_trigger = False
         db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         schema_table_names = sorted(self._schema_datas.keys(), key=lambda x: x[0])
         for db_table_name in db_table_names:
             if db_table_name not in schema_table_names:
-                out += "DROP TABLE IF EXISTS `%s`" % db_table_name
+                out = "DROP TABLE IF EXISTS `%s`" % db_table_name
                 # commit
-                conn.execute(out)
-                conn.commit()
-                logging.info("Deleted foster-table from database: '%s'." % (db_table_name, ))
-                out = ""
-                action_taken = True
-        conn.close()
-        # return
-        if action_taken: return True
-        else: return False
+                try:
+                    logging.info("Removing table '%s' from database..." % (db_table_name, ))
+                    conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+                    conn.execute(out)
+                    conn.commit()
+                    conn.close()
+                    logging.info("Table '%s' successfully removed from database."
+                                 % (db_table_name, ))
+                    activity_trigger = True
+                except Exception as e:
+                    logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+                    raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
+        if activity_trigger:
+            return True
+        else:
+            return False
 
     def _detect_inconsistency(self, execute):
         """
         Checks db for
-        - any difference in column names or -counts between db <-> schema
-        - column specifications and data types that have changed
-        and rebuild whole table incl. data as SQLite does not support changing
-        these attributes subsequently.
+        - any inconsistency in existing columns between db <-> schema
+        - any inconsistency in column specifications and data types between
+          db <-> schema
+        and call self.rebuild_table to rebuild the whole table incl. data as
+        SQLite does not support changing these attributes subsequently.
         """
-        action_taken = False
+        activity_trigger = False
         # look for foster columns and inconsistent column specifications
         db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         for db_table_name in db_table_names:
             db_column_names = sorted(self._db_datas[db_table_name].keys(), key=lambda x: x[0])
             schema_column_names = sorted(self._schema_datas[db_table_name].keys(), key=lambda x: x[0])
-            # if column-structure between db, schema is inconsistent
-            if len(schema_column_names) != len([x for x in db_column_names if x in schema_column_names]) or len(schema_column_names) != len(db_column_names):
-                logging.debug("Columns have changed:\n\t\tdb_column_names:\t%s\n\t\tschema_column_names:\t%s" % (db_column_names, schema_column_names, ))
-                logging.info("Inconsistency in table structure found, rewriting the table...")
+            # if inconsistency detected between column- and db-structure...
+            if len(schema_column_names) != len([x for x in db_column_names if x in schema_column_names]) or \
+                len(schema_column_names) != len(db_column_names):
+
+                logging.debug("Columns have changed:\n"\
+                              "\t\tdb_column_names:\t%s\n"\
+                              "\t\tschema_column_names:\t%s"
+                              % (db_column_names, schema_column_names, ))
+                logging.info("Structural inconsistency in table '%s' detected, rewriting..." % (db_table_name, ))
                 self._rebuild_table(execute, db_table_name)
-                action_taken = True
-            # if column-structure is consistent, look deeper: type/definitions
+                activity_trigger = True
+            # if no inconsistency detected, look deeper: type/definitions
             else:
                 for db_column_name in db_column_names:
                     # check if it exists in schema
                     if db_column_name in schema_column_names:
-                    # if exists in schema
                         db_column_data_type = self._db_datas[db_table_name][db_column_name][0]
                         db_column_primary_key = self._db_datas[db_table_name][db_column_name][1]
                         schema_column_data_type = self._schema_datas[db_table_name][db_column_name][0]
                         schema_column_primary_key = self._schema_datas[db_table_name][db_column_name][1]
-                        # check if specifications are consistent with schema
-                        # if specifications are inconsistent
+                        # if specifications are inconsistent between schame/db
                         if db_column_data_type != schema_column_data_type or \
                             db_column_primary_key != schema_column_primary_key:
                             # rebuild table
-                            logging.debug("Column '%s' (and possibly others) has a changed data-type and/or specification." % (db_column_name, ))
-                            logging.info("Inconsistency in table structure found, rewriting the table...")
-                            action_taken = True
+                            logging.debug("Inconsistency in column '%s', table '%s' (and possibly other columns) detected: Data-type and/or specifications have changed." % (db_column_name, db_table_name ))
+                            logging.info("Structural inconsistency in table '%s' detected, rewriting..." % (db_table_name, ))
                             self._rebuild_table(execute, db_table_name)
+                            activity_trigger = True
                             break
                         # if specifications are consistent
                         else:
                             # all good.
                             pass
-        # return
-        if action_taken: return True
-        else: return False
+        if activity_trigger:
+            return True
+        else:
+            return False
 
     def _rebuild_table(self, execute, db_table_name_to_rebuild):
         """
-        Rebuilds the specified table.
+        Rebuilds the specified table including all of its data. Adds any
+        columns that have changed and updates data-types/
+        specifications if they have changed in the schema.
         """
-        # A) create new db from new schema
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+        # A) create temporary db from (changed) schema
         db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         db_table_name_temp = ""
         while db_table_name_temp in db_table_names or db_table_name_temp == "":
@@ -354,11 +394,17 @@ class SyncDb(object):
                 schema_column_data[1] = ""
             db_columns_to_creat_sql += "%s %s%s, " % (schema_column_name, schema_column_data[0], schema_column_data[1])
         db_columns_to_creat_sql = "(%s)" % (db_columns_to_creat_sql[:-2],)
-        conn.execute("CREATE TABLE IF NOT EXISTS '%s' %s" % (db_table_name_temp, db_columns_to_creat_sql))
-        conn.commit()
-        conn.close()
-        # B) run through old table and copying data for all columns that are
-        # still present in new db over
+        try:
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            conn.execute("CREATE TABLE IF NOT EXISTS '%s' %s"
+                         % (db_table_name_temp, db_columns_to_creat_sql))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
+        # B) run through old table and copy data from columns still in schema/
+        # new db over
         db_column_names = sorted(self._db_datas[db_table_name_to_rebuild].keys(), key=lambda x: x[0])
         # for all columns in old db table that still exist in new table/schema
         db_columns_to_transfer = []
@@ -374,17 +420,24 @@ class SyncDb(object):
         db_columns_to_transfer_formatted = (str("%s, " * len(db_columns_to_transfer)) % tuple(db_columns_to_transfer))[:-2]
         logging.info("Rewriting table '%s'..." % (db_table_name_to_rebuild))
         timer_start = time.clock()
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         # only transfer data IF there actually is a column to transfer...
-        if len(db_columns_to_transfer) > 0:
-            res = conn.execute("SELECT %s FROM %s" % (db_columns_to_transfer_formatted, db_table_name_to_rebuild)).fetchall()
-            conn.executemany("INSERT INTO %s (%s) VALUES (%s)" % (db_table_name_temp, db_columns_to_transfer_formatted, str("?, " * len(db_columns_to_transfer))[:-2], ), res)
+        try:
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            if len(db_columns_to_transfer) > 0:
+                res = conn.execute("SELECT %s FROM %s" % (db_columns_to_transfer_formatted, db_table_name_to_rebuild)).fetchall()
+                conn.executemany("INSERT INTO %s (%s) VALUES (%s)" % (db_table_name_temp, db_columns_to_transfer_formatted, str("?, " * len(db_columns_to_transfer))[:-2], ), res)
+                conn.commit()
+            # D) drop old table & rename new table to orig name
+            conn.execute("DROP TABLE %s" % (db_table_name_to_rebuild, ))
             conn.commit()
-        logging.info("Table '%s' has been successfully rewritten (%.2f sec)." % (db_table_name_to_rebuild, time.clock() - timer_start,))
-        # D) drop old table & rename new table to orig name
-        conn.execute("DROP TABLE %s" % (db_table_name_to_rebuild, ))
-        conn.commit()
-        conn.execute("ALTER TABLE %s RENAME TO %s" % (db_table_name_temp, db_table_name_to_rebuild, ))
-        conn.commit()
-        conn.close()
+            conn.execute("ALTER TABLE %s RENAME TO %s" % (db_table_name_temp, db_table_name_to_rebuild, ))
+            conn.commit()
+            conn.close()
+            logging.info("Table '%s' has been successfully rewritten "\
+                         "(%.2f sec)."
+                         % (db_table_name_to_rebuild,
+                            time.clock() - timer_start,))
+        except Exception as e:
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
         return True
