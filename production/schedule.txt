@@ -18,21 +18,23 @@
 		........................
 [X]		clean-up old code
 [X]		check module-structure
+[X]		maintain integrity:
+		[X]	document code
+		[X]	validate user-input
+		[X]	write test/test
+		[X]	manage conditional exception-handling
+		[X]	implement correct return data for *everything*
+		[X]	address warnings/errors
+		[X] standardize logging-messages
+		[X]	make sure all logging messages are very *specific* in regards to
+				- origin of message
 [X]		clean-up current code:
 		[X]	update representations
-[.]		maintain integrity:
-		[]	document code
-		[]	validate user-input
-		[]	write test/test
-		[]	manage conditional exception-handling
-		[]	implement correct return data for *everything*
-		[]	address warnings/errors
-		[] standardize logging-messages
-		[]	make sure all logging messages are very *specific* in regards to
-				- origin of message
+		[.] any code-warnings/errors
 ................................
 [ ]		NEXT MILESTONE: 0002
 		........................
+[ ]		Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
 [ ]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
 [ ]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
 [ ]		SessionsModel:

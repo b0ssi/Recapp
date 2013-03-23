@@ -29,5 +29,8 @@ BT_METAFILE_NAME = "config.conf"
 USERID = int(-1)
 LOGFILE = os.path.join(CONFIG_PATH, 'log.log')
 
-VALID_NAME_MODEL_TABLE_PATTERN = "^([\_a-zA-Z]){1}([\_a-zA-Z0-9]){3,31}$"
-VALID_NAME_ATTRIBUTE_COLUMN_PATTERN = "^([a-z]){1}([\_a-zA-Z0-9]){1,31}$"
+
+REGEX_PATTERN_TABLE = "^[a-zA-Z][a-zA-Z0-9\_]{2,30}[a-zA-Z0-9]$"
+REGEX_PATTERN_COLUMN = "^[a-zA-Z][a-zA-Z0-9\_]{0,30}[a-zA-Z0-9]$"
+REGEX_PATTERN_COLUMNS = "^([a-zA-Z][a-zA-Z0-9\_]{0,30}[a-zA-Z0-9](\,[\ ]*)?)+$"
+REGEX_PATTERN_USERNAME = "^[a-zA-Z][a-zA-Z0-9\_]{2,32}$"

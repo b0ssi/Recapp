@@ -18,15 +18,19 @@
 from bs.utils import BSString
 import bs._db
 import bs.config
-import hashlib
-import logging
 import bs.messages.database
 import bs.models
+import hashlib
+import logging
 import os
+import re
 import sqlite3
 
 
 class SessionsModel(object):
+    """
+    Stores and manages sessions for all active users.
+    """
     _sessions = []
     _current_session = None
 
@@ -35,28 +39,51 @@ class SessionsModel(object):
         # add initial session
         self.add_session()
 
-    def add_session(self):
-        logging.info("Adding session to sessions...")
-        # create new session
-        new_session = SessionModel()
-        # add new session to self._sessions
-        self._sessions.append(new_session)
-        self._current_session = new_session
-        return True
+    def __repr__(self):
+        return str(self._sessions)
 
     @property
     def current_session(self):
+        """
+        Returns the currently active session.
+        """
         return self._current_session
 
     @current_session.setter
     def current_session(self, arg):
-        self._current_session = arg
+        """
+        Sets a session as the currently active session.
+        """
+        if isinstance(arg, SessionModel):
+            self._current_session = arg
+            logging.info("%s: Session '%s' successfully set as active session."
+                         % (self.__class__.__name__, arg, ))
+            return True
+        else:
+            logging.warning("%s: Argument 1 needs to be an instance of "\
+                            "the 'SessionModel()' class." % (self.__class__.__name__))
+            return False
 
-    def __repr__(self):
-        return str(self._sessions)
+    def add_session(self):
+        """
+        Adds a new session including an empty set for the user, sources,
+        targets, filters, sets, etc..
+        """
+        logging.info("%s: Adding session to sessions..." % (self.__class__.__name__, ))
+        # create new session
+        new_session = SessionModel()
+        # add new session to self._sessions
+        self._sessions.append(new_session)
+        self.current_session = new_session
+        logging.info("%s: Session successfully added." % (self.__class__.__name__, ))
+        return True
 
 
 class SessionModel(object):
+    """
+    Stores and manages contents of a single session. user, sources, targets,
+    filters, sets, etc..
+    """
     _user = None
     _backup_sources = None
     _backup_targets = None
@@ -102,6 +129,9 @@ class SessionModel(object):
 
 
 class UserModelNew(bs.models.Users):
+    """
+    Represents an active user.
+    """
     _id = -1
     _is_logged_in = False
     _username = ""
@@ -127,30 +157,62 @@ class UserModelNew(bs.models.Users):
         return self._is_logged_in
 
     def log_in(self, username, password):
-        if not self.is_logged_in:
+        """
+        Loggs the user in.
+        """
+        # VALIDATE DATA
+        # username
+        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
+            logging.warning("%s: The username is invalid. A valid username "\
+                             "needs to start with an alphabetic, "\
+                             "contain alphanumeric plus '_' "\
+                             "and have a length between 4 and 32 characters."
+                             % (self.__class__.__name__, ))
+            return False
+
+        if self.is_logged_in:
+            logging.info("%s: User '%s' is already logged in."
+                         % (self.__class__.__name__, self._username, ))
+            return True
+        else:
             password_hash = hashlib.sha512(password.encode())
-            res = (self.get("id", (("username", "=", username),
-                             ("password", "=", password_hash.hexdigest(), ), )))
+            res = self.get("id", (("username", "=", username),
+                             ("password", "=", password_hash.hexdigest(), ), ))
             if len(res) == 1:
                 self._id = res[0][0]
                 self._username = username
-                logging.info("User '%s' successfully logged in." % (self._username, ))
+                logging.info("%s: User '%s' successfully logged in."
+                             % (self.__class__.__name__, self._username, ))
                 self._is_logged_in = True
                 return True
             elif len(res) > 1:
-                logging.critical("More than one user exist with the same "\
+                logging.critical("%s: More than one user exist with the same "\
                                  "username/password combination! Please check "\
-                                 "consistency of the database.")
+                                 "the integrity of the database."
+                                 % (self.__class__.__name__, ))
                 raise SystemExit()
                 return False
             elif len(res) < 1:
-                logging.warning("Username or password is invalid, please try "\
-                                "again.")
+                logging.warning("%s: Username or password is invalid, please try "\
+                                "again."
+                                % (self.__class__.__name__, ))
                 return False
 
     def log_out(self):
-        self._is_logged_in = False
-        logging.info("User '%s' successfully logged out." % (self._username))
+        """
+        Loggs the user out.
+        """
+        # if already logged out
+        if not self._is_logged_in:
+            logging.warning("%s: User '%s' is already logged out."
+                         % (self.__class__.__name__, self._username, ))
+            return False
+        # else, log-out
+        else:
+            self._is_logged_in = False
+            logging.info("%s: User '%s' successfully logged out."
+                         % (self.__class__.__name__, self._username, ))
+            return True
 
 
 class BackupSourcesModelNew(bs.models.Sources):

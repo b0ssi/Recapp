@@ -29,7 +29,7 @@ class BSModel(object):
 
     def _get_class_attributes(self):
         """
-        Get public attributes of class (for API, sub-classed by objects to
+        Gets public attributes of class (for API, sub-classed by objects to
         access database points)
         """
         out = []
@@ -44,7 +44,6 @@ class BSModel(object):
         Returns the Model superclass (meant to be directly subclassed by
         this BSModel).
         """
-        self.__class__.__name__.lower()
         model_object = self.__class__
         while model_object.__bases__[0].__name__ != "BSModel" and \
             model_object.__bases__[0].__name__ != "object":
@@ -54,114 +53,161 @@ class BSModel(object):
         return model_object
 
     def add(self, columns, datasets):
-        # validate data
-        if isinstance(columns, str) and \
-            isinstance(datasets, (list, tuple, )):
-            pass
-        else:
-            logging.critical("The method requires two attributes in the "\
-                             "following format: '<string>, ...>' '[[<value>, ...], ...]'")
+        """
+        Adds a single or multiple data-sets to the object's database-table.
+        `columns` is a comma-separated list of column to be inserted, datasets
+        a 2-dimensional tuple of sets of values. The number of values has to
+        correspond with the number of columns passed.
+        """
+        # VALIDATE DATA
+        # columns
+        if not isinstance(columns, str) or \
+            not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns):
+            logging.critical("ValueError: Attribute 1 is in invalid format. "\
+                             "Valid syntax: (<value1>[, <value2>]...), where "\
+                             "values need to begin/end with an alphanumeric "\
+                             "character and contain '_' in addition. with a "\
+                             "length between 2 and 32 characters.")
             raise SystemExit()
-        logging.info("Saving data to database...")
-        # check that
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+        # datasets
+        if not isinstance(datasets, (list, tuple, )):
+            logging.critical("ValueError: Attribute 2 needs to be a list "\
+                             "containing lists of datasets/tuple containing "\
+                             "tuples of datasets.")
+            raise SystemExit()
+        logging.info("%s: Saving data to database..." % (self.__class__.__name__))
+        # WRITE DATA TO DATABASE
         try:
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             db_table_name = self._get_model_superclass().__name__.lower()
             conn.executemany("INSERT INTO %s (%s) VALUES (%s)" % (db_table_name, columns, str("?, " * len(datasets[0]))[:-2], ), datasets)
-            logging.info("Data successfully saved to database.")
             conn.commit()
-        except sqlite3.IntegrityError as e:
-            logging.critical("A database integrity-error occurred, the object"\
-                             " could only be partially saved: '%s'" % e)
-            raise SystemExit()
-        except sqlite3.OperationalError as e:
-            logging.critical("A database operation-error occurred, the object"\
-                             " could only be partially saved: '%s'" % e)
-        except sqlite3.ProgrammingError as e:
-            logging.critical("A database programming-error occurred, the "\
-                             "object could only be partially saved: '%s'" % e)
+            conn.close()
+            logging.info("%s: Data successfully saved to database." % (self.__class__.__name__))
+            return True
         except Exception as e:
-            logging.critical(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
-        conn.close()
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
 
     def get(self, columns, conditions=""):
         """
-        Load dataset from `columns` in associated table under
-        selection-conditions `conditions`, `conds_neg`.
+        Loads and returns dataset from selected `columns` in associated table
+        under selection-conditions `conditions`, `conds_neg`.
         """
-        # validate arguments
+        # VALIDATE PARAMETERS
         # columns
         # allowed: a-z0-9_
         # first character only: _a-z
         # at least 4 characters
-        if not re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, str(columns)) \
-            and columns != "*":
-            logging.critical("Argument 'columns' has invalid data. It needs "
-                "to start with a Latin lowercase character (a-z), can only "\
-                "contain alpha-numeric characters plus `_` and needs "\
-                "to have a length between 2 and 32 characters.")
+        if not isinstance(columns, str) or \
+            not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns) and\
+            not columns == "*":
+            logging.critical("%s: Argument 1 has invalid data. The column(s) "\
+                             "need to be defined as a single or "\
+                             "comma-separated list of valid column-names "\
+                             "(containing alpha-numeric plus '_', starting "\
+                             "with alphabetic and ending with alphanumeric "\
+                             "characters only) and be between 2 and 32 "\
+                             "characters in length."
+                             % (self.__class__.__name__, ))
             raise SystemExit()
         # conditions
-        if not re.search("(.*)", str(conditions)) \
-            and conditions != "":
-            logging.critical("Argument 'conditions' has invalid data. It needs "\
-                             " to be a tuple of tuples that contain three values: "\
-                             "<columnName><operator><value>, where <operator> E "\
-                             "(!=, =, >, <).")
-            raise SystemExit()
+        self._validate_conditions(conditions)
 
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+        logging.info("Loading data from columns '%s'..."
+                     % (columns, ))
+        # build conditions
+        conditions_sql = ""
+        conditions_parameters = []
+        if conditions != "":
+            conditions_sql = " WHERE "
+            for condition in conditions:
+                conditions_sql += "%s %s ? AND " % (condition[0], condition[1], )
+                conditions_parameters.append(condition[2])
+            conditions_sql = conditions_sql[:-5]
+        # execute SQL call
+        table_name = self._get_model_superclass().__name__.lower()
         try:
-            logging.info("Loading data from columns '%s' with conditions "\
-                         "\"%s\"..." % (columns, conditions, ))
-            # build conditions
-            conditions_sql = ""
-            conditions_parameters = []
-            if conditions != "":
-                conditions_sql = " WHERE "
-                for condition in conditions:
-                    conditions_sql += "%s %s ? AND " % (condition[0], condition[1], )
-                    conditions_parameters.append(condition[2])
-                conditions_sql = conditions_sql[:-5]
-            # execute SQL call
-            table_name = self._get_model_superclass().__name__.lower()
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            conn.commit()
             res = conn.execute("SELECT %s FROM %s%s" % (columns, table_name, conditions_sql, ), tuple(conditions_parameters)).fetchall()
-            logging.info("Data from columns '%s' with conditions \"%s\" "\
-                         "successfully loaded from database."
-                         % (columns, conditions, ))
+            conn.close()
+            logging.info("%s: Data from columns '%s' successfully loaded "\
+                         "from database."
+                         % (self.__class__.__name__, columns, ))
             return res
         except Exception as e:
-            logging.critical(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
 
-        conn.commit()
-        conn.close()
 
     def remove(self, conditions=""):
-        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
-        try:
-            logging.info("Removing data with conditions \"%s\"..."
-                         % (conditions, ))
-            # build conditions
-            conditions_sql = ""
-            conditions_parameters = []
-            if conditions != "":
-                conditions_sql = " WHERE "
-                for condition in conditions:
-                    conditions_sql += "%s %s ? AND " % (condition[0], condition[1], )
-                    conditions_parameters.append(condition[2])
-                conditions_sql = conditions_sql[:-5]
-            # execute SQL call
-            table_name = self._get_model_superclass().__name__.lower()
-            res = conn.execute("DELETE FROM %s%s" % (table_name, conditions_sql, ), tuple(conditions_parameters)).fetchall()
-            logging.info("Data with conditions \"%s\" successfully deleted "\
-                         "from database." % (conditions, ))
-            conn.commit()
-            return res
-        except Exception as e:
-            logging.critical(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[0])
-            raise SystemExit(bs.messages.database.access_denied(bs.config.CONFIGDB_PATH, e)[1])
+        """
+        Removes dataset(s) from the corresponding table in the database that
+        match the passed `conditions`.
+        """
+        # VALIDATE DATA
+        self._validate_conditions(conditions)
 
-        conn.commit()
-        conn.close()
+        logging.info("%s: Removing data..."
+                     % (self.__class__.__name__, ))
+        # build conditions
+        conditions_sql = ""
+        conditions_parameters = []
+        if conditions != "":
+            conditions_sql = " WHERE "
+            for condition in conditions:
+                conditions_sql += "%s %s ? AND " % (condition[0], condition[1], )
+                conditions_parameters.append(condition[2])
+            conditions_sql = conditions_sql[:-5]
+        table_name = self._get_model_superclass().__name__.lower()
+        # execute SQL call
+        try:
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            conn.execute("DELETE FROM %s%s"
+                         % (table_name, conditions_sql, ),
+                         tuple(conditions_parameters)).fetchall()
+            conn.commit()
+            conn.commit()
+            conn.close()
+            logging.info("%s: Data successfully deleted from database."
+                         % (self.__class__.__name__, ))
+            return True
+        except Exception as e:
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
+
+
+    def _validate_conditions(self, conditions):
+        """
+        Validates data passed in in `conditions` and throws an error if it
+        fails or returns True on success.
+        """
+        # VALIDATE DATA
+        validity_check_pass = False
+        if isinstance(conditions, (list, tuple, )):
+            for condition in conditions:
+                if isinstance(condition, (list, tuple, )):
+                    if len(condition) == 3:
+                        if re.search(bs.config.REGEX_PATTERN_COLUMN, condition[0]) and\
+                            re.search("^[\=\>\<]$", condition[1]):
+                            validity_check_pass = True
+                        else:
+                            validity_check_pass = False
+                    else:
+                        validity_check_pass = False
+                else:
+                    validity_check_pass = False
+        elif conditions == "":
+            validity_check_pass = True
+        else:
+            validity_check_pass = False
+        if not validity_check_pass:
+            logging.critical("%s: Argument 2 has invalid data. The conditions "\
+                             "need to be a 2-dimensional list or tuple in "\
+                             "the following form: "\
+                             "(('<column-name>', ('=' or '>' or '<'), ('<string>'), ), ...)"
+                             % (self.__class__.__name__, ))
+            raise SystemExit()
+        else:
+            return True

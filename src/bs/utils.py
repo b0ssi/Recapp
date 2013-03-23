@@ -17,6 +17,9 @@
 
 
 class Event(object):
+    """
+    *
+    """
     def __init__(self):
         self.handlers = set()
 
@@ -44,9 +47,6 @@ class Event(object):
 
     def num_handlers(self):
         return len(self.handlers)
-
-    def __repr__(self):
-        return str(self.handlers)
 
     __iadd__ = add_handler
     __isub__ = remove_handler
@@ -82,12 +82,19 @@ class BSString(object):
         return self.__unicode__
 
     def endswith(self, *args, **kwargs):
-        if self.__unicode__[len(self.__unicode__) - len(args):] == args[0]:
+        """
+        Returns `True` if self.__unicode__ ends with passed string, `False`
+        otherwise.
+        """
+        if self.__unicode__[0 - len(args[0]):] == args[0]:
             return True
         else:
             return False
 
     def pluralize(self):
+        """
+        Pluralizes self.__unicode__ and returns self.
+        """
         endings = [
                    ("e", "es"),
                    ("t", "ts"),
@@ -100,6 +107,9 @@ class BSString(object):
         return self
 
     def singularize(self):
+        """
+        Singularizes self.__unicode__ and returns self.
+        """
         endings = [
                    ("s", ""),
                    ("ts", "t"),
@@ -112,9 +122,15 @@ class BSString(object):
         return self
 
     def capitalize(self):
+        """
+        Capitalizes self.__unicode__ and returns self.
+        """
         self.__unicode__ = self.__unicode__.capitalize()
-        return self.__unicode__
+        return self
 
     def lower(self):
+        """
+        Lowers self.__unicode__ and returns self.
+        """
         self.__unicode__ = self.__unicode__.lower()
-        return self.__unicode__
+        return self

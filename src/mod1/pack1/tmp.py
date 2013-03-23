@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import random
+import re
 import sqlite3
 import time
 
@@ -399,18 +400,44 @@ import time
 
 ###############################################################################
 
-start = time.clock()
-for n in range(10000):
-    conn = sqlite3.connect("Z:\\test.sqlite")
-#    conn.execute("CREATE TABLE benchmark (id INTEGER PRIMARY KEY, name TEXT)")
-    res = conn.execute("SELECT * FROM benchmark").fetchall()
-#    res = conn.execute("INSERT INTO benchmark (name) VALUES (?)", (str(random.randint(1000000, 9999999)), ))
-    conn.commit()
-#    conn.execute("DROP TABLE test")
-    conn.close()
-end = time.clock()
-print("Finished in %ss" % (end - start))
+#start = time.clock()
+#for n in range(10000):
+#    conn = sqlite3.connect("Z:\\test.sqlite")
+##    conn.execute("CREATE TABLE benchmark (id INTEGER PRIMARY KEY, name TEXT)")
+#    res = conn.execute("SELECT * FROM benchmark").fetchall()
+##    res = conn.execute("INSERT INTO benchmark (name) VALUES (?)", (str(random.randint(1000000, 9999999)), ))
+#    conn.commit()
+##    conn.execute("DROP TABLE test")
+#    conn.close()
+#end = time.clock()
+#print("Finished in %ss" % (end - start))
 
+###############################################################################
 
+#pattern = "^([^\_0-9][a-zA-Z0-9\_]{2,32}[^\_])(\,\ [^\_0-9][a-zA-Z0-9\_]{2,32}[^\_])*$"
+#text = "dfgh234, as_43df_"
+#res = re.search(pattern, text)
+#if res:
+#    if res.group(1):
+#        print("Group1: %s" % res.group(1))
+#    if res.group(2):
+#        print("Group2: %s" % res.group(2))
+
+###############################################################################
+
+#c = "*"
+#
+#if not 2 == 2 or\
+#    not 2 == 3 and\
+#    not c == "*.":
+#    print("Booooo")
+#else:
+#    print("BAAAHAHAHAH!")
+
+###############################################################################
+
+import bs.utils
+s = bs.utils.BSString("Whoohoo")
+print(s.endswith("", "hoo", "x", "sldfk", "sdf", "w849"))
 
 ###############################################################################

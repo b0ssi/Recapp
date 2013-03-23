@@ -58,7 +58,7 @@ class SyncDb(object):
             if inspect.isclass(member_object):
                 class_attributes = {}
                 for class_attribute_name, class_attribute_value in inspect.getmembers(member_object):
-                    if re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, class_attribute_name):
+                    if re.search(bs.config.REGEX_PATTERN_COLUMN, class_attribute_name):
                         # filter through different attribute types in model
                         # lists (regular attributes
                         if isinstance(class_attribute_value, list):
@@ -159,7 +159,7 @@ class SyncDb(object):
                 # allowed: a-zA-Z0-9_
                 # first character only: _a-zA-Z
                 # 4-32 characters
-                if not re.search(bs.config.VALID_NAME_MODEL_TABLE_PATTERN,
+                if not re.search(bs.config.REGEX_PATTERN_TABLE,
                                  member_name):
                     logging.critical("The model '%s' has an invalid name. It "\
                                      "needs to start with a Latin lower-case "\
@@ -172,7 +172,7 @@ class SyncDb(object):
                 # checks validity of attribute value (list with 2 <= n <= 4 attr)
                 # checks validity of attribute name
                 class_attributes = [[x[0], x[1]] for x in inspect.getmembers(member_object) \
-                                    if re.search(bs.config.VALID_NAME_ATTRIBUTE_COLUMN_PATTERN, x[0]) and \
+                                    if re.search(bs.config.REGEX_PATTERN_COLUMN, x[0]) and \
                                     isinstance(x[1], list) and \
                                     1 <= len(x[1]) <= 2]
                 # if no valid attributes were found
