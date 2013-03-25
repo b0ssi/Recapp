@@ -30,6 +30,7 @@ class Users(bs.models_master.BSModel):
 class Sources(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
+    source_name = ["TEXT"]
     source_path = ["TEXT"]
 
     def __init__(self):
@@ -39,7 +40,8 @@ class Sources(bs.models_master.BSModel):
 class Targets(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
-    target_path = ["TEXT"]
+    target_name = ["TEXT"]
+    target_id = ["INTEGER", "UNIQUE"]
 
     def __init__(self):
         pass

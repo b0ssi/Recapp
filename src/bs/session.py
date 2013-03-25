@@ -19,6 +19,7 @@ import bs.config
 import bs.models
 import hashlib
 import logging
+import os
 import re
 
 
@@ -31,7 +32,7 @@ class SessionsModel(object):
 
     def __init__(self):
         super(SessionsModel, self).__init__()
-        # add initial session
+        # _add initial session
         self.add_session()
 
     def __repr__(self):
@@ -69,12 +70,26 @@ class SessionsModel(object):
                      % (self.__class__.__name__, ))
         # create new session
         new_session = SessionModel()
-        # add new session to self._sessions
+        # _add new session to self._sessions
         self._sessions.append(new_session)
         self.current_session = new_session
         logging.info("%s: Session successfully added."
                      % (self.__class__.__name__, ))
-        return True
+        return new_session
+
+    def remove_session(self, session):
+        """
+        *
+        Removes an existing session including all of its associated objects.
+        """
+        if session:
+            self._sessions.pop(self._sessions.index(session))
+            self._current_session = self._sessions[-1]
+            logging.info("%s: Session successfully removed: %s"
+                         % (self.__class__.__name__, session, ))
+        else:
+            logging.warning("%s: The session does not exist: %s"
+                            % (self.__class__.__name__, session, ))
 
 
 class SessionModel(object):
@@ -91,11 +106,11 @@ class SessionModel(object):
     def __init__(self):
         super(SessionModel, self).__init__()
 
-        self._user = UserModel()
-        self._backup_sources = BackupSourcesModel()
-        self._backup_targets = BackupTargetsModel()
-        self._backup_filters = BackupFiltersModel()
-        self._backup_sets = BackupSetsModel()
+        self._user = UserModel(self)
+        self._backup_sources = BackupSourcesModel(self)
+        self._backup_targets = BackupTargetsModel(self)
+        self._backup_filters = BackupFiltersModel(self)
+        self._backup_sets = BackupSetsModel(self)
 
     def __repr__(self):
         return(str((self._user,
@@ -128,20 +143,28 @@ class SessionModel(object):
 
 class UserModel(bs.models.Users):
     """
+    *
     Represents an active user.
     """
     _id = -1
     _is_logged_in = False
     _username = ""
+    _session = None
 
-    def __init__(self):
+    def __init__(self, session):
+        """
+        *
+        """
         super(UserModel, self).__init__()
+        self._session = session
         # create default user
-        if len(self.get("*")) == 0:
-            self.add("username, password",
-                      [['1', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']])
-            self.add("username, password",
-                      [['2', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']])
+        if len(self._get("*", no_auth_required=True)) == 0:
+            self._add("username, password",
+                     [['alpha', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']],
+                     no_auth_required=True)
+            self._add("username, password",
+                     [['bravo', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']],
+                     no_auth_required=True)
 
     def __repr__(self):
         return "User '%s' <%s>" % (self._username, self.__class__.__name__, )
@@ -153,6 +176,38 @@ class UserModel(bs.models.Users):
     @property
     def is_logged_in(self):
         return self._is_logged_in
+
+    # OVERLOADS
+    def _add_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _get_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
 
     def log_in(self, username, password):
         """
@@ -174,8 +229,10 @@ class UserModel(bs.models.Users):
             return True
         else:
             password_hash = hashlib.sha512(password.encode())
-            res = self.get("id", (("username", "=", username),
-                             ("password", "=", password_hash.hexdigest(), ), ))
+            res = self._get("id", (("username", "=", username),
+                                  ("password", "=", password_hash.hexdigest(), ), ),
+                           no_auth_required=True
+                           )
             if len(res) == 1:
                 self._id = res[0][0]
                 self._username = username
@@ -214,32 +271,278 @@ class UserModel(bs.models.Users):
 
 
 class BackupSourcesModel(bs.models.Sources):
-    def __init__(self):
+    """
+    *
+    """
+    _session = None
+
+    def __init__(self, session):
+        """
+        *
+        """
         super(BackupSourcesModel, self).__init__()
+        self._session = session
 
     def __repr__(self):
         return "Sources <%s>" % (self.__class__.__name__, )
 
+    @property
+    def sources(self):
+        """
+        *
+        Returns all saved sources for current user as a list of full dataset
+        tuples straight from the database.
+        """
+        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+
+    @sources.setter
+    def sources(self):
+        return False
+
+    # OVERLOADS
+    def _add_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _get_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
+
+    def add(self, source_name, source_path):
+        """
+        *
+        Adds a new source.
+        Returns the source_id.
+        """
+        # VALIDATE DATA
+        # source_name
+        if not re.search(bs.config.REGEX_PATTERN_NAME, source_name):
+            logging.warning("%s: The name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # source_path
+        if not os.path.isdir(source_path):
+            logging.warning("%s: The source-path is invalid. It needs to be "\
+                            "a valid directory-path on the current system."
+                            % (self.__class__.__name__, ))
+            return False
+        logging.info("%s: Adding source: '%s' (%s)"
+                        % (self.__class__.__name__, source_name, source_path,))
+        # check that the path does not already exist for current user.
+        res = self._get("id", (("user_id", "=", self._session.user.id, ),
+                               ("source_path", "=", source_path, ), ))
+        if len(res) > 0:
+            logging.warning("%s: This source-path is already specified: %s"
+                            % (self.__class__.__name__, source_path, ))
+            return False
+        # add data to database
+        self._add("user_id, source_name, source_path",
+                  ((self._session.user.id, source_name, source_path, ), ))
+        logging.info("%s: Source successfully added: '%s' (%s)"
+                        % (self.__class__.__name__, source_name, source_path))
+        # out
+        return True
+
+    def remove(self, table_id):
+        """
+        *
+        Removes an existing source.
+        Returns the source_id.
+        """
+        # VALIDATE DATA
+        if not isinstance(table_id, int):
+            logging.warning("%s: Argument 1 needs to be an integer."
+                            % (self.__class__.__name__, ))
+            return False
+        # check that dataset actually exists
+        res = self._get("*", (("id", "=", table_id, ), ("user_id", "=",
+                                                  self._session.user.id, ), ))
+        if len(res) == 0:
+            logging.warning("%s: A source with this ID does not exist for "\
+                            "user '%s' (id: %s)." % (self.__class__.__name__,
+                                            self._session.user.name,
+                                            self._session.user.id, ))
+            return False
+        elif len(res) > 1:
+            logging.warning("%s: There is more than one dataset with ID '%s' "\
+                            "and user_id '%s'. Check the database for "\
+                            "integrity." % (self.__class__.__name__,
+                                            self._session.user.id))
+            return False
+        # remove data from database
+        self._remove((("id", "=", table_id, ), ("user_id", "=",
+                                          self._session.user.id, ), ))
+        # out
+        return True
+
 
 class BackupTargetsModel(bs.models.Targets):
-    def __init__(self):
+    """
+    *
+    """
+    _session = None
+
+    def __init__(self, session):
+        """
+        *
+        """
         super(BackupTargetsModel, self).__init__()
+        self._sessin = session
 
     def __repr__(self):
         return "Targets <%s>" % (self.__class__.__name__)
 
+    # OVERLOADS
+    def _add_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _get_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
+
 
 class BackupFiltersModel(bs.models.Filters):
-    def __init__(self):
+    """
+    *
+    """
+    _session = None
+
+    def __init__(self, session):
+        """
+        *
+        """
         super(BackupFiltersModel, self).__init__()
+        self._session = session
 
     def __repr__(self):
         return "Filters <%s>" % (self.__class__.__name__)
 
+    # OVERLOADS
+    def _add_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _get_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
+
 
 class BackupSetsModel(bs.models.Sets):
-    def __init__(self):
+    """
+    *
+    """
+    _session = None
+
+    def __init__(self, session):
+        """
+        *
+        """
         super(BackupSetsModel, self).__init__()
+        self._session = session
 
     def __repr__(self):
         return "Sets <%s>" % (self.__class__.__name__)
+
+    # OVERLOADS
+    def _add_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _get_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session.user._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS

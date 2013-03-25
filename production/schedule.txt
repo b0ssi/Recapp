@@ -8,6 +8,53 @@
 # SCHEDULE
 ################################
 ................................
+[.]		NEXT MILESTONE: 0002
+		........................
+[X]		Controllers: Restrict methods to logged_in only
+[X]		Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
+[X]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
+		> possibly irrelevant as sessions will operate in their local scope. Methods requiring a global scope across all sessions can refer to the sessions parent and iterate through active sessions.
+[X]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
+[X]		SessionsModel:
+		[X]	figure out how to identify a session
+			> adress when actually needed (refer to "switch between sessions" task)
+		[X]	remove_session()
+[.]	Do I need objects to represent sources, targets, filters, etc. or do lists suffice?
+[.]		SourcesModel:
+		[X]	add_source(source)
+		[X]	remove_source(source)
+		[X]	sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
+[ ]		TargetsModel:
+		[ ]	add_target(target)
+		[ ]	remove_target(target)
+		[ ]	targets property (return list of targets)
+[ ]		FiltersModel
+		[ ]	add_filter(filter)
+		[ ]	remove_filter(filter)
+		[ ]	filters property (return list of filters)
+[ ]		SetsModel
+		[ ]	add_set(sources, targets, filters)
+		[ ]	remove_set(set)
+		[ ]	sets property (return list of sets)
+................................
+[ ]		Q/A
+		........................
+[ ]		clean-up old code
+[ ]		check module-structure
+[ ]		maintain integrity:
+		[ ]	document code
+		[ ]	validate user-input
+		[ ]	write test/test
+		[ ]	manage conditional exception-handling
+		[ ]	implement correct return data for *everything*
+		[ ]	address warnings/errors
+		[ ] standardize logging-messages
+		[ ]	make sure all logging messages are very *specific* in regards to
+				- origin of message
+[ ]		clean-up current code:
+		[ ]	update representations
+		[ ] any code-warnings/errors
+................................
 [X]		NEXT MILESTONE: 0001
 		........................
 [X]		automatically create default user
@@ -31,20 +78,4 @@
 [X]		clean-up current code:
 		[X]	update representations
 		[X] any code-warnings/errors
-................................
-[ ]		NEXT MILESTONE: 0002
-		........................
-[ ]		Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
-[ ]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
-[ ]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
-[ ]		SessionsModel:
-		[ ]	figure out how to identify a session
-		[ ]	remove_session()
-[ ]		.
-................................
-[ ]		Q/A
-		........................
-[ ]		.
-[ ]		.
-[ ]		.
 ................................

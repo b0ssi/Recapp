@@ -24,6 +24,10 @@ import sqlite3
 
 
 class BSModel(object):
+    """
+    *
+    Structural superclass for all models.
+    """
     def __init__(self):
         super(BSModel, self).__init__()
 
@@ -39,26 +43,54 @@ class BSModel(object):
                 out.append([attribute_name, attribute_object])
         return out
 
-    def _get_model_superclass(self):
+    def _get_model_superclass(self, parent=None):
         """
+        *
         Returns the Model superclass (meant to be directly subclassed by
         this BSModel).
         """
-        model_object = self.__class__
-        while model_object.__bases__[0].__name__ != "BSModel" and \
-            model_object.__bases__[0].__name__ != "object":
-            model_object = model_object.__bases__[0]
-        if model_object.__bases__[0].__name__ == "object":
-            model_object = False
-        return model_object
+        if not parent:
+            parent=self.__class__
 
-    def add(self, columns, datasets):
+        for child in parent.__bases__:
+            if child.__name__ == "BSModel":
+                return parent
+            elif child.__name__ != "object":
+                return self._get_model_superclass(child)
+
+    @ property
+    def _add_is_permitted(self, *args, **kwargs):
         """
+        *
+        This method is designed to be overloaded by inheriting classes to
+        implement individual access checks to be performed to grant self._add()
+        permissions to execute. The return value must be a boolean.
+        """
+        return True
+
+    def _add(self, columns, datasets, **kwargs):
+        """
+        *
         Adds a single or multiple data-sets to the object's database-table.
         `columns` is a comma-separated list of column to be inserted, datasets
         a 2-dimensional tuple of sets of values. The number of values has to
         correspond with the number of columns passed.
+
+        It accepts the following keyword-arguments:
+        - no_auth_required BOOL: bypasses the authentication check
         """
+        # extract kwargs
+        try:
+            no_auth_required = kwargs["no_auth_required"]
+        except:
+            no_auth_required = False
+        # get permissions
+        if not no_auth_required:
+            if not self._add_is_permitted():
+                logging.warning("%s: PermissionError: Object cannot save data "\
+                                "due to a lack of permission."
+                                % (self.__class__.__name__))
+                return False
         # VALIDATE DATA
         # columns
         if not isinstance(columns, str) or \
@@ -97,11 +129,37 @@ class BSModel(object):
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
             raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
 
-    def get(self, columns, conditions=""):
+    @ property
+    def _get_is_permitted(self, *args, **kwargs):
         """
+        *
+        This method is designed to be overloaded by inheriting classes to
+        implement individual access checks to be performed to grant self._get()
+        permissions to execute. The return value must be a boolean.
+        """
+        return True
+
+    def _get(self, columns, conditions="", **kwargs):
+        """
+        *
         Loads and returns dataset from selected `columns` in associated table
         under selection-conditions `conditions`, `conds_neg`.
+
+        It accepts the following keyword-arguments:
+        - no_auth_required BOOL: bypasses the authentication check
         """
+        # extract kwargs
+        try:
+            no_auth_required = kwargs["no_auth_required"]
+        except:
+            no_auth_required = False
+        # get permissions
+        if not no_auth_required:
+            if not self._get_is_permitted():
+                logging.warning("%s: PermissionError: Object cannot _get data "\
+                                "due to a lack of permission."
+                                % (self.__class__.__name__))
+                return False
         # VALIDATE PARAMETERS
         # columns
         # allowed: a-z0-9_
@@ -153,12 +211,38 @@ class BSModel(object):
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
             raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
 
+    @ property
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        This method is designed to be overloaded by inheriting classes to
+        implement individual access checks to be performed to grant
+        self._remove() permissions to execute. The return value must be a
+        boolean.
+        """
+        return True
 
-    def remove(self, conditions=""):
+
+    def _remove(self, conditions="", **kwargs):
         """
         Removes dataset(s) from the corresponding table in the database that
         match the passed `conditions`.
+
+        It accepts the following keyword-arguments:
+        - no_auth_required BOOL: bypasses the authentication check
         """
+        # extract kwargs
+        try:
+            no_auth_required = kwargs["no_auth_required"]
+        except:
+            no_auth_required = False
+        # get permissions
+        if not no_auth_required:
+            if not self._remove_is_permitted():
+                logging.warning("%s: PermissionError: Object cannot _remove data "\
+                                "due to a lack of permission."
+                                % (self.__class__.__name__))
+                return False
         # VALIDATE DATA
         self._validate_conditions(conditions)
 
