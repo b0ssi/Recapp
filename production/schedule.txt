@@ -1,8 +1,8 @@
 ## TYPES OF COMMITS
 ################################
-[<runCode>] Milestone Commit		Just at the end of a major Q/A cycle before initiating work on the next milestone
-[<runCode>] Q/A Start Commit		Just before starting a Q/A run
-[<runCode>] End of Day Commit		Periodic routine End of Day commit
+[<runCode>] Milestone Completed Commit		Just at the end of a major Q/A cycle before initiating work on the next milestone
+[<runCode>] Q/A Start Commit				Just before starting a Q/A run
+[<runCode>] End of Day Commit				Periodic routine End of Day commit
 
 
 # SCHEDULE
@@ -14,7 +14,7 @@
 [X]		user can log in, out
 [X]		sources, targets, sets, filters can be loaded/saved/removed
 ................................
-[.]		Q/A
+[X]		Q/A
 		........................
 [X]		clean-up old code
 [X]		check module-structure
@@ -30,7 +30,7 @@
 				- origin of message
 [X]		clean-up current code:
 		[X]	update representations
-		[.] any code-warnings/errors
+		[X] any code-warnings/errors
 ................................
 [ ]		NEXT MILESTONE: 0002
 		........................

@@ -63,27 +63,35 @@ class BSModel(object):
         # columns
         if not isinstance(columns, str) or \
             not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns):
-            logging.critical("ValueError: Attribute 1 is in invalid format. "\
+            logging.critical("%s: ValueError: Attribute 1 is in invalid format. "\
                              "Valid syntax: (<value1>[, <value2>]...), where "\
                              "values need to begin/end with an alphanumeric "\
                              "character and contain '_' in addition. with a "\
-                             "length between 2 and 32 characters.")
+                             "length between 2 and 32 characters."
+                             % (self.__class__.__name__, ))
             raise SystemExit()
         # datasets
         if not isinstance(datasets, (list, tuple, )):
-            logging.critical("ValueError: Attribute 2 needs to be a list "\
+            logging.critical("%s: ValueError: Attribute 2 needs to be a list "\
                              "containing lists of datasets/tuple containing "\
-                             "tuples of datasets.")
+                             "tuples of datasets."
+                             % (self.__class__.__name__, ))
             raise SystemExit()
-        logging.info("%s: Saving data to database..." % (self.__class__.__name__))
+        logging.info("%s: Saving data to database..."
+                     % (self.__class__.__name__))
         # WRITE DATA TO DATABASE
         try:
             conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             db_table_name = self._get_model_superclass().__name__.lower()
-            conn.executemany("INSERT INTO %s (%s) VALUES (%s)" % (db_table_name, columns, str("?, " * len(datasets[0]))[:-2], ), datasets)
+            conn.executemany("INSERT INTO %s (%s) VALUES (%s)"
+                             % (db_table_name,
+                                columns,
+                                str("?, " * len(datasets[0]))[:-2], ),
+                             datasets)
             conn.commit()
             conn.close()
-            logging.info("%s: Data successfully saved to database." % (self.__class__.__name__))
+            logging.info("%s: Data successfully saved to database."
+                         % (self.__class__.__name__))
             return True
         except Exception as e:
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
@@ -114,15 +122,16 @@ class BSModel(object):
         # conditions
         self._validate_conditions(conditions)
 
-        logging.info("Loading data from columns '%s'..."
-                     % (columns, ))
+        logging.info("%s: Loading data from columns '%s'..."
+                     % (self.__class__.__name__, columns, ))
         # build conditions
         conditions_sql = ""
         conditions_parameters = []
         if conditions != "":
             conditions_sql = " WHERE "
             for condition in conditions:
-                conditions_sql += "%s %s ? AND " % (condition[0], condition[1], )
+                conditions_sql += "%s %s ? AND " % (condition[0],
+                                                    condition[1], )
                 conditions_parameters.append(condition[2])
             conditions_sql = conditions_sql[:-5]
         # execute SQL call
@@ -130,7 +139,11 @@ class BSModel(object):
         try:
             conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             conn.commit()
-            res = conn.execute("SELECT %s FROM %s%s" % (columns, table_name, conditions_sql, ), tuple(conditions_parameters)).fetchall()
+            res = conn.execute("SELECT %s FROM %s%s"
+                               % (columns,
+                                  table_name,
+                                  conditions_sql, ),
+                               tuple(conditions_parameters)).fetchall()
             conn.close()
             logging.info("%s: Data from columns '%s' successfully loaded "\
                          "from database."
@@ -157,7 +170,8 @@ class BSModel(object):
         if conditions != "":
             conditions_sql = " WHERE "
             for condition in conditions:
-                conditions_sql += "%s %s ? AND " % (condition[0], condition[1], )
+                conditions_sql += "%s %s ? AND " % (condition[0],
+                                                    condition[1], )
                 conditions_parameters.append(condition[2])
             conditions_sql = conditions_sql[:-5]
         table_name = self._get_model_superclass().__name__.lower()
@@ -203,9 +217,9 @@ class BSModel(object):
         else:
             validity_check_pass = False
         if not validity_check_pass:
-            logging.critical("%s: Argument 2 has invalid data. The conditions "\
-                             "need to be a 2-dimensional list or tuple in "\
-                             "the following form: "\
+            logging.critical("%s: Argument 2 has invalid data. The "\
+                             "conditions need to be a 2-dimensional list or "\
+                             "tuple in the following form: "\
                              "(('<column-name>', ('=' or '>' or '<'), ('<string>'), ), ...)"
                              % (self.__class__.__name__, ))
             raise SystemExit()

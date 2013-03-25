@@ -20,7 +20,8 @@ import os
 PROJECT_NAME = "Backupshizzle"
 
 # create config dir
-CONFIG_PATH = os.path.normcase(os.path.join(str(QtCore.QDir.homePath()), ".backupshizzle"))
+CONFIG_PATH = os.path.normcase(os.path.join(str(QtCore.QDir.homePath()),
+                                            ".backupshizzle"))
 
 LOGFILE_PATH = os.path.join(CONFIG_PATH, "log.log")
 CONFIGDB_PATH = os.path.join(CONFIG_PATH, "globalConfig.sqlite")

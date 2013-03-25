@@ -15,16 +15,11 @@
 ##                                                                           ##
 ###############################################################################
 
-from bs.utils import BSString
-import bs._db
 import bs.config
-import bs.messages.database
 import bs.models
 import hashlib
 import logging
-import os
 import re
-import sqlite3
 
 
 class SessionsModel(object):
@@ -61,7 +56,8 @@ class SessionsModel(object):
             return True
         else:
             logging.warning("%s: Argument 1 needs to be an instance of "\
-                            "the 'SessionModel()' class." % (self.__class__.__name__))
+                            "the 'SessionModel()' class."
+                            % (self.__class__.__name__))
             return False
 
     def add_session(self):
@@ -69,13 +65,15 @@ class SessionsModel(object):
         Adds a new session including an empty set for the user, sources,
         targets, filters, sets, etc..
         """
-        logging.info("%s: Adding session to sessions..." % (self.__class__.__name__, ))
+        logging.info("%s: Adding session to sessions..."
+                     % (self.__class__.__name__, ))
         # create new session
         new_session = SessionModel()
         # add new session to self._sessions
         self._sessions.append(new_session)
         self.current_session = new_session
-        logging.info("%s: Session successfully added." % (self.__class__.__name__, ))
+        logging.info("%s: Session successfully added."
+                     % (self.__class__.__name__, ))
         return True
 
 
@@ -93,11 +91,11 @@ class SessionModel(object):
     def __init__(self):
         super(SessionModel, self).__init__()
 
-        self._user = UserModelNew()
-        self._backup_sources = BackupSourcesModelNew()
-        self._backup_targets = BackupTargetsModelNew()
-        self._backup_filters = BackupFiltersModelNew()
-        self._backup_sets = BackupSetsModelNew()
+        self._user = UserModel()
+        self._backup_sources = BackupSourcesModel()
+        self._backup_targets = BackupTargetsModel()
+        self._backup_filters = BackupFiltersModel()
+        self._backup_sets = BackupSetsModel()
 
     def __repr__(self):
         return(str((self._user,
@@ -128,7 +126,7 @@ class SessionModel(object):
         return self._backup_sets
 
 
-class UserModelNew(bs.models.Users):
+class UserModel(bs.models.Users):
     """
     Represents an active user.
     """
@@ -137,7 +135,7 @@ class UserModelNew(bs.models.Users):
     _username = ""
 
     def __init__(self):
-        super(UserModelNew, self).__init__()
+        super(UserModel, self).__init__()
         # create default user
         if len(self.get("*")) == 0:
             self.add("username, password",
@@ -187,14 +185,14 @@ class UserModelNew(bs.models.Users):
                 return True
             elif len(res) > 1:
                 logging.critical("%s: More than one user exist with the same "\
-                                 "username/password combination! Please check "\
-                                 "the integrity of the database."
+                                 "username/password combination! Please "\
+                                 "check the integrity of the database."
                                  % (self.__class__.__name__, ))
                 raise SystemExit()
                 return False
             elif len(res) < 1:
-                logging.warning("%s: Username or password is invalid, please try "\
-                                "again."
+                logging.warning("%s: Username or password is invalid, please "\
+                                "try again."
                                 % (self.__class__.__name__, ))
                 return False
 
@@ -215,33 +213,33 @@ class UserModelNew(bs.models.Users):
             return True
 
 
-class BackupSourcesModelNew(bs.models.Sources):
+class BackupSourcesModel(bs.models.Sources):
     def __init__(self):
-        super(BackupSourcesModelNew, self).__init__()
+        super(BackupSourcesModel, self).__init__()
 
     def __repr__(self):
         return "Sources <%s>" % (self.__class__.__name__, )
 
 
-class BackupTargetsModelNew(bs.models.Targets):
+class BackupTargetsModel(bs.models.Targets):
     def __init__(self):
-        super(BackupTargetsModelNew, self).__init__()
+        super(BackupTargetsModel, self).__init__()
 
     def __repr__(self):
         return "Targets <%s>" % (self.__class__.__name__)
 
 
-class BackupFiltersModelNew(bs.models.Filters):
+class BackupFiltersModel(bs.models.Filters):
     def __init__(self):
-        super(BackupFiltersModelNew, self).__init__()
+        super(BackupFiltersModel, self).__init__()
 
     def __repr__(self):
         return "Filters <%s>" % (self.__class__.__name__)
 
 
-class BackupSetsModelNew(bs.models.Sets):
+class BackupSetsModel(bs.models.Sets):
     def __init__(self):
-        super(BackupSetsModelNew, self).__init__()
+        super(BackupSetsModel, self).__init__()
 
     def __repr__(self):
         return "Sets <%s>" % (self.__class__.__name__)
