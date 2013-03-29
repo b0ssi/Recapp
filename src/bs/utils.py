@@ -134,3 +134,19 @@ class BSString(object):
         """
         self.__unicode__ = self.__unicode__.lower()
         return self
+
+
+def formatDirSize(size, lock_to=None):
+    """
+    *
+    size: int: bytes
+    lock_to: string: name of unit (e.g. "MiB") and returns value not
+    higher than chosen unit.
+    """
+    # format byte-size
+    for x in ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]:
+        if x == lock_to or \
+            size < 1024.0:
+            return "%3.2f %s" % (size, x, )
+        size /= 1024.0
+    return "%3.1f%s" % (size, 'YiB')

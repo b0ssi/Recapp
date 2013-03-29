@@ -155,7 +155,7 @@ class BOp_Prep_Sources_CTR(BOp_Prep_Sources_UI):
     def formatDirSize(self, size):
         
         # format byte-size
-        units = ["Byte", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
+        units = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
         i = len(units)-1
         for unit in units:
             threshold = pow(1024, i)

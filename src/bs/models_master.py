@@ -159,7 +159,7 @@ class BSModel(object):
                 logging.warning("%s: PermissionError: Object cannot _get data "\
                                 "due to a lack of permission."
                                 % (self.__class__.__name__))
-                return False
+                return []
         # VALIDATE PARAMETERS
         # columns
         # allowed: a-z0-9_

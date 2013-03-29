@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
+import hashlib
+import itertools
+import os
 import random
+import sqlite3
+import time
 
 ###############################################################################
 ##    [NAME]                                                                 ##
@@ -121,4 +126,47 @@ import random
 #               ]
 #              )
 #
+###############################################################################
+
+
+#time_start = time.time()
+#conn = sqlite3.connect("Z:\\test.sqlite")
+#conn.execute("DROP TABLE test")
+#conn.execute("CREATE TABLE test ('inode' INTEGER)")
+#conn.commit()
+#for folder_path, folders, files in os.walk("Z:\\files"):
+#    for file in files:
+#        inode = os.stat(os.path.join(folder_path, file)).st_ino
+#        conn.execute("INSERT INTO test VALUES (?)", (inode, ))
+#        print(os.path.join(folder_path, file))
+#print(time.time() - time_start)
+#conn.commit()
+#print(time.time() - time_start)
+
+#i = 0
+#for inode in (x[0] for x in conn.execute("SELECT * FROM test").fetchall()):
+#    if len(conn.execute("SELECT * FROM test WHERE inode = ?", (inode, )).fetchall()) > 1:
+#        print("NOT GOOD: %s" % (inode, ))
+#    print(i)
+#    i += 1
+
+
+#print("Finding duplicates...")
+#time_start = time.time()
+#print(any(x == y for x, y in itertools.combinations(INODES, 2)))
+#print(time.time() - time_start)
+
+#for INODE in INODES:
+#    if INODE not in INODES_2:
+#        INODES_2.append(INODE)
+#    else:
+#        print(INODE)
+#    print(len(INODES_2))
+
+
+
+#print("DONE")
+
+###############################################################################
+
 ###############################################################################

@@ -41,10 +41,11 @@ SESSIONS = bs.session.SessionsModel()
 SESSIONS.current_session.user.log_in("bravo", "2")
 # SESSION 2
 session_alpha = SESSIONS.add_session()
-SESSIONS.current_session.user.log_in("alpha", "1")
+#SESSIONS.current_session.user.log_in("alpha", "1")
 SESSIONS.current_session.backup_sources.add("MyAwesomeSource #13049", "Z:\\test2")
 SESSIONS.remove_session(SESSIONS.current_session)
 # SESSION 1 AGAIN
 SESSIONS.current_session.backup_sources.add("MySource", "Z:\\test")
 SESSIONS.current_session.backup_sources.add("MySource #2", "Z:\\test2")
-print(SESSIONS.current_session.backup_sources.sources)
+
+SESSIONS.current_session.backup_targets.add("My target #1", "Z:\\")

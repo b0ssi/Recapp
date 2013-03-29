@@ -16,11 +16,15 @@
 ###############################################################################
 
 import bs.config
+import bs.messages
 import bs.models
 import hashlib
+import json
 import logging
 import os
+import random
 import re
+import time
 
 
 class SessionsModel(object):
@@ -357,7 +361,7 @@ class BackupSourcesModel(bs.models.Sources):
         res = self._get("id", (("user_id", "=", self._session.user.id, ),
                                ("source_path", "=", source_path, ), ))
         if len(res) > 0:
-            logging.warning("%s: This source-path is already specified: %s"
+            logging.warning("%s: This source-path is already defined: %s"
                             % (self.__class__.__name__, source_path, ))
             return False
         # add data to database
@@ -412,7 +416,7 @@ class BackupTargetsModel(bs.models.Targets):
         *
         """
         super(BackupTargetsModel, self).__init__()
-        self._sessin = session
+        self._session = session
 
     def __repr__(self):
         return "Targets <%s>" % (self.__class__.__name__)
@@ -448,6 +452,56 @@ class BackupTargetsModel(bs.models.Targets):
         else:
             return False
     # /OVERLOADS
+
+    def add(self, target_name, target_path):
+        """
+        *
+        Adds a target to the list of targets.
+        """
+        # VERIFY DATA
+        # target_name
+        if not re.search(bs.config.REGEX_PATTERN_NAME, target_name):
+            logging.warning("%s: The name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # target_path
+        if not re.search("^[a-zA-Z]\:\\\\$", target_path):
+            logging.warning("%s: This is not a valid target path. Only "\
+                            "partition roots can be defined as targets."
+                            % (self.__class__.__name__, ))
+            return False
+        # check if volume is already defined as target
+        root_path = os.path.join(target_path,
+                                 bs.config.PROJECT_NAME.capitalize())
+        root_config_file_path = os.path.join(root_path, "volume.json")
+        if not os.path.isdir(root_path):
+            # generate target_id
+            # timestamp at high sub-second-precision as string appended by random
+            # 16-bit integer as string, encoded as HEX-SHA512
+            timestamp = str(int(time.time() * 1000000))
+            random_num = str(random.randint(1000000000000000, 9999999999999999))
+            timestamp_random_num = timestamp + random_num
+            target_id = hashlib.sha512(timestamp_random_num.encode()).hexdigest()
+            # add to database
+            self._add("user_id, target_name, target_id",
+                      ((self._session.user.id, target_name, target_id,),))
+            # create BS root directory on volume
+            try:
+                # create root_folder
+                os.mkdir(root_path)
+                with open(root_config_file_path, "w") as f:
+                    json.dump([target_name, target_id], f)
+                return True
+            except Exception as e:
+                logging.warning(bs.messages.general.general_error(e)[0])
+                return False
+        else:
+            logging.warning("%s: This volume is already defined as a "\
+                             "target: %s"
+                             % (self.__class__.__name__, target_path, ))
+            return False
 
 
 class BackupFiltersModel(bs.models.Filters):
