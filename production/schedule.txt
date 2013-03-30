@@ -38,10 +38,14 @@
 		[ ]	sets property (return list of sets)
 [.]		Start with backup-factory
 		[.]	Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
-		[.]	Implement conditional matrixes to handle different cases
+		[X]	Implement conditional matrixes to handle different cases
+		[X]	Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
+			> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
+		[X] Implement 2-threaded hash-calculation into backup-routines
 		[ ]	Implement organization plan of file-data
 		[ ]	Implement compression
 		[ ]	Implement sidecart-metadata files for backed-up datastreams
+		[ ]	Ingetrate code propertly into bs structure (from current tmp working files)
 		[ ]	benchmark/optimize for speed
 ................................
 [ ]		Q/A

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import binascii
 import hashlib
 import itertools
+import math
 import os
 import random
 import sqlite3
@@ -168,5 +170,30 @@ import time
 #print("DONE")
 
 ###############################################################################
+
+def write_file_random_content(target_directory_path, file_size_min, file_size_max):
+    target_file_path = os.path.join(target_directory_path, "")
+    file_size_rand = random.randint(file_size_min, file_size_max)
+    if not os.path.isdir(target_directory_path):
+        os.makedirs(target_directory_path)
+
+    while os.path.isfile(target_file_path) or\
+        os.path.isdir(target_file_path):
+        name = str(random.randint(1000000000000, 9999999999999))
+        target_file_path = os.path.join(os.path.split(target_directory_path)[0], name)
+
+    contents = random.randint(1000000000000000, 9999999999999999)
+    contents = str(contents) * 64 * file_size_rand
+
+    contents = bytes(contents, "utf-8")
+
+    with open(target_file_path, "wb") as out:
+        out.write(contents)
+
+for i in range(1):
+    for j in range(1):
+        write_file_random_content("Y:\\_TMP\\bsTest\\s5\\%s\\" % i, 100 * pow(2, 10), 100 * pow(2, 10))
+
+
 
 ###############################################################################

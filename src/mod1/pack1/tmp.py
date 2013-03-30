@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+from genericpath import exists
 import bs.utils
 import hashlib
 import hashlib
@@ -14,7 +15,6 @@ import time
 import win32api
 import win32api
 import win32file
-from genericpath import exists
 
 #from PyQt4.QtGui import *
 #from PyQt4.QtCore import *
@@ -491,82 +491,6 @@ from genericpath import exists
 
 ###############################################################################
 
-
-
-files = [
-#         "Y:\\_TMP\\rl\\_jdownloader\\MVI\\x\\3\\MVI_3117.rar",
-#         "Z:\\files\\projects\\2005 3dbuzzPhotoChopContest(partly).7z",
-#         "Z:\\files\\projects\\2008-08-25 studentassociations.info.7z",
-#          "Z:\\files\\projects\\2008-02-27 lifelike insect.7z",
-          "Z:\\x.FVA"
-         ]
-
-DATA = []
-STATUS = 0
-SLEEPING_TIME = 0.01
-BUFFER_SIZE = 33554432
-
-def read_data(f):
-    global STATUS
-    while True:
-        if not len(DATA) > 2:
-#            print("read_data(): Reading more data... (%s)" % (len(DATA), ))
-            data = f.read(BUFFER_SIZE)
-            DATA.append(data)
-            if not data:
-                break
-#            print(data)
-        else:
-#            print("read_data(): Sleeping... (%s)" % (len(DATA), ))
-            time.sleep(SLEEPING_TIME)
-    STATUS = 1
-
-def calc_hash():
-    file_hash = hashlib.sha512()
-    time_start = time.time()
-
-    while STATUS == 0:
-        if len(DATA) > 0:
-#            print("calc_hash(): Updating hash... (%s)" % (len(DATA), ))
-            file_hash.update(DATA[0])
-            DATA.pop(0)
-        else:
-#            print("calc_hash(): Sleeping... (%s)" % (len(DATA), ))
-            time.sleep(SLEEPING_TIME)
-    print(file_hash.hexdigest())
-    print(time.time() - time_start)
-
-def generate_hash(f, hash_obj):
-    time_start = time.time()
-    file_hash = hash_obj
-    print(file_hash.block_size)
-    while True:
-        data = f.read(file_hash.block_size*262144)
-        if not data:
-            break
-        file_hash.update(data)
-    return(time.time() - time_start, file_hash.hexdigest())
-
-#for file in files:
-##    print(generate_hash(open(file, "rb"), hashlib.sha512()))
-#
-##    s = threading.Thread(target=read_data, args=(open(file, "rb"), )).start()
-##    t = threading.Thread(target=calc_hash).start()
-#    print(os.stat(file))
-
-###############################################################################
-
-# logging
-#logger = logging.Logger('root')
-logging.basicConfig(format="--------------- "\
-                           "%(module)s: %(lineno)s "\
-                           "(%(funcName)s)\r"\
-                           "%(levelname)s      \t"\
-                           "%(message)s",
-                    level=logging.DEBUG)
-
-
-
 def update_db(db_path):
     """
     *
@@ -616,10 +540,6 @@ def update_db(db_path):
     conn.close()
     return new_column_name
 
-sources = ["Y:\\_TMP\\bsTest\\s1", "Y:\\_TMP\\bsTest\\s2"]
-sources = ["Y:\\_TMP\\bsTest\\s2"]
-#sources = ["Y:\\"]
-targets = ["Y:\\_TMP\\bsTest\\t1", "Y:\\_TMP\\bsTest\\t2"]
 
 def get_sha512(file_path):
     """
@@ -800,7 +720,7 @@ def backup_exec(sources, targets, db_path):
                     logging.info("Entity %s is new: %s" % (entity_id, file_path, ))
                     # GET HASH
                     file_sha512 = "07e547d9586f6a73f73fbac0435ed76951218fb7d0c8d788a309d785436bbb642e93a252a954f23912547d1e8a3b5ed6e1bfd7097821233fa0538f3db854fee6"
-                    file_sha512 = get_sha512(file_path)
+                    file_sha512 = bs.utils.HashFile().start(file_path)
                     # this might still be an identic data-stream that existed
                     # under a different path/entity before, so only back-up
                     # if hash is unique
@@ -868,28 +788,28 @@ def backup_exec(sources, targets, db_path):
                         logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01000":
                         # OK: simple move and change in mtime, size and recent access
-                        logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01001":
                         # OK: simple move and change in mtime, size same and recent access
-                        logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01010":
                         # OK: simple move and change in mtime, size
-                        logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01011":
                         # OK: simple move and change in mtime, size same
-                        logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01100":
                         # ERROR: mtime same but size changed
                         logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01101":
                         # OK: simple move plus recent access
-                        logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01110":
                         # ERROR: mtime same but size changed
                         logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "01111":
                         # OK: simple move
-                        logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
                     if combinations == "10000":
                         # ERROR: inode same but ctime changed
                         logging.warning("Unhandled combination: %s: %s" % (combinations, file_path, ))
@@ -917,9 +837,21 @@ def backup_exec(sources, targets, db_path):
                     if combinations == "11000":
                         # OK: mtime, atime, size changed, rest same
                         logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        update_data_in_db(db_path,
+                                          new_column_name,
+                                          entity_id=entity_id,
+                                          file_mtime=file_mtime,
+                                          file_atime=file_atime,
+                                          file_size=file_size,
+                                          file_sha512=bs.utils.HashFile().start(file_path))
                     if combinations == "11001":
                         # OK: mtime and atime changed, rest same
                         logging.info("OK: %s: %s" % (combinations, file_path, ))
+                        update_data_in_db(db_path,
+                                          new_column_name,
+                                          entity_id=entity_id,
+                                          file_mtime=file_mtime,
+                                          file_atime=file_atime)
                     if combinations == "11010":
                         # OK: regular edit, mtime, size changed, rest same
                         logging.info("OK: %s: %s" % (combinations, file_path, ))
@@ -928,7 +860,7 @@ def backup_exec(sources, targets, db_path):
                                           entity_id=entity_id,
                                           file_mtime=file_mtime,
                                           file_size=file_size,
-                                          file_sha512=get_sha512(file_path))
+                                          file_sha512=bs.utils.HashFile().start(file_path))
                     if combinations == "11011":
                         # OK: only mtime changed. size same
                         logging.info("OK: %s: %s" % (combinations, file_path, ))
@@ -949,88 +881,29 @@ def backup_exec(sources, targets, db_path):
                         # OK: no change at all
                         pass
 
-                if i % 1000 == 0:
+                if i % 1 == 0:
                         print("%i files/s" % (i / (time.time() - time_start), ))
                 i += 1
             conn.commit()
     return True
 
-    file_inodes_new = list(set(file_inodes_paths_all) - set(db_inodes))
-    file_inodes_idle = list(set(file_inodes_paths_all) - set(file_inodes_new))
-    file_inodes_removed = list(set(db_inodes) - set(file_inodes_idle))
-    print(time.time() - time_start)
-    time_start = time.time()
-    i = 0
-    # build new
-    for file_inode_new in file_inodes_new:
-        file_path = file_inodes_paths_all[file_inode_new]
-        stat = os.stat(file_path)
-        file_ctime = stat.st_ctime
-        file_mtime = stat.st_mtime
-        file_atime = stat.st_atime
-        file_inode = stat.st_ino
-        file_size = stat.st_size
+
+# logging
+#logger = logging.Logger('root')
+logging.basicConfig(format="--------------- "\
+                           "%(module)s: %(lineno)s "\
+                           "(%(funcName)s)\r"\
+                           "%(levelname)s      \t"\
+                           "%(message)s",
+                    level=logging.CRITICAL)
 
 
-    return True
+#sources = ["Y:\\_TMP\\bsTest\\s1", "Y:\\_TMP\\bsTest\\s2"]
+#sources = ["Y:\\_TMP\\bsTest\\s2"]
+#sources = ["Y:\\"]
+sources = ["Y:\\_TMP\\bsTest\\s1"]
 
-    time_start = time.time()
-    i = 0
-
-    # build idle
-    for file_inode_idle in file_inodes_idle:
-        file_path = file_inodes_paths_all[file_inode_new]
-        stat = os.stat(file_path)
-        file_ctime = stat.st_ctime
-        file_mtime = stat.st_mtime
-        file_atime = stat.st_atime
-        file_inode = stat.st_ino
-        file_size = stat.st_size
-
-        entity_id = file_inodes_paths_all[file_inode_new][0]
-        entity_path = file_inodes_paths_all[file_inode_new][1]
-        entity_ctime = file_inodes_paths_all[file_inode_new][2]
-        entity_mtime = file_inodes_paths_all[file_inode_new][3]
-        entity_atime = file_inodes_paths_all[file_inode_new][4]
-        entity_inode = file_inodes_paths_all[file_inode_new][5]
-        entity_size = file_inodes_paths_all[file_inode_new][6]
-        entity_sha512 = file_inodes_paths_all[file_inode_new][7]
-
-        if file_path == entity_path: path = 1
-        else: path = 0
-        if file_ctime == entity_ctime: ctime = 1
-        else: ctime = 0
-        if file_mtime == entity_mtime: mtime = 1
-        else: mtime = 0
-        if file_atime == entity_atime: atime = 1
-        else: atime = 0
-        if file_size == entity_size: size = 1
-        else: size = 0
-
-
-        print("%i files/s" % (i / (time.time() + 0.0001 - time_start), ))
-        i += 1
-
-    try:
-        pass
-    except:
-        logging.warning("File attributes couldn't be aquired: %s" % (file_path, ))
-    files_processed += 1
-
-    write_steps = 52428800  # write every n bytes
-    if math.floor(bytes_processed[0]/write_steps) > bytes_processed[1] or\
-        files_processed % 10 == 0:
-        bytes_processed[1] = math.floor(bytes_processed[0]/write_steps)
-        logging.info("%s processed (%s/s). %s files processed (%i files/s)"
-                     % (bs.utils.formatDirSize(bytes_processed[0]),
-                        bs.utils.formatDirSize(int(bytes_processed[0]/(time.time() - time_start)), "MiB"),
-                        files_processed,
-                        files_processed/(time.time() - time_start), ))
-        conn.commit()
-    print(list(set(file_inodes_paths_all) - set(db_inodes)))
-    conn.commit()
-    conn.close()
-    return True
+targets = ["Y:\\_TMP\\bsTest\\t1", "Y:\\_TMP\\bsTest\\t2"]
 
 time_start = time.time()
 
