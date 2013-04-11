@@ -142,7 +142,7 @@ class BSString(object):
         return self
 
 
-def formatDirSize(size, lock_to=None):
+def format_data_size(size, lock_to=None):
     """
     *
     size: int: bytes
@@ -175,7 +175,7 @@ class HashFile(object):
     _data = []
     _status = 0
     _sleeping_time = 0.005
-    _buffer_size = 1024 * 1 * 1
+    _buffer_size = 1024 * 1024 * 1
     _hash = ""
 
     def __init__(self, file_path, hash_obj=None):
@@ -192,18 +192,19 @@ class HashFile(object):
         *
         """
         f = open(self._file_path, "rb")
-        logging.info("Reading of _data-stream started.")
+        logging.info("%s: Reading of data-stream started."
+                     % (self.__class__.__name__, ))
         while True:
             if not len(self._data) > 2:
-                logging.debug("_read_data(): Reading more _data... (%s)"
-                              % (len(self._data), ))
+#                logging.debug("%s: Reading more data... (%s)"
+#                              % (self.__class__.__name__, len(self._data), ))
                 data = f.read(self._buffer_size)
-                self._data.append(data)
                 if not data:
                     break
+                self._data.append(data)
             else:
-                logging.debug("_read_data(): Sleeping... (%s)"
-                              % (len(self._data), ))
+#                logging.debug("%s: Sleeping... (%s)"
+#                              % (self.__class__.__name__, len(self._data), ))
                 time.sleep(self._sleeping_time)
         self._status = 1
 
@@ -211,17 +212,20 @@ class HashFile(object):
         """
         *
         """
-        logging.info("Hash-calculation started.")
+        logging.info("%s: Hash-calculation started."
+                     % (self.__class__.__name__, ))
         file_hash = self._hash_obj
         time_start = time.time()
 
-        while self._status == 0:
+        while self._status == 0 or self._data:
             if len(self._data) > 0:
-                logging.debug("_calc_hash(): Updating _hash... (%s)" % (len(self._data), ))
+#                logging.debug("%s: Updating _hash... (%s)"
+#                              % (self.__class__.__name__, len(self._data), ))
                 file_hash.update(self._data[0])
                 self._data.pop(0)
             else:
-                logging.debug("_calc_hash(): Sleeping... (%s)" % (len(self._data), ))
+#                logging.debug("%s: Sleeping... (%s)"
+#                              % (self.__class__.__name__, len(self._data), ))
                 time.sleep(self._sleeping_time)
         self._hash = file_hash.hexdigest()
 #        print(time.time() - time_start)
@@ -230,9 +234,16 @@ class HashFile(object):
         """
         *
         """
-        logging.info("Starting to _hash file: %s" % (self._file_path, ))
+        logging.info("%s: Starting to hash file: %s"
+                     % (self.__class__.__name__, self._file_path, ))
         # fire _data/_hash wrangler threads
-        s = threading.Thread(target=self._read_data).start()
-        t = threading.Thread(target=self._calc_hash).start()
+        s = threading.Thread(target=self._read_data)
+        t = threading.Thread(target=self._calc_hash)
+        s.start()
+        t.start()
+        s.join()
         t.join()
-        return(self._hash)
+        logging.info("%s: Hash successfully calculated: %s"
+                     % (self.__class__.__name__,
+                        self._hash), )
+        return self._hash

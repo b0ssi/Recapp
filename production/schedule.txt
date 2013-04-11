@@ -25,7 +25,7 @@
 		[X]	remove_source(source)
 		[X]	sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
 [.]		TargetsModel:
-		[.]	add_target(target)
+		[.]	add_target(target, password)
 		[ ]	remove_target(target)
 		[ ]	targets property (return list of targets)
 [ ]		FiltersModel
@@ -42,11 +42,18 @@
 		[X]	Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
 			> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
 		[X] Implement 2-threaded hash-calculation into backup-routines
-		[ ]	Implement organization plan of file-data
-		[ ]	Implement compression
+		[.]	Implement organizational plan for file-data
+		[X]	Implement compression
 		[ ]	Implement sidecart-metadata files for backed-up datastreams
 		[ ]	Ingetrate code propertly into bs structure (from current tmp working files)
-		[ ]	benchmark/optimize for speed
+		[X]	benchmark/optimize for speed
+		[ ]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
+		[ ]	Store *one* password hash with a whole *backup-TARGET*
+		[ ]	Pass password into backup-method and check for validity before starting backup-process ()
+			[ ]	Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
+[ ]	Backup obj/Database
+		[ ]	Implement mechanism to mark an entity as absent in a snapshot
+		[ ]	Table `path` still needed? Unique per entity anyway, so won't change between snapshots
 ................................
 [ ]		Q/A
 		........................
