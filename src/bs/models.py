@@ -59,9 +59,10 @@ class Filters(bs.models_master.BSModel):
 class Sets(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
+    set_name = ["TEXT"]
     sources = ["TEXT"]
-    targets = ["TEXT"]
     filters = ["TEXT"]
+    targets = ["TEXT"]
 
     def __init__(self):
         pass

@@ -600,3 +600,61 @@ class BackupSetsModel(bs.models.Sets):
         else:
             return False
     # /OVERLOADS
+
+    def add(self, set_name, sources, filters, targets):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # set_name
+        if not re.search(bs.config.REGEX_PATTERN_NAME, set_name):
+            logging.warning("%s: The name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # sources, filters, targets
+        for candidate in (sources, filters, targets):
+            check = True
+            if not type(candidate) in (list, tuple, ):
+                check = False
+            for item in candidate:
+                if not type(item) is int:
+                    check = False
+            if not check:
+                logging.warning("%s: The second, third and fourth argument must "\
+                                "be a list or tuple of item-ids (integers)."
+                                % (self.__class__.__name__, ))
+                return False
+        # Check that the set with set_name doesn't already exist for current user.
+        res = self._get("id", (("set_name", "=", set_name, ), ("user_id", "=", self._session.user.id, ), ))
+
+        if len(res) > 0:
+            logging.warning("%s: A set with this name already exists for this user: '%s'"
+                            % (self.__class__.__name__,
+                               set_name, ))
+            return False
+        # add set to database
+        self._add("user_id, set_name, sources, filters, targets", ((self._session.user.id,
+                                                                    set_name,
+                                                                    json.dumps(sources),
+                                                                    json.dumps(filters),
+                                                                    json.dumps(targets), ),
+                                                                   ))
+        # out
+        return True
+
+    def remove(self, set_id):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # set_id
+        if not type(set_id) is int:
+            logging.warning("%s: The first argument needs to be of type integer."
+                            % (self.__class__.__name__, ))
+            return False
+        # delete from DB
+        self._remove((("id", "=", set_id, ), ))
+        # out
+        return True

@@ -49,3 +49,6 @@ SESSIONS.current_session.backup_sources.add("MySource", "Z:\\test")
 SESSIONS.current_session.backup_sources.add("MySource #2", "Z:\\test2")
 
 SESSIONS.current_session.backup_targets.add("My target #1", "Z:\\")
+
+SESSIONS.current_session.backup_sets.add("My_Set", (2, 3, ), (4, 67, ), (4, 6, 1, 31, ))
+SESSIONS.current_session.backup_sets.remove(1)

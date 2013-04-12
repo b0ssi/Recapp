@@ -8,6 +8,33 @@
 # SCHEDULE
 ################################
 ................................
+[ ]		LATER
+		........................
+[ ]	File-Backup
+		[ ]	Implement sidecart-metadata files for backed-up datastreams
+................................
+[ ]		Q/A
+		........................
+[ ]		.
+................................
+................................
+................................
+[ ]		NEXT MILESTONE: 0004
+		........................
+[ ]		.
+................................
+[ ]		Q/A
+		........................
+[ ]		.
+................................
+[ ]		NEXT MILESTONE: 0003
+		........................
+[ ]		.
+................................
+[ ]		Q/A
+		........................
+[ ]		.
+................................
 [.]		NEXT MILESTONE: 0002
 		........................
 [X]		Controllers: Restrict methods to logged_in only
@@ -32,23 +59,26 @@
 		[ ]	add_filter(filter)
 		[ ]	remove_filter(filter)
 		[ ]	filters property (return list of filters)
-[ ]		SetsModel
-		[ ]	add_set(sources, targets, filters)
-		[ ]	remove_set(set)
-		[ ]	sets property (return list of sets)
+[X]		SetsModel
+		[X]	add_set(sources, targets, filters)
+		[X]	remove_set(set)
+		[X]	sets property (return list of sets)
+			> Not needed for now. Will probably implement later (in UI) through self._get("all where user_id = user_id...") call
 [.]		Start with backup-factory
 		[.]	Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
 		[X]	Implement conditional matrixes to handle different cases
 		[X]	Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
 			> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
 		[X] Implement 2-threaded hash-calculation into backup-routines
-		[.]	Implement organizational plan for file-data
+		[X]	Implement organizational plan for file-data
 		[X]	Implement compression
-		[ ]	Implement sidecart-metadata files for backed-up datastreams
-		[ ]	Ingetrate code propertly into bs structure (from current tmp working files)
+		[X]	Implement sidecart-metadata files for backed-up datastreams
+			> Not for now~
+		[X]	Integrate code properly into bs structure (from current tmp working files)
 		[X]	benchmark/optimize for speed
+		[ ]	BackupRestore: Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
 		[ ]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
-		[ ]	Store *one* password hash with a whole *backup-TARGET*
+		[ ]	Store *one* password hash with a whole *backup-SET*
 		[ ]	Pass password into backup-method and check for validity before starting backup-process ()
 			[ ]	Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
 [ ]	Backup obj/Database
