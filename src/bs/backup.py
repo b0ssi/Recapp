@@ -864,15 +864,22 @@ class BackupFile(object):
 
 class BackupRestore(object):
     _backup_archive_path = None
-    _target_path = None
+    _restore_location = None
     _tmp_dir = None
     _tmp_file_path = None
     password_hash = None
     _buffer_size = 32768
 
-    def __init__(self, backup_archive_path, target_path):
+#    def __init__(self, set_id, password, entity_id, restore_location):
+    def __init__(self, backup_archive_path):
+#        set_id = set_id
+#        password = password
+#        entity_id = entity_id
+#        self._restore_location = restore_location
+#        self._backup_archive_path = None
+
+
         self._backup_archive_path = backup_archive_path
-        self._target_path = target_path
         self._tmp_dir = tempfile.TemporaryDirectory()
         self.password_hash = "passwordpassword"
 
@@ -935,11 +942,11 @@ class BackupRestore(object):
         time_start = time.time()
         logging.debug("%s: Decompressing (zlib) file: %s"
                       % (self.__class__.__name__,
-                         self._target_path, ))
+                         self._restore_location, ))
 
         decompression_obj = zlib.decompressobj()
         f_in = open(self._tmp_file_path, "rb")
-        f_out = open(os.path.join(self._target_path, "out"), "a+b")
+        f_out = open(os.path.join(self._restore_location, "out"), "a+b")
         while True:
             data = f_in.read(self._buffer_size)
             if not data:
@@ -960,35 +967,3 @@ class BackupRestore(object):
         logging.debug("%s: Compression done (%.2fs)."
                       % (self.__class__.__name__,
                          time_elapsed))
-
-# logging
-#logger = logging.Logger('root')
-logging.basicConfig(format="--------------- "\
-                           "%(module)s: %(lineno)s "\
-                           "(%(funcName)s)\r"\
-                           "%(levelname)s      \t"\
-                           "%(message)s",
-                    level=logging.DEBUG)
-
-time_start = time.time()
-
-#my_backup = Backup(
-#                   "backup_test",
-#                   ["Y:\\_TMP\\bsTest\\sx2"],
-#                   ["Y:\\_TMP\\bsTest\\t1",
-#                    "Y:\\_TMP\\bsTest\\t2"
-#                    ],
-#                   "Z:\\test.sqlite"
-#                   )
-#my_backup.backup_exec()
-
-# set, password, entity-id, restore-location
-set = 
-password
-entity_id
-restore_location
-my_backup_restore = BackupRestore(set, password, entity_id, restore_location)
-#my_backup_restore = BackupRestore(r"Y:\_TMP\bsTest\t1\backup_test\1365492971.zip",
-#                                  r"Y:\_TMP\bsTest\t1\backup_test")
-
-print("Time elapsed: %s" % (time.time() - time_start))

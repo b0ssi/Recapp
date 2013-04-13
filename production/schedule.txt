@@ -47,24 +47,37 @@
 			> address when actually needed (refer to "switch between sessions" task)
 		[X]	remove_session()
 [.]	Do I need objects to represent sources, targets, filters, etc. or do lists suffice?
-[X]		SourcesModel:
+[X]	SourcesModel:
 		[X]	add_source(source)
 		[X]	remove_source(source)
 		[X]	sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
-[.]		TargetsModel:
-		[.]	add_target(target, password)
-		[ ]	remove_target(target)
-		[ ]	targets property (return list of targets)
-[ ]		FiltersModel
-		[ ]	add_filter(filter)
-		[ ]	remove_filter(filter)
-		[ ]	filters property (return list of filters)
-[X]		SetsModel
+		[X]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	source_name
+			[X]	source_path
+[X]	TargetsModel:
+		[X]	add_target(target, password)
+		[X]	remove_target(target)
+		[X]	targets property (return list of targets)
+		[ ]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[ ]	target_name
+			[ ]	target_id
+[.]	FiltersModel
+		[X]	add_filter(filter)
+		[X]	remove_filter(filter)
+		[X]	filters property (return list of filters)
+		[ ]	define format for filters, add validation to filters.add()
+		[ ]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[ ]	filter_pattern
+[X]	SetsModel
 		[X]	add_set(sources, targets, filters)
 		[X]	remove_set(set)
 		[X]	sets property (return list of sets)
-			> Not needed for now. Will probably implement later (in UI) through self._get("all where user_id = user_id...") call
-[.]		Start with backup-factory
+		[ ]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[ ]	set_name
+			[ ]	sources? (recurse sources stack to get obj pointers?)
+			[ ]	filters? (recurse filters stack to get obj pointers?)
+			[ ]	targets? (recurse targets stack to get obj pointers?)
+[.]	Start with backup-factory
 		[.]	Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
 		[X]	Implement conditional matrixes to handle different cases
 		[X]	Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
@@ -76,7 +89,7 @@
 			> Not for now~
 		[X]	Integrate code properly into bs structure (from current tmp working files)
 		[X]	benchmark/optimize for speed
-		[ ]	BackupRestore: Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
+		[.]	BackupRestore: Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
 		[ ]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
 		[ ]	Store *one* password hash with a whole *backup-SET*
 		[ ]	Pass password into backup-method and check for validity before starting backup-process ()

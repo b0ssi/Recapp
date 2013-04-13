@@ -36,7 +36,7 @@ class SessionsModel(object):
 
     def __init__(self):
         super(SessionsModel, self).__init__()
-        # _add initial session
+        # add initial session
         self.add_session()
 
     def __repr__(self):
@@ -274,11 +274,79 @@ class UserModel(bs.models.Users):
             return True
 
 
+class BackupSourceCtrl(bs.models.Sources):
+    """
+    *
+    """
+    _session = None
+    _source_id = None
+    _source_name = None
+    _source_path = None
+
+    def __init__(self, session, source_id, source_name, source_path):
+        self._session = session
+        self._source_id = source_id
+        self._source_name = source_name
+        self._source_path = source_path
+        # if source_id == None, this is a new source, add to database
+        if not self._source_id:
+            res = self._add("user_id, source_name, source_path", (self._session.user.id,
+                                                            self._source_name,
+                                                            self._source_path ))
+            self._source_id = res.lastrowid
+
+    def __repr__(self):
+        """
+        *
+        """
+        return "Source #%d <%s>" % (self._source_id, self.__class__.__name__, )
+
+    @property
+    def source_name(self):
+        return self._source_name
+
+    @source_name.setter
+    def source_name(self, source_name):
+        # VALIDATE DATA
+        # source_name
+        if not re.match(bs.config.REGEX_PATTERN_NAME, source_name):
+            logging.warning("%s: The source_name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update((("source_name", source_name), ), (("id", "=", self._source_id), ))
+        self._source_name = source_name
+        # out
+        return True
+
+    @property
+    def source_path(self):
+        return self._source_name
+
+    @source_path.setter
+    def source_path(self, source_path):
+        # VALIDATE DATA
+        # source_path
+        if not os.path.isdir(source_path):
+            logging.warning("%s: The source-path is invalid. It needs to be "\
+                            "a valid directory-path on the current system."
+                            % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update((("source_path", source_path), ), (("id", "=", self._source_id), ))
+        self._source_path = source_path
+        # out
+        return True
+
+
 class BackupSourcesModel(bs.models.Sources):
     """
     *
     """
     _session = None
+    _sources = []
 
     def __init__(self, session):
         """
@@ -297,13 +365,26 @@ class BackupSourcesModel(bs.models.Sources):
         Returns all saved sources for current user as a list of full dataset
         tuples straight from the database.
         """
-        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+        # sources list is empty, load from db
+        if len(self._sources) == 0:
+            res = self._get("id, source_name, source_path", (("user_id", "=", self._session.user.id, ), ))
+            for data_set in res:
+                source_id = data_set[0]
+                source_name = data_set[1]
+                source_path = data_set[2]
+                new_source_obj = BackupSourceCtrl(self._session,
+                                                  source_id,
+                                                  source_name,
+                                                  source_path)
+                self._sources.append(new_source_obj)
+        return self._sources
 
     @sources.setter
     def sources(self):
         return False
 
     # OVERLOADS
+    @property
     def _add_is_permitted(self, *args, **kwargs):
         """
         *
@@ -314,6 +395,7 @@ class BackupSourcesModel(bs.models.Sources):
         else:
             return False
 
+    @property
     def _get_is_permitted(self, *args, **kwargs):
         """
         *
@@ -324,6 +406,7 @@ class BackupSourcesModel(bs.models.Sources):
         else:
             return False
 
+    @property
     def _remove_is_permitted(self, *args, **kwargs):
         """
         *
@@ -364,9 +447,13 @@ class BackupSourcesModel(bs.models.Sources):
             logging.warning("%s: This source-path is already defined: %s"
                             % (self.__class__.__name__, source_path, ))
             return False
-        # add data to database
-        self._add("user_id, source_name, source_path",
-                  ((self._session.user.id, source_name, source_path, ), ))
+        # add object
+        source_id = None
+        new_source_obj = BackupSourceCtrl(self._session,
+                                          source_id,
+                                          source_name,
+                                          source_path)
+        self._sources.append(new_source_obj)
         logging.info("%s: Source successfully added: '%s' (%s)"
                         % (self.__class__.__name__, source_name, source_path))
         # out
@@ -420,6 +507,17 @@ class BackupTargetsModel(bs.models.Targets):
 
     def __repr__(self):
         return "Targets <%s>" % (self.__class__.__name__)
+
+    @property
+    def targets(self):
+        """
+        *
+        """
+        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+
+    @targets.setter
+    def targets(self):
+        return False
 
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
@@ -476,7 +574,8 @@ class BackupTargetsModel(bs.models.Targets):
         root_path = os.path.join(target_path,
                                  bs.config.PROJECT_NAME.capitalize())
         root_config_file_path = os.path.join(root_path, "volume.json")
-        if not os.path.isdir(root_path):
+        if not os.path.isdir(root_path) and\
+            not os.path.isfile(root_config_file_path):
             # generate target_id
             # timestamp at high sub-second-precision as string appended by random
             # 16-bit integer as string, encoded as HEX-SHA512
@@ -493,6 +592,9 @@ class BackupTargetsModel(bs.models.Targets):
                 os.mkdir(root_path)
                 with open(root_config_file_path, "w") as f:
                     json.dump([target_name, target_id], f)
+                logging.info("%s: Target has been successfully created: %s"
+                             % (self.__class__.__name__,
+                                target_path, ))
                 return True
             except Exception as e:
                 logging.warning(bs.messages.general.general_error(e)[0])
@@ -502,6 +604,21 @@ class BackupTargetsModel(bs.models.Targets):
                              "target: %s"
                              % (self.__class__.__name__, target_path, ))
             return False
+
+    def remove(self, target_id):
+        # VALIDATE DATA
+        # target_id
+        if not type(target_id) is int:
+            logging.warning("%s: The first argument needs to be of type integer."
+                            % (self.__class__.__name__, ))
+            return False
+        # delete from DB
+        self._remove((("id", "=", target_id, ), ))
+        # out
+        logging.info("%s: Target has been successfully removed: %s"
+                     % (self.__class__.__name,
+                        target_id, ))
+        return True
 
 
 class BackupFiltersModel(bs.models.Filters):
@@ -519,6 +636,17 @@ class BackupFiltersModel(bs.models.Filters):
 
     def __repr__(self):
         return "Filters <%s>" % (self.__class__.__name__)
+
+    @property
+    def filters(self):
+        """
+        *
+        """
+        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+
+    @filters.setter
+    def filters(self):
+        return False
 
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
@@ -552,6 +680,28 @@ class BackupFiltersModel(bs.models.Filters):
             return False
     # /OVERLOADS
 
+    def add(self, filter):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # filter
+        # validate filter data here once decided on format
+        # add to database
+        self._add("filter_pattern, user_id", ((filter, self._session.user.id, ), ))
+        # out
+        return True
+
+    def remove(self, filter_id):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # filter_id
+        if not type(filter_id) is int:
+            logging.warning("%s: The first argument needs to be of type integer."
+                            % (self.__class__.__name__, ))
+
 
 class BackupSetsModel(bs.models.Sets):
     """
@@ -568,6 +718,17 @@ class BackupSetsModel(bs.models.Sets):
 
     def __repr__(self):
         return "Sets <%s>" % (self.__class__.__name__)
+
+    @property
+    def sets(self):
+        """
+        *
+        """
+        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+
+    @sets.setter
+    def sets(self):
+        return False
 
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):

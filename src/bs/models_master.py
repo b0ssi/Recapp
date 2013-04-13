@@ -58,7 +58,7 @@ class BSModel(object):
             elif child.__name__ != "object":
                 return self._get_model_superclass(child)
 
-    @ property
+    @property
     def _add_is_permitted(self, *args, **kwargs):
         """
         *
@@ -68,13 +68,17 @@ class BSModel(object):
         """
         return True
 
+    @_add_is_permitted.setter
+    def _add_is_permitted(self):
+        return False
+
     def _add(self, columns, datasets, **kwargs):
         """
         *
         Adds a single or multiple data-sets to the object's database-table.
-        `columns` is a comma-separated list of column to be inserted, datasets
-        a 2-dimensional tuple of sets of values. The number of values has to
-        correspond with the number of columns passed.
+        `columns` is a comma-separated list of column to be inserted,
+        `datasets` a 1- or 2-dimensional list/tuple of sets of values. The
+        number of values has to correspond with the number of columns passed.
 
         It accepts the following keyword-arguments:
         - no_auth_required BOOL: bypasses the authentication check
@@ -86,7 +90,7 @@ class BSModel(object):
             no_auth_required = False
         # get permissions
         if not no_auth_required:
-            if not self._add_is_permitted():
+            if not self._add_is_permitted:
                 logging.warning("%s: PermissionError: Object cannot save data "\
                                 "due to a lack of permission."
                                 % (self.__class__.__name__))
@@ -115,21 +119,30 @@ class BSModel(object):
         try:
             conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             db_table_name = self._get_model_superclass().__name__.lower()
-            conn.executemany("INSERT INTO %s (%s) VALUES (%s)"
-                             % (db_table_name,
-                                columns,
-                                str("?, " * len(datasets[0]))[:-2], ),
-                             datasets)
+            # if datasets is tuple of tuples (/list of lists)
+            if type(datasets[0]) is (list, tuple):
+                res = conn.executemany("INSERT INTO %s (%s) VALUES (%s)"
+                                 % (db_table_name,
+                                    columns,
+                                    str("?, " * len(datasets[0]))[:-2], ),
+                                 datasets)
+            # if dataset only contains one tuple/list
+            else:
+                res = conn.execute("INSERT INTO %s (%s) VALUES (%s)"
+                                 % (db_table_name,
+                                    columns,
+                                    str("?, " * len(datasets))[:-2], ),
+                                 datasets)
             conn.commit()
             conn.close()
             logging.info("%s: Data successfully saved to database."
                          % (self.__class__.__name__))
-            return True
+            return res
         except Exception as e:
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
             raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
 
-    @ property
+    @property
     def _get_is_permitted(self, *args, **kwargs):
         """
         *
@@ -138,6 +151,10 @@ class BSModel(object):
         permissions to execute. The return value must be a boolean.
         """
         return True
+
+    @_get_is_permitted.setter
+    def _get_is_permitted(self):
+        return False
 
     def _get(self, columns, conditions="", **kwargs):
         """
@@ -155,7 +172,7 @@ class BSModel(object):
             no_auth_required = False
         # get permissions
         if not no_auth_required:
-            if not self._get_is_permitted():
+            if not self._get_is_permitted:
                 logging.warning("%s: PermissionError: Object cannot _get data "\
                                 "due to a lack of permission."
                                 % (self.__class__.__name__))
@@ -211,7 +228,7 @@ class BSModel(object):
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
             raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
 
-    @ property
+    @property
     def _remove_is_permitted(self, *args, **kwargs):
         """
         *
@@ -221,6 +238,10 @@ class BSModel(object):
         boolean.
         """
         return True
+
+    @_remove_is_permitted.setter
+    def _remove_is_permitted(self):
+        return False
 
 
     def _remove(self, conditions="", **kwargs):
@@ -238,7 +259,7 @@ class BSModel(object):
             no_auth_required = False
         # get permissions
         if not no_auth_required:
-            if not self._remove_is_permitted():
+            if not self._remove_is_permitted:
                 logging.warning("%s: PermissionError: Object cannot _remove data "\
                                 "due to a lack of permission."
                                 % (self.__class__.__name__))
@@ -269,6 +290,94 @@ class BSModel(object):
             conn.commit()
             conn.close()
             logging.info("%s: Data successfully deleted from database."
+                         % (self.__class__.__name__, ))
+            return True
+        except Exception as e:
+            logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
+            raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
+
+    @property
+    def _update_is_permitted(self, *args, **kwargs):
+        """
+        *
+        This method is designed to be overloaded by inheriting classes to
+        implement individual access checks to be performed to grant
+        self._update() permissions to execute. The return value must be a
+        boolean.
+        """
+        return True
+
+    @_update_is_permitted.setter
+    def _update_is_permitted(self):
+        return False
+
+    def _update(self, column_assignments, conditions, **kwargs):
+        """
+        Updates a dataset in db with matching id
+        """
+        # extract kwargs
+        try:
+            no_auth_required = kwargs["no_auth_required"]
+        except:
+            no_auth_required = False
+        # get permissions
+        if not no_auth_required:
+            if not self._remove_is_permitted:
+                logging.warning("%s: PermissionError: Object cannot _remove data "\
+                                "due to a lack of permission."
+                                % (self.__class__.__name__))
+                return False
+        # VALIDATE DATA
+        # conditions
+        self._validate_conditions(conditions)
+        # column_assignments
+        check = True
+        if not type(column_assignments) in (tuple, list, ):
+            check = False
+        for column_assignment in column_assignments:
+            if not re.match(bs.config.REGEX_PATTERN_COLUMN, column_assignment[0]):
+                check = False
+        if not check:
+            logging.warning("%s: The first argument is in a wrong format or "\
+                            "contains invalid characters. It needs to be a "\
+                            "list or tuple of lists or tuples containing two "\
+                            "positions: "\
+                            "(<column_name string>, <new_value string, int, float, ...>)"
+                            % (self.__class__.__name__, ))
+            return False
+        logging.info("%s: Updating data..."
+                     % (self.__class__.__name__, ))
+        # build column_assignments
+        sql_parameters = []
+        column_assignments_parameters = ""
+        for column_assignment in column_assignments:
+            column_assignments_parameters += str(column_assignment[0])
+            column_assignments_parameters += " = "
+            column_assignments_parameters += "?, "
+            sql_parameters.append(column_assignment[1])
+        column_assignments_parameters = column_assignments_parameters[:-2]
+        # build conditions
+        conditions_sql = ""
+        if conditions != "":
+            conditions_sql = " WHERE "
+            for condition in conditions:
+                conditions_sql += "%s %s ? AND " % (condition[0],
+                                                    condition[1], )
+                sql_parameters.append(condition[2])
+            conditions_sql = conditions_sql[:-5]
+        table_name = self._get_model_superclass().__name__.lower()
+        # execute SQL call
+        try:
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            conn.execute("UPDATE %s SET %s%s"
+                         % (table_name,
+                            column_assignments_parameters,
+                            conditions_sql, ),
+                         tuple(sql_parameters)).fetchall()
+            conn.commit()
+            conn.commit()
+            conn.close()
+            logging.info("%s: Data successfully updated in database."
                          % (self.__class__.__name__, ))
             return True
         except Exception as e:
