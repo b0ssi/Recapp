@@ -27,7 +27,7 @@ import re
 import time
 
 
-class SessionsModel(object):
+class SessionsCtrl(object):
     """
     Stores and manages sessions for all active users.
     """
@@ -35,7 +35,7 @@ class SessionsModel(object):
     _current_session = None
 
     def __init__(self):
-        super(SessionsModel, self).__init__()
+        super(SessionsCtrl, self).__init__()
         # add initial session
         self.add_session()
 
@@ -54,14 +54,14 @@ class SessionsModel(object):
         """
         Sets a session as the currently active session.
         """
-        if isinstance(arg, SessionModel):
+        if isinstance(arg, SessionCtrl):
             self._current_session = arg
             logging.info("%s: Session '%s' successfully set as active session."
                          % (self.__class__.__name__, arg, ))
             return True
         else:
             logging.warning("%s: Argument 1 needs to be an instance of "\
-                            "the 'SessionModel()' class."
+                            "the 'SessionCtrl()' class."
                             % (self.__class__.__name__))
             return False
 
@@ -73,7 +73,7 @@ class SessionsModel(object):
         logging.info("%s: Adding session to sessions..."
                      % (self.__class__.__name__, ))
         # create new session
-        new_session = SessionModel()
+        new_session = SessionCtrl()
         # _add new session to self._sessions
         self._sessions.append(new_session)
         self.current_session = new_session
@@ -96,7 +96,7 @@ class SessionsModel(object):
                             % (self.__class__.__name__, session, ))
 
 
-class SessionModel(object):
+class SessionCtrl(object):
     """
     Stores and manages contents of a single session. user, sources, targets,
     filters, sets, etc..
@@ -108,12 +108,12 @@ class SessionModel(object):
     _backup_sets = None
 
     def __init__(self):
-        super(SessionModel, self).__init__()
+        super(SessionCtrl, self).__init__()
 
-        self._user = UserModel(self)
-        self._backup_sources = BackupSourcesModel(self)
-        self._backup_targets = BackupTargetsModel(self)
-        self._backup_filters = BackupFiltersModel(self)
+        self._user = UserCtrl(self)
+        self._backup_sources = BackupSourcesCtrl(self)
+        self._backup_targets = BackupTargetsCtrl(self)
+        self._backup_filters = BackupFiltersCtrl(self)
         self._backup_sets = BackupSetsModel(self)
 
     def __repr__(self):
@@ -145,7 +145,7 @@ class SessionModel(object):
         return self._backup_sets
 
 
-class UserModel(bs.models.Users):
+class UserCtrl(bs.models.Users):
     """
     *
     Represents an active user.
@@ -159,7 +159,7 @@ class UserModel(bs.models.Users):
         """
         *
         """
-        super(UserModel, self).__init__()
+        super(UserCtrl, self).__init__()
         self._session = session
         # create default user
         if len(self._get("*", no_auth_required=True)) == 0:
@@ -290,9 +290,10 @@ class BackupSourceCtrl(bs.models.Sources):
         self._source_path = source_path
         # if source_id == None, this is a new source, add to database
         if not self._source_id:
-            res = self._add("user_id, source_name, source_path", (self._session.user.id,
-                                                            self._source_name,
-                                                            self._source_path ))
+            res = self._add("user_id, source_name, source_path",
+                            (self._session.user.id,
+                            self._source_name,
+                            self._source_path, ))
             self._source_id = res.lastrowid
 
     def __repr__(self):
@@ -341,7 +342,7 @@ class BackupSourceCtrl(bs.models.Sources):
         return True
 
 
-class BackupSourcesModel(bs.models.Sources):
+class BackupSourcesCtrl(bs.models.Sources):
     """
     *
     """
@@ -352,7 +353,7 @@ class BackupSourcesModel(bs.models.Sources):
         """
         *
         """
-        super(BackupSourcesModel, self).__init__()
+        super(BackupSourcesCtrl, self).__init__()
         self._session = session
 
     def __repr__(self):
@@ -362,12 +363,12 @@ class BackupSourcesModel(bs.models.Sources):
     def sources(self):
         """
         *
-        Returns all saved sources for current user as a list of full dataset
-        tuples straight from the database.
+        Returns all source objects saved in self._sources.
         """
         # sources list is empty, load from db
         if len(self._sources) == 0:
-            res = self._get("id, source_name, source_path", (("user_id", "=", self._session.user.id, ), ))
+            res = self._get("id, source_name, source_path",
+                            (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
                 source_id = data_set[0]
                 source_name = data_set[1]
@@ -422,7 +423,6 @@ class BackupSourcesModel(bs.models.Sources):
         """
         *
         Adds a new source.
-        Returns the source_id.
         """
         # VALIDATE DATA
         # source_name
@@ -459,50 +459,94 @@ class BackupSourcesModel(bs.models.Sources):
         # out
         return True
 
-    def remove(self, table_id):
+    def remove(self, source_obj):
         """
         *
         Removes an existing source.
-        Returns the source_id.
         """
         # VALIDATE DATA
-        if not isinstance(table_id, int):
-            logging.warning("%s: Argument 1 needs to be an integer."
+        # source_obj
+        if not isinstance(source_obj, BackupSourceCtrl):
+            logging.warning("%s: The first argument needs to be a backup source object."
                             % (self.__class__.__name__, ))
             return False
-        # check that dataset actually exists
-        res = self._get("*", (("id", "=", table_id, ), ("user_id", "=",
-                                                  self._session.user.id, ), ))
-        if len(res) == 0:
-            logging.warning("%s: A source with this ID does not exist for "\
-                            "user '%s' (id: %s)." % (self.__class__.__name__,
-                                            self._session.user.name,
-                                            self._session.user.id, ))
-            return False
-        elif len(res) > 1:
-            logging.warning("%s: There is more than one dataset with ID '%s' "\
-                            "and user_id '%s'. Check the database for "\
-                            "integrity." % (self.__class__.__name__,
-                                            self._session.user.id))
-            return False
         # remove data from database
-        self._remove((("id", "=", table_id, ), ("user_id", "=",
-                                          self._session.user.id, ), ))
+        self._remove((("id", "=", source_obj._source_id, ), ))
+        # delete obj
+        self._sources.pop(self._sources.index(source_obj))
         # out
+        logging.info("%s: Source has been successfully deleted: %s"
+                     % (self.__class__.__name__, source_obj, ))
         return True
 
 
-class BackupTargetsModel(bs.models.Targets):
+class BackupTargetCtrl(bs.models.Targets):
     """
     *
     """
     _session = None
+    _target_id = None
+    _target_name = None
+    _target_device_id = None
+
+    def __init__(self, session, target_id, target_name, target_device_id):
+        self._session = session
+        self._target_id = target_id
+        self._target_name = target_name
+        self._target_device_id = target_device_id
+        # if target_id == None, this is a new target, add to database
+        if not self._target_id:
+            res = self._add("user_id, target_name, target_device_id",
+                            (self._session.user.id,
+                            self._target_name,
+                            self._target_device_id, ))
+            self._target_id = res.lastrowid
+
+    def __repr__(self):
+        """
+        *
+        """
+        return "Target #%d <%s>" % (self._target_id, self.__class__.__name__, )
+
+    @property
+    def target_name(self):
+        """
+        *
+        """
+        return self._target_name
+
+    @target_name.setter
+    def target_name(self, target_name):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # target_name
+        if not re.match(bs.config.REGEX_PATTERN_NAME, target_name):
+            logging.warning("%s: The target_name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update((("target_name", target_name), ), (("id", "=", self._target_id), ))
+        self._target_name = target_name
+        # out
+        return True
+
+
+class BackupTargetsCtrl(bs.models.Targets):
+    """
+    *
+    """
+    _session = None
+    _targets = []
 
     def __init__(self, session):
         """
         *
         """
-        super(BackupTargetsModel, self).__init__()
+        super(BackupTargetsCtrl, self).__init__()
         self._session = session
 
     def __repr__(self):
@@ -512,14 +556,29 @@ class BackupTargetsModel(bs.models.Targets):
     def targets(self):
         """
         *
+        Returns all targets objects saved in self._targets.
         """
-        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+        # targets list is empty, load from db
+        if len(self._targets) == 0:
+            res = self._get("id, target_name, target_device_id",
+                            (("user_id", "=", self._session.user.id, ), ))
+            for data_set in res:
+                target_id = data_set[0]
+                target_name = data_set[1]
+                target_device_id = data_set[2]
+                new_target_obj = BackupTargetCtrl(self._session,
+                                                  target_id,
+                                                  target_name,
+                                                  target_device_id)
+                self._targets.append(new_target_obj)
+        return self._targets
 
     @targets.setter
     def targets(self):
         return False
 
     # OVERLOADS
+    @property
     def _add_is_permitted(self, *args, **kwargs):
         """
         *
@@ -530,6 +589,7 @@ class BackupTargetsModel(bs.models.Targets):
         else:
             return False
 
+    @property
     def _get_is_permitted(self, *args, **kwargs):
         """
         *
@@ -540,6 +600,7 @@ class BackupTargetsModel(bs.models.Targets):
         else:
             return False
 
+    @property
     def _remove_is_permitted(self, *args, **kwargs):
         """
         *
@@ -554,7 +615,8 @@ class BackupTargetsModel(bs.models.Targets):
     def add(self, target_name, target_path):
         """
         *
-        Adds a target to the list of targets.
+        Adds a new target.
+        Returns the target_device_id.
         """
         # VERIFY DATA
         # target_name
@@ -576,22 +638,26 @@ class BackupTargetsModel(bs.models.Targets):
         root_config_file_path = os.path.join(root_path, "volume.json")
         if not os.path.isdir(root_path) and\
             not os.path.isfile(root_config_file_path):
-            # generate target_id
+            # generate target_device_id
             # timestamp at high sub-second-precision as string appended by random
             # 16-bit integer as string, encoded as HEX-SHA512
             timestamp = str(int(time.time() * 1000000))
             random_num = str(random.randint(1000000000000000, 9999999999999999))
             timestamp_random_num = timestamp + random_num
-            target_id = hashlib.sha512(timestamp_random_num.encode()).hexdigest()
-            # add to database
-            self._add("user_id, target_name, target_id",
-                      ((self._session.user.id, target_name, target_id,),))
+            target_device_id = hashlib.sha512(timestamp_random_num.encode()).hexdigest()
+            # add obj
+            target_id = None
+            new_target_obj = BackupTargetCtrl(self._session,
+                                              target_id,
+                                              target_name,
+                                              target_device_id)
+            self._targets.append(new_target_obj)
             # create BS root directory on volume
             try:
                 # create root_folder
                 os.mkdir(root_path)
                 with open(root_config_file_path, "w") as f:
-                    json.dump([target_name, target_id], f)
+                    json.dump([target_name, target_device_id], f)
                 logging.info("%s: Target has been successfully created: %s"
                              % (self.__class__.__name__,
                                 target_path, ))
@@ -601,37 +667,98 @@ class BackupTargetsModel(bs.models.Targets):
                 return False
         else:
             logging.warning("%s: This volume is already defined as a "\
-                             "target: %s"
+                             "target. Please try to importing it: %s"
                              % (self.__class__.__name__, target_path, ))
             return False
 
-    def remove(self, target_id):
+    def remove(self, target_obj):
+        """
+        *
+        Removes an existing target.
+        Does *not* delete any file-system data.
+        """
         # VALIDATE DATA
-        # target_id
-        if not type(target_id) is int:
-            logging.warning("%s: The first argument needs to be of type integer."
+        # target_obj
+        if not isinstance(target_obj, BackupTargetCtrl):
+            logging.warning("%s: The first argument needs to be a backup target object."
                             % (self.__class__.__name__, ))
             return False
         # delete from DB
-        self._remove((("id", "=", target_id, ), ))
+        self._remove((("id", "=", target_obj._target_id, ), ))
+        # remove obj
+        self._targets.pop(self._targets.index(target_obj))
         # out
-        logging.info("%s: Target has been successfully removed: %s"
-                     % (self.__class__.__name,
-                        target_id, ))
+        logging.info("%s: Target has been successfully removed; file-system "\
+                     "data has not been changed/removed: %s"
+                     % (self.__class__.__name__,
+                        target_obj, ))
         return True
 
 
-class BackupFiltersModel(bs.models.Filters):
+class BackupFilterCtrl(bs.models.Filters):
     """
     *
     """
     _session = None
+    _filter_id = None
+    _filter_pattern = None
+
+    def __init__(self, session, filter_id, filter_pattern):
+        self._session = session
+        self._filter_id = filter_id
+        self._filter_pattern = filter_pattern
+        # if flter_id == None, this is a new filter, add to database
+        if not self._filter_id:
+            res = self._add("user_id, filter_pattern",
+                            (self._session.user.id,
+                             self._filter_pattern))
+            self._filter_id = res.lastrowid
+
+    def __repr__(self):
+        """
+        *
+        """
+        return "Filter #%d <%s>" % (self._filter_id, self.__class__.__name__, )
+
+    @property
+    def filter_pattern(self):
+        """
+        *
+        """
+        return self._filter_pattern
+
+    @filter_pattern.setter
+    def filter_pattern(self, filter_pattern):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # filter_pattern
+        if not re.match("$.*^", filter_pattern):
+            logging.warning("%s: The filter_pattern contains invalid "\
+                            "characters. It needs to start with an "\
+                            "alphabetic and contain alphanumerical characters "\
+                            "plus '\_\-\#' and space."
+                            % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update(("filter_pattern", filter_pattern, ), ("id", "=", self._filter_id, ), )
+        self._filter_pattern = filter_pattern
+        # out
+        return True
+
+class BackupFiltersCtrl(bs.models.Filters):
+    """
+    *
+    """
+    _session = None
+    _filters = []
 
     def __init__(self, session):
         """
         *
         """
-        super(BackupFiltersModel, self).__init__()
+        super(BackupFiltersCtrl, self).__init__()
         self._session = session
 
     def __repr__(self):
@@ -641,8 +768,20 @@ class BackupFiltersModel(bs.models.Filters):
     def filters(self):
         """
         *
+        Returns all filter objects saved in self._filters.
         """
-        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+        # filter list is empty, load from db
+        if len(self._filters) == 0:
+            res = self._get("id, filter_pattern",
+                            (("user_id", "=", self._session.user.id), ))
+            for data_set in res:
+                filter_id = data_set[0]
+                filter_pattern = data_set[1]
+                new_filter_obj = BackupFilterCtrl(self._session,
+                                                  filter_id,
+                                                  filter_pattern)
+                self._filters.append(new_filter_obj)
+        return self._filters
 
     @filters.setter
     def filters(self):
@@ -680,28 +819,53 @@ class BackupFiltersModel(bs.models.Filters):
             return False
     # /OVERLOADS
 
-    def add(self, filter):
+    def add(self, filter_pattern):
         """
         *
+        Adds a new filter.
         """
         # VALIDATE DATA
         # filter
         # validate filter data here once decided on format
-        # add to database
-        self._add("filter_pattern, user_id", ((filter, self._session.user.id, ), ))
+        # add obj
+        filter_id = None
+        new_filter_obj = BackupFilterCtrl(self._session,
+                                          filter_id,
+                                          filter_pattern)
+        self._filters.append(new_filter_obj)
         # out
         return True
 
-    def remove(self, filter_id):
+    def remove(self, filter_obj):
         """
         *
+        Removes an existing filter.
         """
         # VALIDATE DATA
         # filter_id
-        if not type(filter_id) is int:
+        if not isinstance(filter_obj, BackupFilterCtrl):
             logging.warning("%s: The first argument needs to be of type integer."
                             % (self.__class__.__name__, ))
+            return False
+        # delete from DB
+        self._remove((("id", "=", filter_obj._filter_id, ), ))
+        # remove obj
+        self._filters.pop(self._filters.index(filter_obj))
+        # out
+        return True
 
+
+class BackukpSetModel(bs.models.Sets):
+    """
+    *
+    """
+    _session = None
+
+    def __init__(self, session):
+        """
+        *
+        """
+        self._session = session
 
 class BackupSetsModel(bs.models.Sets):
     """

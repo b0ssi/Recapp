@@ -38,30 +38,22 @@ sync_db = bs._db.SyncDb("bs.models")
 sync_db.sync()
 
 
-my_sessions_1 = bs.session.SessionsModel()
+my_sessions_1 = bs.session.SessionsCtrl()
 my_session_1 = my_sessions_1.current_session
 my_user_1 = my_session_1.user
 my_sources_1 = my_session_1.backup_sources
-
-
+my_filters_1 = my_session_1.backup_filters
+my_targets_1 = my_session_1.backup_targets
 
 my_user_1.log_in("alpha", "1")
-print(my_sources_1.sources)
-my_sources_1.add("My Awesome Sauce", "Y:\\_TMP\\bsTest\\sx")
-for source in my_sources_1.sources:
-    print(source.source_name)
-my_sources_1.sources[1].source_name = "My Awesome Sauce"
-my_sources_1.sources[1].source_path = "Y:\\_TMP\\bsTest\\s1"
-for source in my_sources_1.sources:
-    print(source.source_name)
-#my_filters_1 = my_session_1.backup_filters
-#my_targets_1 = my_session_1.backup_targets
-#my_sets_1 = my_session_1.backup_sets
 
-
+print(my_targets_1.targets)
+#my_targets_1.add("FiLtErPaTtErN BaBy4", "Z:\\")
+my_targets_1.remove(my_targets_1.targets[0])
+print(my_targets_1.targets)
 
 ## create a sessions host
-#SESSIONS = bs.session.SessionsModel()
+#SESSIONS = bs.session.SessionsCtrl()
 ## log-in
 #SESSIONS.current_session.user.log_in("bravo", "2")
 ## SESSION 2

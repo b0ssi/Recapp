@@ -58,21 +58,21 @@
 		[X]	add_target(target, password)
 		[X]	remove_target(target)
 		[X]	targets property (return list of targets)
-		[ ]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[ ]	target_name
-			[ ]	target_id
+		[X]	Transform separate targets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	target_name
+			[X]	target_id
 [.]	FiltersModel
 		[X]	add_filter(filter)
 		[X]	remove_filter(filter)
 		[X]	filters property (return list of filters)
 		[ ]	define format for filters, add validation to filters.add()
-		[ ]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[ ]	filter_pattern
-[X]	SetsModel
+		[X]	Transform separate filters into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	filter_pattern
+[.]	SetsModel
 		[X]	add_set(sources, targets, filters)
 		[X]	remove_set(set)
 		[X]	sets property (return list of sets)
-		[ ]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+		[ ]	Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
 			[ ]	set_name
 			[ ]	sources? (recurse sources stack to get obj pointers?)
 			[ ]	filters? (recurse filters stack to get obj pointers?)

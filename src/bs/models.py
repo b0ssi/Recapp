@@ -41,7 +41,7 @@ class Targets(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     target_name = ["TEXT"]
-    target_id = ["INTEGER", "UNIQUE"]
+    target_device_id = ["INTEGER", "UNIQUE"]
 
     def __init__(self):
         pass
