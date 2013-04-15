@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 import hashlib
 import logging
-import os
-import sys
 import threading
 import time
+import win32file
 
 ###############################################################################
 ##    utils                                                                  ##
@@ -142,22 +141,6 @@ class BSString(object):
         return self
 
 
-def format_data_size(size, lock_to=None):
-    """
-    *
-    size: int: bytes
-    lock_to: string: name of unit (e.g. "MiB") and returns value not
-    higher than chosen unit.
-    """
-    # format byte-size
-    for x in ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]:
-        if x == lock_to or \
-            size < 1024.0:
-            return "%3.2f %s" % (size, x, )
-        size /= 1024.0
-    return "%3.1f%s" % (size, 'YiB')
-
-
 class HashFile(object):
     """
     *
@@ -247,3 +230,61 @@ class HashFile(object):
                      % (self.__class__.__name__,
                         self._hash), )
         return self._hash
+
+
+def format_data_size(size, lock_to=None):
+    """
+    *
+    size: int: bytes
+    lock_to: string: name of unit (e.g. "MiB") and returns value not
+    higher than chosen unit.
+    """
+    # format byte-size
+    for x in ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]:
+        if x == lock_to or \
+            size < 1024.0:
+            return "%3.2f %s" % (size, x, )
+        size /= 1024.0
+    return "%3.1f%s" % (size, 'YiB')
+
+
+def get_drives(drive_types, ignore_a=True):
+    """
+    *
+    Returns a list of drive root paths, depending on the desired types passed
+    in through `drive_types`, which needs to be a list of the following constants:
+    win32file.DRIVE_*
+    """
+    # VALIDATE DATA
+    # drive_types
+    check = False
+    if not isinstance(drive_types, (list, tuple, )):
+        check = True
+    else:
+        for drive_type in drive_types:
+            if not drive_type in [win32file.DRIVE_CDROM,
+                                  win32file.DRIVE_FIXED,
+                                  win32file.DRIVE_NO_ROOT_DIR,
+                                  win32file.DRIVE_RAMDISK,
+                                  win32file.DRIVE_REMOTE,
+                                  win32file.DRIVE_REMOVABLE,
+                                  win32file.DRIVE_UNKNOWN]:
+                check = True
+    if check:
+        logging.warning("`drive_types` needs to be a list of "\
+                        "`win32file.DRIVE_*` constants.")
+        return False
+
+    # scan drives-letters, assemble requested drive-root-paths
+    drive_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+    # ignore drive letter A by default (still detects positively as removable
+    # drive even if it doesn't physically exist in system.
+    if ignore_a:
+        drive_letters.pop(0)
+    out = []
+    for drive_letter in drive_letters:
+        drive_letter += ":\\"
+        if win32file.GetDriveTypeW(drive_letter) in drive_types:
+            out.append(drive_letter)
+    # out
+    return out

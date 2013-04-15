@@ -38,13 +38,13 @@ class Backup(object):
     _db_path = None
     _tmp_dir = None
 
-    def __init__(self, set, sources, targets, db_path):
+    def __init__(self, set, db_path):
         """
         *
         """
         self._backup_set = set
-        self._sources = sources
-        self._targets = targets
+        self._sources = set.sources
+        self._targets = set.targets
         self._db_path = db_path
         self._tmp_dir = tempfile.TemporaryDirectory()
 
@@ -252,7 +252,9 @@ class Backup(object):
         time_start = time.time()
         i = 0
         for source in self._sources:
-            for folder_path, folders, files in os.walk(source):
+            source_path = source.source_path
+            print(source_path)
+            for folder_path, folders, files in os.walk(source_path):
                 for file in files:
                     # create file object
                     file_obj = BackupFile(self._backup_set,
@@ -693,12 +695,13 @@ class BackupFile(object):
                     # create set path, archive
                     # on fail: SystemExit
             # return latest/new archive name
-    
+
             latest_archive_name = None
             # scan all targets, select latest archive name of all of them
-            for target_path in self._targets:
+            for target in self._targets:
+                target_path = target.target_path
                 # create set dir
-                backup_set_path = os.path.join(target_path, self._backup_set)
+                backup_set_path = os.path.join(target_path, self._backup_set.set_name)
                 if not os.path.isdir(backup_set_path):
                     os.makedirs(backup_set_path)
                 for folder_path, folders, files in os.walk(backup_set_path):
@@ -724,8 +727,9 @@ class BackupFile(object):
                 backup_archive_path and\
                 os.path.getsize(backup_archive_path) < self._target_archive_max_size:
                 # on all targets:
-                for target_path in self._targets:
-                    backup_set_path = os.path.join(target_path, self._backup_set)
+                for target in self._targets:
+                    target_path = target.target_path
+                    backup_set_path = os.path.join(target_path, self._backup_set.set_name)
                     # create archive on all targets/check for valid file if exists
                     if not os.path.isfile(backup_archive_path):
                         try:
@@ -739,9 +743,10 @@ class BackupFile(object):
                 # create new archive name
                 new_archive_name = str(int(time.time())) + ".zip"
                 # for all targets
-                for target_path in self._targets:
+                for target in self._targets:
+                    target_path = target.target_path
                     new_archive_path = os.path.join(target_path,
-                                                    self._backup_set,
+                                                    self._backup_set.set_name,
                                                     new_archive_name)
                     # create set path, archive
                     try:
@@ -844,7 +849,8 @@ class BackupFile(object):
                          backup_archive_name, ))
 
         for target in self._targets:
-            backup_archive_path = os.path.join(target, self._backup_set, backup_archive_name)
+            target_path = target.target_path
+            backup_archive_path = os.path.join(target_path, self._backup_set.set_name, backup_archive_name)
             f_archive = zipfile.ZipFile(backup_archive_path, "a", allowZip64=True)
             # only add if not already exist
             members = f_archive.namelist()

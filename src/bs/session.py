@@ -25,6 +25,7 @@ import os
 import random
 import re
 import time
+import win32file
 
 
 class SessionsCtrl(object):
@@ -114,7 +115,7 @@ class SessionCtrl(object):
         self._backup_sources = BackupSourcesCtrl(self)
         self._backup_targets = BackupTargetsCtrl(self)
         self._backup_filters = BackupFiltersCtrl(self)
-        self._backup_sets = BackupSetsModel(self)
+        self._backup_sets = BackupSetsCtrl(self)
 
     def __repr__(self):
         return(str((self._user,
@@ -324,7 +325,7 @@ class BackupSourceCtrl(bs.models.Sources):
 
     @property
     def source_path(self):
-        return self._source_name
+        return self._source_path
 
     @source_path.setter
     def source_path(self, source_path):
@@ -533,6 +534,36 @@ class BackupTargetCtrl(bs.models.Targets):
         self._target_name = target_name
         # out
         return True
+
+    @property
+    def target_path(self):
+        """
+        *
+        Gets physical path that currently points to target.
+        Scans all connected drives and looks for a backup folder with a
+        metadata file with target's target_device_id.
+
+        Returns physical path to target.
+        """
+        out = []
+        for drive_root_path in bs.utils.get_drives((win32file.DRIVE_FIXED, )):
+            target_config_file_path = os.path.join(drive_root_path,
+                                                   bs.config.PROJECT_NAME, "volume.json")
+            if os.path.isfile(target_config_file_path):
+                f = open(target_config_file_path, "r")
+                data = f.read()
+                target_device_id_drive = json.loads(data)[1]
+                out.append(os.path.join(drive_root_path, bs.config.PROJECT_NAME))
+                f.close()
+        # out
+        if len(out) > 1:
+            logging.critical("%s: More than one drive carry the same ID. "\
+                            "Please make sure there are no duplicates on the "\
+                            "system: %s" % (self.__class__.__name__,
+                                            out))
+            raise SystemExit
+        else:
+            return out[0]
 
 
 class BackupTargetsCtrl(bs.models.Targets):
@@ -855,29 +886,195 @@ class BackupFiltersCtrl(bs.models.Filters):
         return True
 
 
-class BackukpSetModel(bs.models.Sets):
+class BackupSetCtrl(bs.models.Sets):
     """
     *
     """
     _session = None
+    _set_id = None
+    _set_name = None
+    _sources = None
+    _filters = None
+    _targets = None
 
-    def __init__(self, session):
+    def __init__(self, session, set_id, set_name, source_objs, filter_objs, target_objs):
         """
         *
         """
         self._session = session
+        self._set_id = set_id
+        self._set_name = set_name
+        self._sources = source_objs
+        self._filters = filter_objs
+        self._targets = target_objs
 
-class BackupSetsModel(bs.models.Sets):
+        # if set_id == None, this is a new set, add to database
+        if not self._set_id:
+            source_ids = []
+            for source_obj in source_objs:
+                source_ids.append(source_obj._source_id)
+            source_ids_list = source_ids
+            filter_ids = []
+            for filter_obj in filter_objs:
+                filter_ids.append(filter_obj._filter_id)
+            filter_ids_list = filter_ids
+            target_ids = []
+            for target_obj in target_objs:
+                target_ids.append(target_obj._target_id)
+            target_ids_list = target_ids
+            res = self._add("user_id, set_name, sources, filters, targets",
+                      (
+                       self._session.user.id,
+                       set_name,
+                       json.dumps(source_ids_list),
+                       json.dumps(filter_ids_list),
+                       json.dumps(target_ids_list)
+                       )
+                      )
+            self._set_id = res.lastrowid
+
+    def __repr__(self):
+        """
+        *
+        """
+        return "Sets #%d <%s>" % (self._set_id, self.__class__.__name__, )
+
+    @property
+    def set_name(self):
+        """
+        *
+        """
+        return self._set_name
+
+    @set_name.setter
+    def set_name(self, set_name):
+        """
+        *
+        """
+        # VERIFY DATA
+        # set name
+        if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
+            logging.warning("%s: The name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # set new name
+        self._set_name = set_name
+        # update db
+        self._update((("set_name", set_name, ), ), (("id", "=", self._set_id, ), ))
+
+    @property
+    def sources(self):
+        """
+        *
+        """
+        return self._sources
+
+    @sources.setter
+    def sources(self, source_objs):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # set_objs
+        check = False
+        if not isinstance(source_objs, (list, tuple, )):
+            check = True
+        else:
+            for source_obj in source_objs:
+                if not isinstance(source_obj, BackupSourceCtrl):
+                    check = True
+        if check:
+            logging.warning("%s: The first argument needs to be a list or "\
+                            "tuple of backup source objects."
+                            % (self.__class__.__name__, ))
+            return False
+        # set sources
+        self._sources = source_objs
+        # update db
+        source_ids_list = [x._source_id for x in source_objs]
+        self._update((("sources", json.dumps(source_ids_list)), ),
+                     (("id", "=", self._set_id, ), ))
+
+    @property
+    def filters(self):
+        """
+        *
+        """
+        return self._filters
+
+    @filters.setter
+    def filters(self, filter_objs):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # set_objs
+        check = False
+        if not isinstance(filter_objs, (list, tuple, )):
+            check = True
+        else:
+            for filter_obj in filter_objs:
+                if not isinstance(filter_obj, BackupFilterCtrl):
+                    check = True
+        if check:
+            logging.warning("%s: The first argument needs to be a list or "\
+                            "tuple of backup filter objects."
+                            % (self.__class__.__name__, ))
+            return False
+        # set filters
+        self._filters = filter_objs
+        # update db
+        filter_ids_list = [x._filter_id for x in filter_objs]
+        self._update((("filters", json.dumps(filter_ids_list)), ),
+                     (("id", "=", self._set_id, ), ))
+
+    @property
+    def targets(self):
+        """
+        *
+        """
+        return self._targets
+
+    @targets.setter
+    def targets(self, target_objs):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # set_objs
+        check = False
+        if not isinstance(target_objs, (list, tuple, )):
+            check = True
+        else:
+            for target_obj in target_objs:
+                if not isinstance(target_obj, BackupTargetCtrl):
+                    check = True
+        if check:
+            logging.warning("%s: The first argument needs to be a list or "\
+                            "tuple of backup target objects."
+                            % (self.__class__.__name__, ))
+            return False
+        # set targets
+        self._targets = target_objs
+        # update db
+        target_ids_list = [x._target_id for x in target_objs]
+        self._update((("targets", json.dumps(target_ids_list)), ),
+                     (("id", "=", self._set_id, ), ))
+
+class BackupSetsCtrl(bs.models.Sets):
     """
     *
     """
     _session = None
+    _sets = []
 
     def __init__(self, session):
         """
         *
         """
-        super(BackupSetsModel, self).__init__()
+        super(BackupSetsCtrl, self).__init__()
         self._session = session
 
     def __repr__(self):
@@ -888,7 +1085,34 @@ class BackupSetsModel(bs.models.Sets):
         """
         *
         """
-        return self._get("*", (("user_id", "=", self._session.user.id, ), ))
+        # sets list is empty, load from db
+        if len(self._sets) == 0:
+            res = self._get("id, set_name, sources, filters, targets",
+                            (("user_id", "=", self._session.user.id, ), ))
+            for data_set in res:
+                set_id = data_set[0]
+                set_name = data_set[1]
+                source_objs = []
+                for source_obj in self._session.backup_sources.sources:
+                    if source_obj._source_id in json.loads(data_set[2]):
+                        source_objs.append(source_obj)
+                filter_objs = []
+                for filter_obj in self._session.backup_filters.filters:
+                    if filter_obj._filter_id in json.loads(data_set[3]):
+                        filter_objs.append(filter_obj)
+                target_objs = []
+                for target_obj in self._session.backup_targets.targets:
+                    if target_obj._target_id in json.loads(data_set[4]):
+                        target_objs.append(target_obj)
+
+                new_filter_obj = BackupSetCtrl(self._session,
+                                               set_id,
+                                               set_name,
+                                               source_objs,
+                                               filter_objs,
+                                               target_objs)
+                self._sets.append(new_filter_obj)
+        return self._sets
 
     @sets.setter
     def sets(self):
@@ -926,46 +1150,56 @@ class BackupSetsModel(bs.models.Sets):
             return False
     # /OVERLOADS
 
-    def add(self, set_name, sources, filters, targets):
+    def add(self, set_name, source_objs, filter_objs, target_objs):
         """
         *
         """
         # VALIDATE DATA
         # set_name
-        if not re.search(bs.config.REGEX_PATTERN_NAME, set_name):
+        if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
             logging.warning("%s: The name contains invalid characters. It "\
                             "needs to start  with an alphabetic and contain "\
                             "alphanumerical characters plus '\_\-\#' and "\
                             "space." % (self.__class__.__name__, ))
             return False
-        # sources, filters, targets
-        for candidate in (sources, filters, targets):
+        check = False
+        # source_objs
+        if not isinstance(source_objs, (list, tuple)):
             check = True
-            if not type(candidate) in (list, tuple, ):
-                check = False
-            for item in candidate:
-                if not type(item) is int:
-                    check = False
-            if not check:
-                logging.warning("%s: The second, third and fourth argument must "\
-                                "be a list or tuple of item-ids (integers)."
-                                % (self.__class__.__name__, ))
-                return False
-        # Check that the set with set_name doesn't already exist for current user.
-        res = self._get("id", (("set_name", "=", set_name, ), ("user_id", "=", self._session.user.id, ), ))
+        else:
+            for source_obj in source_objs:
+                if not isinstance(source_obj, BackupSourceCtrl):
+                    check = True
+        # filter_objs
+        if not isinstance(filter_objs, (list, tuple)):
+            check = True
+        else:
+            for filter_obj in filter_objs:
+                if not isinstance(filter_obj, BackupFilterCtrl):
+                    check = True
+        # target_objs
+        if not isinstance(target_objs, (list, tuple)):
+            check = True
+        else:
+            for target_obj in target_objs:
+                if not isinstance(target_obj, BackupTargetCtrl):
+                    check = True
 
-        if len(res) > 0:
-            logging.warning("%s: A set with this name already exists for this user: '%s'"
-                            % (self.__class__.__name__,
-                               set_name, ))
+        if check:
+            logging.warning("%s: The second, thrid and fourth arguments need "\
+                            "to be a list or tuple of backup "\
+                            "source/filter/target object respectively."
+                            % (self.__class__.__name__, ))
             return False
-        # add set to database
-        self._add("user_id, set_name, sources, filters, targets", ((self._session.user.id,
-                                                                    set_name,
-                                                                    json.dumps(sources),
-                                                                    json.dumps(filters),
-                                                                    json.dumps(targets), ),
-                                                                   ))
+        # add obj
+        set_id = None
+        new_set_obj = BackupSetCtrl(self._session,
+                                    set_id,
+                                    set_name,
+                                    source_objs,
+                                    filter_objs,
+                                    target_objs)
+        self._sets.append(new_set_obj)
         # out
         return True
 

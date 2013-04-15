@@ -68,15 +68,20 @@
 		[ ]	define format for filters, add validation to filters.add()
 		[X]	Transform separate filters into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
 			[X]	filter_pattern
-[.]	SetsModel
+[X]	SetsModel
 		[X]	add_set(sources, targets, filters)
 		[X]	remove_set(set)
 		[X]	sets property (return list of sets)
-		[ ]	Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[ ]	set_name
-			[ ]	sources? (recurse sources stack to get obj pointers?)
-			[ ]	filters? (recurse filters stack to get obj pointers?)
-			[ ]	targets? (recurse targets stack to get obj pointers?)
+		[X]	Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	set_name
+			[X]	sources? (recurse sources stack to get obj pointers?)
+			[X]	filters? (recurse filters stack to get obj pointers?)
+			[X]	targets? (recurse targets stack to get obj pointers?)
+		[X]	BackupSetCtrl
+			[X]	set_name
+			[X]	sources
+			[X]	filters
+			[X]	targets
 [.]	Start with backup-factory
 		[.]	Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
 		[X]	Implement conditional matrixes to handle different cases
@@ -89,6 +94,9 @@
 			> Not for now~
 		[X]	Integrate code properly into bs structure (from current tmp working files)
 		[X]	benchmark/optimize for speed
+		[.]	Implement backup-process into system
+			[ ]	pass in/check etc. password
+			[ ]	...
 		[.]	BackupRestore: Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
 		[ ]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
 		[ ]	Store *one* password hash with a whole *backup-SET*
