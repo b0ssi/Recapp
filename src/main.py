@@ -62,6 +62,7 @@ my_user_1.log_in("alpha", "1")
 #                             my_targets_1.targets[0]
 #                            ]
 #my_sets_1.add("My awesommmmme set2",
+#              "12345678",
 #              (my_sources_1.sources[0], my_sources_1.sources[1], ),
 #              (my_filters_1.filters[0], my_filters_1.filters[1], my_filters_1.filters[2], ),
 #              (my_targets_1.targets[0], )
@@ -71,18 +72,18 @@ my_user_1.log_in("alpha", "1")
 
 time_start = time.time()
 
-my_backup = bs.backup.Backup(
-                             my_sets_1.sets[0],
-                             "Z:\\test.sqlite"
-                             )
-my_backup.backup_exec()
+#my_backup = bs.backup.Backup(
+#                             my_sets_1.sets[0],
+#                             "Z:\\test.sqlite"
+#                             )
+#my_backup.backup_exec()
 
-#my_backup_restore = bs.backup.BackupRestore(
-#                                            SESSIONS.current_session.,
-#                                            "myPassword",
-#                                            1,
-#                                            "Y:\\_TMP\\bsTest\\restore"
-#                                            )
+my_backup_restore = bs.backup.BackupRestore(
+                                            SESSIONS.current_session.,
+                                            "myPassword",
+                                            1,
+                                            "Y:\\_TMP\\bsTest\\restore"
+                                            )
 #my_backup_restore = BackupRestore(r"Y:\_TMP\bsTest\t1\backup_test\1365492971.zip",
 #                                  r"Y:\_TMP\bsTest\t1\backup_test")
 

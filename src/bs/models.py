@@ -58,8 +58,10 @@ class Filters(bs.models_master.BSModel):
 
 class Sets(bs.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
+    set_uid = ["TEXT", "UNIQUE"]
     user_id = ["INTEGER"]
     set_name = ["TEXT"]
+    key_hash_64 = ["TEXT"]
     sources = ["TEXT"]
     filters = ["TEXT"]
     targets = ["TEXT"]

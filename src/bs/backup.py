@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-import Crypto.Cipher
+import Crypto.Cipher.AES
 import Crypto.Random
-import Crypto.Util
+import Crypto.Util.Counter
 import bs.utils
+import getpass
 import hashlib
 import logging
 import os
@@ -33,6 +34,7 @@ class Backup(object):
     *
     """
     _backup_set = None
+    _key_hash_32 = None
     _sources = None
     _targets = None
     _db_path = None
@@ -242,6 +244,22 @@ class Backup(object):
             raise
 
     def backup_exec(self):
+        # check if set is encrypted and prompt for key_raw-input
+        # a key_raw is set as indicated by 64-bit verification hash in db:
+        if self._backup_set._key_hash_64:
+            key_raw = getpass.getpass("The backup-set is encrypted. Please enter "\
+                                 "the key_raw to continue:")
+            key_hash_32 = hashlib.sha256(key_raw.encode()).hexdigest()
+            key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
+            # compare hash of entered key against hash_64 in db/on set-obj
+            if key_hash_64 == self._backup_set._key_hash_64:
+                self._key_hash_32 = key_hash_32
+            # if mismatch, prompt and exit
+            else:
+                logging.critical("%s: The password entered is invalid; the "\
+                                 "backup-process can not continue."
+                                 % (self.__class__.__name__, ))
+                raise SystemExit
         # update database
         new_column_name = self._update_db(self._db_path)
 
@@ -576,7 +594,7 @@ class BackupFile(object):
     _size = None
     _compression_level = 6
     _buffer_size = 1024 * 1024
-    _password_hash = None
+    _key_hash_64 = None
     _tmp_dir = None
     _tmp_file_path = None
     _current_backup_archive_name = None
@@ -664,15 +682,15 @@ class BackupFile(object):
 
     @property
     def password_hash(self):
-        if not self._password_hash:
+        if not self._key_hash_64:
             logging.critical("%s: Password not set." % (self.__class__.__name__))
             raise SystemExit()
         else:
-            return self._password_hash
+            return self._key_hash_64
 
     @password_hash.setter
     def password_hash(self, arg):
-        self._password_hash = hashlib.sha256(arg.encode()).digest()
+        self._key_hash_64 = hashlib.sha256(arg.encode()).digest()
 
     @property
     def current_backup_archive_name(self):
@@ -701,7 +719,7 @@ class BackupFile(object):
             for target in self._targets:
                 target_path = target.target_path
                 # create set dir
-                backup_set_path = os.path.join(target_path, self._backup_set.set_name)
+                backup_set_path = os.path.join(target_path, self._backup_set._set_uid)
                 if not os.path.isdir(backup_set_path):
                     os.makedirs(backup_set_path)
                 for folder_path, folders, files in os.walk(backup_set_path):
@@ -729,7 +747,7 @@ class BackupFile(object):
                 # on all targets:
                 for target in self._targets:
                     target_path = target.target_path
-                    backup_set_path = os.path.join(target_path, self._backup_set.set_name)
+                    backup_set_path = os.path.join(target_path, self._backup_set._set_uid)
                     # create archive on all targets/check for valid file if exists
                     if not os.path.isfile(backup_archive_path):
                         try:
@@ -746,7 +764,7 @@ class BackupFile(object):
                 for target in self._targets:
                     target_path = target.target_path
                     new_archive_path = os.path.join(target_path,
-                                                    self._backup_set.set_name,
+                                                    self._backup_set._set_uid,
                                                     new_archive_name)
                     # create set path, archive
                     try:
@@ -850,7 +868,7 @@ class BackupFile(object):
 
         for target in self._targets:
             target_path = target.target_path
-            backup_archive_path = os.path.join(target_path, self._backup_set.set_name, backup_archive_name)
+            backup_archive_path = os.path.join(target_path, self._backup_set._set_uid, backup_archive_name)
             f_archive = zipfile.ZipFile(backup_archive_path, "a", allowZip64=True)
             # only add if not already exist
             members = f_archive.namelist()

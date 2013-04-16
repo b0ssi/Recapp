@@ -24,6 +24,7 @@ import logging
 import os
 import random
 import re
+import sqlite3
 import time
 import win32file
 
@@ -892,18 +893,22 @@ class BackupSetCtrl(bs.models.Sets):
     """
     _session = None
     _set_id = None
+    _set_uid = None
     _set_name = None
+    _key_hash_64 = None
     _sources = None
     _filters = None
     _targets = None
 
-    def __init__(self, session, set_id, set_name, source_objs, filter_objs, target_objs):
+    def __init__(self, session, set_id, set_uid, set_name, key_hash_64, source_objs, filter_objs, target_objs):
         """
         *
         """
         self._session = session
         self._set_id = set_id
+        self._set_uid = set_uid
         self._set_name = set_name
+        self._key_hash_64 = key_hash_64
         self._sources = source_objs
         self._filters = filter_objs
         self._targets = target_objs
@@ -922,10 +927,12 @@ class BackupSetCtrl(bs.models.Sets):
             for target_obj in target_objs:
                 target_ids.append(target_obj._target_id)
             target_ids_list = target_ids
-            res = self._add("user_id, set_name, sources, filters, targets",
+            res = self._add("user_id, set_uid, set_name, key_hash_64, sources, filters, targets",
                       (
                        self._session.user.id,
+                       set_uid,
                        set_name,
+                       key_hash_64,
                        json.dumps(source_ids_list),
                        json.dumps(filter_ids_list),
                        json.dumps(target_ids_list)
@@ -1087,27 +1094,31 @@ class BackupSetsCtrl(bs.models.Sets):
         """
         # sets list is empty, load from db
         if len(self._sets) == 0:
-            res = self._get("id, set_name, sources, filters, targets",
+            res = self._get("id, set_uid, set_name, key_hash_64, sources, filters, targets",
                             (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
                 set_id = data_set[0]
-                set_name = data_set[1]
+                set_uid = data_set[1]
+                set_name = data_set[2]
+                key_hash_64 = data_set[3]
                 source_objs = []
                 for source_obj in self._session.backup_sources.sources:
-                    if source_obj._source_id in json.loads(data_set[2]):
+                    if source_obj._source_id in json.loads(data_set[4]):
                         source_objs.append(source_obj)
                 filter_objs = []
                 for filter_obj in self._session.backup_filters.filters:
-                    if filter_obj._filter_id in json.loads(data_set[3]):
+                    if filter_obj._filter_id in json.loads(data_set[5]):
                         filter_objs.append(filter_obj)
                 target_objs = []
                 for target_obj in self._session.backup_targets.targets:
-                    if target_obj._target_id in json.loads(data_set[4]):
+                    if target_obj._target_id in json.loads(data_set[6]):
                         target_objs.append(target_obj)
 
                 new_filter_obj = BackupSetCtrl(self._session,
                                                set_id,
+                                               set_uid,
                                                set_name,
+                                               key_hash_64,
                                                source_objs,
                                                filter_objs,
                                                target_objs)
@@ -1150,7 +1161,7 @@ class BackupSetsCtrl(bs.models.Sets):
             return False
     # /OVERLOADS
 
-    def add(self, set_name, source_objs, filter_objs, target_objs):
+    def add(self, set_name, key_raw, source_objs, filter_objs, target_objs):
         """
         *
         """
@@ -1163,6 +1174,14 @@ class BackupSetsCtrl(bs.models.Sets):
                             "space." % (self.__class__.__name__, ))
             return False
         check = False
+        # key_raw
+        if not re.match(bs.config.REGEX_PATTERN_KEY, key_raw):
+            logging.warning("%s: The password contains invalid characters "\
+                            "and/or is of invalid length."
+                            % (self.__class__.__name__, ))
+            return False
+        else:
+            key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
         # source_objs
         if not isinstance(source_objs, (list, tuple)):
             check = True
@@ -1191,11 +1210,30 @@ class BackupSetsCtrl(bs.models.Sets):
                             "source/filter/target object respectively."
                             % (self.__class__.__name__, ))
             return False
-        # add obj
+        # ADD OBJ
         set_id = None
+        # set_uid
+        set_uid = None
+        check = False
+        conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+        while not check:
+            # generate (new) set_uid
+            timestamp = str(int(time.time() * 1000000))
+            random_num = str(random.randint(1000000000000000, 9999999999999999))
+            timestamp_random_num = timestamp + random_num
+            set_uid = hashlib.md5(timestamp_random_num.encode()).hexdigest()
+            # check if unique in db
+            res = conn.execute("SELECT id FROM sets WHERE set_uid = ?", (set_uid, )).fetchall()
+            if len(res) == 0:
+                check = True
+                break
+            time.sleep(0.005)
+        conn.close()
         new_set_obj = BackupSetCtrl(self._session,
                                     set_id,
+                                    set_uid,
                                     set_name,
+                                    key_hash_64,
                                     source_objs,
                                     filter_objs,
                                     target_objs)
