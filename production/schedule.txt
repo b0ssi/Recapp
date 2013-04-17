@@ -97,11 +97,15 @@
 		[X]	Implement backup-process into system
 			[X]	pass in/check etc. password
 			[X]	...
-		[.]	BackupRestore: Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
-		[ ]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
-		[ ]	Store *one* password hash with a whole *backup-SET*
-		[ ]	Pass password into backup-method and check for validity before starting backup-process ()
-			[ ]	Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
+		[.]	BackupRestore:
+			[X]	BackupSetCtrl/db: add field to store (last known) database location
+			[ ]	BackupSetCtrl/db: If db could not be found at stored path, prompt for new path
+			[X]	Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
+		[X]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
+		[X]	Store *one* password hash with a whole *backup-SET*
+		[X]	Pass password into backup-method and check for validity before starting backup-process ()
+			[X]	Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
+				> Simplicity: All data-sets related to a specific set in all targets associated with the set always have the same password
 [ ]	Backup obj/Database
 		[ ]	Implement mechanism to mark an entity as absent in a snapshot
 		[ ]	Table `path` still needed? Unique per entity anyway, so won't change between snapshots

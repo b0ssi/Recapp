@@ -7,6 +7,7 @@ import getpass
 import hashlib
 import logging
 import os
+import re
 import sqlite3
 import tempfile
 import time
@@ -249,7 +250,7 @@ class Backup(object):
         if self._backup_set._key_hash_64:
             key_raw = getpass.getpass("The backup-set is encrypted. Please enter "\
                                  "the key_raw to continue:")
-            key_hash_32 = hashlib.sha256(key_raw.encode()).hexdigest()
+            key_hash_32 = hashlib.sha256(key_raw.encode()).digest()
             key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
             # compare hash of entered key against hash_64 in db/on set-obj
             if key_hash_64 == self._backup_set._key_hash_64:
@@ -271,7 +272,6 @@ class Backup(object):
         i = 0
         for source in self._sources:
             source_path = source.source_path
-            print(source_path)
             for folder_path, folders, files in os.walk(source_path):
                 for file in files:
                     # create file object
@@ -279,7 +279,7 @@ class Backup(object):
                                           os.path.join(folder_path, file),
                                           self._targets,
                                           self._tmp_dir,
-                                          "my_ultrasecure_password")
+                                          key_hash_32)
 
                     entity_datas = conn.execute("SELECT id, path, ctime, mtime, atime, inode, size, sha512 FROM lookup WHERE path = ?", (file_obj.path, )).fetchall()
                     # new path
@@ -594,12 +594,12 @@ class BackupFile(object):
     _size = None
     _compression_level = 6
     _buffer_size = 1024 * 1024
-    _key_hash_64 = None
+    _key_hash_32 = None
     _tmp_dir = None
     _tmp_file_path = None
     _current_backup_archive_name = None
 
-    def __init__(self, backup_set, file_path, targets, tmp_dir, password):
+    def __init__(self, backup_set, file_path, targets, tmp_dir, key_hash_32):
         """
         *
         """
@@ -614,8 +614,7 @@ class BackupFile(object):
         self._inode = stat.st_ino
         self._size = stat.st_size
         self._tmp_dir = tmp_dir
-        # set password
-        self.password_hash = password
+        self._key_hash_32 = key_hash_32
 
     def __del__(self):
         self._remove_tmp_file()
@@ -679,18 +678,6 @@ class BackupFile(object):
     @sha512.setter
     def sha512(self):
         return None
-
-    @property
-    def password_hash(self):
-        if not self._key_hash_64:
-            logging.critical("%s: Password not set." % (self.__class__.__name__))
-            raise SystemExit()
-        else:
-            return self._key_hash_64
-
-    @password_hash.setter
-    def password_hash(self, arg):
-        self._key_hash_64 = hashlib.sha256(arg.encode()).digest()
 
     @property
     def current_backup_archive_name(self):
@@ -811,17 +798,17 @@ class BackupFile(object):
 
         iv = Crypto.Random.new().read(Crypto.Cipher.AES.block_size)
         counter = Crypto.Util.Counter.new(128)
-        aes = Crypto.Cipher.AES.new(self.password_hash, Crypto.Cipher.AES.MODE_CTR, iv, counter)
+        aes = Crypto.Cipher.AES.new(self._key_hash_32, Crypto.Cipher.AES.MODE_CTR, iv, counter)
 
         f_out.write(iv)
-        data_processed = 0
+#        data_processed = 0
         while True:
             data = f_in.read(self._buffer_size)
             if not data:
                 break
-            data_compressed = compression_obj.compress(data)
-            data_compressed += compression_obj.flush(zlib.Z_SYNC_FLUSH)
-            data_compressed_encrypted = aes.encrypt(data_compressed)
+            data_compressed_unencrypted = compression_obj.compress(data)
+            data_compressed_unencrypted += compression_obj.flush(zlib.Z_SYNC_FLUSH)
+            data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
             f_out.write(data_compressed_encrypted)
 
 #            data_processed += self._buffer_size
@@ -829,8 +816,8 @@ class BackupFile(object):
 #                  % (self.__class__.__name__,
 #                     bs.utils.format_data_size(data_processed),
 #                     bs.utils.format_data_size(data_processed / (time.time() - time_start))))
-        data_compressed = compression_obj.flush(zlib.Z_FINISH)
-        data_compressed_encrypted = aes.encrypt(data_compressed)
+        data_compressed_unencrypted = compression_obj.flush(zlib.Z_FINISH)
+        data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
         f_out.write(data_compressed_encrypted)
 
         f_in.close()
@@ -885,109 +872,228 @@ class BackupFile(object):
                                 % (self.__class__.__name__,
                                    self.sha512))
 
+class BackupRestoreFile(object):
+    """
+    *
+    """
+    _set_obj = None
+    _entity_id = None
+    _snapshot_to_restore = None
+    _backup_archive_paths = []  # list of all available backup archive paths
+    _sha512_db = None
+    _backup_archive_name = None
+    _file_name = None
+
+    def __init__(self, set_obj, entity_id, snapshot_to_restore):
+        """
+        *
+        """
+        self._set_obj = set_obj
+        self._entity_id = entity_id
+        self._snapshot_to_restore = snapshot_to_restore
+
+    @property
+    def backup_archive_path(self):
+        """
+        *
+        Returns a list of all available backup archive paths.
+        """
+        if not self._backup_archive_paths:
+            for target in self._set_obj.targets:
+                target_path = target.target_path
+                backup_archive_path = os.path.join(target_path, self._set_obj.set_uid, self.backup_archive_name)
+                self._backup_archive_paths.append(backup_archive_path)
+        return self._backup_archive_paths[0]
+
+    @backup_archive_path.setter
+    def backup_archive_path(self):
+        """
+        *
+        """
+        return False
+
+    @property
+    def sha512_db(self):
+        if not self._sha512_db:
+            self._sha512_db = self.get_latest_data_in_table("sha512")
+        return self._sha512_db
+
+    @sha512_db.setter
+    def sha512_db(self):
+        return False
+
+    @property
+    def backup_archive_name(self):
+        if not self._backup_archive_name:
+            conn = sqlite3.connect(self._set_obj.set_db_path)
+            res = conn.execute("SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?",
+                               (str(self.sha512_db), )).fetchall()
+            self._backup_archive_name = res[0][0]
+            conn.close()
+        return self._backup_archive_name
+
+    @backup_archive_name.setter
+    def backup_archive_name(self):
+        return False
+
+    @property
+    def file_path(self):
+        if not self._file_name:
+            self._file_name = self.get_latest_data_in_table("path")
+        return self._file_name
+
+    @file_path.setter
+    def file_path(self):
+        return False
+
+    def get_latest_data_in_table(self, table_name):
+        """
+        *
+        Gets the file_id's data in db for the latest snapshot-column that has
+        data on it.
+        """
+        conn = sqlite3.connect(self._set_obj.set_db_path)
+        # sorted list of of all snapshot_names (snapshot column-names) in
+        # table_name, latest first, descending
+        snapshot_names = conn.execute("PRAGMA table_info(%s)"
+                                      % (table_name, )).fetchall()
+        snapshot_names = sorted([x[1] for x in snapshot_names], reverse=True)
+        snapshot_names.pop(len(snapshot_names)-1)
+        snapshot_data = None
+        for snapshot_name in snapshot_names:
+            while not snapshot_data:
+                res = conn.execute("SELECT %s FROM %s WHERE id = ?"
+                                   % (snapshot_name, table_name, ),
+                                   (self._entity_id, )).fetchall()
+                if len(res[0]) > 0:
+                    snapshot_data = res[0][0]
+                    break
+        conn.close()
+        return snapshot_data
 
 class BackupRestore(object):
-    _backup_archive_path = None
+    """
+    *
+    """
+    _set_obj = None
+    _entity_ids = None
     _restore_location = None
-    _tmp_dir = None
-    _tmp_file_path = None
-    password_hash = None
-    _buffer_size = 32768
+    _snapshot_to_restore = None
+    _key_hash_32 = None
+    _buffer_size = 1024 * 1024
 
-#    def __init__(self, set_id, password, entity_id, restore_location):
-    def __init__(self, backup_archive_path):
-#        set_id = set_id
-#        password = password
-#        entity_id = entity_id
-#        self._restore_location = restore_location
-#        self._backup_archive_path = None
-
-
-        self._backup_archive_path = backup_archive_path
+    def __init__(self, set_obj, entity_ids, restore_location, snapshot_to_restore):
+        """
+        *
+        """
+        self._set_obj = set_obj
+        self._entity_ids = entity_ids
+        self._restore_location = restore_location
+        self._snapshot_to_restore = snapshot_to_restore
         self._tmp_dir = tempfile.TemporaryDirectory()
-        self.password_hash = "passwordpassword"
 
-        self.unzip_file("a62b6e53efffb48eba0efa0aafdeb8cb8ad28df10c948f27c0dd846056dc3ba41c692a400ad92a2c19876f3447b973abb3eac24f169798f04521f2bd3633f83b")
-        self.decrypt_file()
-        self.unzlib_file()
+    @property
+    def key_hashed_32(self):
+        if not self._key_hash_32:
+            while not self._key_hash_32:
+                key_raw = getpass.getpass("This set is encrypted; please enter "\
+                                          "the corresponding password:")
+                key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
+                # verify hash_64
+                if key_hash_64 == self._set_obj.key_hash_64:
+                    key_hash_32 = hashlib.sha256(key_raw.encode()).digest()
+                    self._key_hash_32 = key_hash_32
+                    return self._key_hash_32
+
+    @key_hashed_32.setter
+    def key_hashed_32(self):
+        return False
+
+    def start(self):
+        """
+        *
+        """
+        for entity_id in self._entity_ids:
+            # restore-file obj, provides all necessary metadata about entity
+            backup_restore_file = BackupRestoreFile(self._set_obj,
+                                                    entity_id,
+                                                    self._snapshot_to_restore)
+            self._unzip_file(backup_restore_file)
+            self._decrypt_aes_decompress_zlib(backup_restore_file)
 
     def _remove_tmp_file(self):
+        """
+        *
+        """
         try:
             os.unlink(self._tmp_file_path)
             return True
         except:
-            raise
-#            return False
+            return False
 
-    def unzip_file(self, file_to_extract_name):
+    def _unzip_file(self, backup_restore_file):
+        """
+        *
+        """
         time_start = time.time()
         logging.debug("%s: Unzipping file: %s"
                       % (self.__class__.__name__,
-                         file_to_extract_name, ))
+                         backup_restore_file.file_path, ))
 
-        f_zip = zipfile.ZipFile(self._backup_archive_path, mode="r")
+        f_zip = zipfile.ZipFile(backup_restore_file.backup_archive_path, mode="r")
 
-#        self._remove_tmp_file()
-        self._tmp_file_path = f_zip.extract(file_to_extract_name, path=self._tmp_dir.name)
+        self._tmp_file_path = f_zip.extract(backup_restore_file.sha512_db, path=self._tmp_dir.name)
 
         time_elapsed = time.time() - time_start
         logging.debug("%s: File successfully unzipped (%.2fs)."
                       % (self.__class__.__name__,
                          time_elapsed))
 
-    def decrypt_file(self):
+    def _decrypt_aes_decompress_zlib(self, backup_restore_file):
+        """
+        *
+        """
         time_start = time.time()
         logging.debug("%s: Decrypting (AES) file..."
                       % (self.__class__.__name__, ))
 
         f_in = open(self._tmp_file_path, "rb")
-        f_tmp = tempfile.NamedTemporaryFile(dir=self._tmp_dir.name, mode="a+b", delete=False)
-        iv = f_in.read(Crypto.Cipher.AES.block_size)
-        counter = Crypto.Util.Counter.new(128)
-        aes = Crypto.Cipher.AES.new(self.password_hash, Crypto.Cipher.AES.MODE_CTR, iv, counter)
-        while True:
-            data = f_in.read(self._buffer_size)
-            if not data:
-                break
-            data_decrypted = aes.decrypt(data)
-            f_tmp.write(data_decrypted)
-        f_tmp.close()
-        f_in.close()
-
-        self._remove_tmp_file()
-        self._tmp_file_path = f_tmp.name
-
-        time_elapsed = time.time() - time_start
-        logging.debug("%s: File successfully decrypted (%.2fs)."
-                      % (self.__class__.__name__,
-                         time_elapsed))
-
-    def unzlib_file(self):
-        time_start = time.time()
-        logging.debug("%s: Decompressing (zlib) file: %s"
-                      % (self.__class__.__name__,
-                         self._restore_location, ))
+        # create full restore file-path (restore location + orig. file path)
+        f_out_path = self._restore_location
+        if re.match("^[a-zA-Z]:\\\\.*$", backup_restore_file.file_path):
+            f_out_path = os.path.join(self._restore_location,
+                                      backup_restore_file.file_path[:1],
+                                      backup_restore_file.file_path[3:])
+        else:
+            logging.critical("%s: This ouput path format still needs to be "\
+                             "configured to be appended to the "\
+                             "restore_location: %s"
+                             % (self.__class__.__name__,
+                                backup_restore_file.file_path, ))
+            raise SystemExit
+        os.makedirs(os.path.dirname(f_out_path))
+        f_out = open(f_out_path, "a+b")
 
         decompression_obj = zlib.decompressobj()
-        f_in = open(self._tmp_file_path, "rb")
-        f_out = open(os.path.join(self._restore_location, "out"), "a+b")
+
+        iv = f_in.read(Crypto.Cipher.AES.block_size)
+        counter = Crypto.Util.Counter.new(128)
+        aes = Crypto.Cipher.AES.new(self.key_hashed_32, Crypto.Cipher.AES.MODE_CTR, iv, counter)
+
         while True:
             data = f_in.read(self._buffer_size)
             if not data:
                 break
-            data_decompressed = decompression_obj.decompress(data)
-            f_out.write(data_decompressed)
-            f_out.write(decompression_obj.flush(zlib.Z_SYNC_FLUSH))
-        f_out.write(decompression_obj.flush(zlib.Z_FINISH))
-#        for line in f_in:
-#            f_out.write(line)
+            data_compressed_decrypted = aes.decrypt(data)
+            data_decompressed_decrypted = decompression_obj.decompress(data_compressed_decrypted)
+            data_decompressed_decrypted += decompression_obj.flush(zlib.Z_SYNC_FLUSH)
+            f_out.write(data_decompressed_decrypted)
         f_in.close()
         f_out.close()
 
         self._remove_tmp_file()
-        self._tmp_file_path = None
 
         time_elapsed = time.time() - time_start
-        logging.debug("%s: Compression done (%.2fs)."
+        logging.debug("%s: File successfully decrypted (%.2fs)."
                       % (self.__class__.__name__,
                          time_elapsed))

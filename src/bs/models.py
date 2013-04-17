@@ -62,6 +62,7 @@ class Sets(bs.models_master.BSModel):
     user_id = ["INTEGER"]
     set_name = ["TEXT"]
     key_hash_64 = ["TEXT"]
+    set_db_path = ["TEXT"]
     sources = ["TEXT"]
     filters = ["TEXT"]
     targets = ["TEXT"]

@@ -554,7 +554,9 @@ class BackupTargetCtrl(bs.models.Targets):
                 f = open(target_config_file_path, "r")
                 data = f.read()
                 target_device_id_drive = json.loads(data)[1]
-                out.append(os.path.join(drive_root_path, bs.config.PROJECT_NAME))
+                # if current target_device_id same as own device_id...
+                if target_device_id_drive == self._target_device_id:
+                    out.append(os.path.join(drive_root_path, bs.config.PROJECT_NAME))
                 f.close()
         # out
         if len(out) > 1:
@@ -896,11 +898,12 @@ class BackupSetCtrl(bs.models.Sets):
     _set_uid = None
     _set_name = None
     _key_hash_64 = None
+    _set_db_path = None
     _sources = None
     _filters = None
     _targets = None
 
-    def __init__(self, session, set_id, set_uid, set_name, key_hash_64, source_objs, filter_objs, target_objs):
+    def __init__(self, session, set_id, set_uid, set_name, key_hash_64, set_db_path, source_objs, filter_objs, target_objs):
         """
         *
         """
@@ -909,6 +912,7 @@ class BackupSetCtrl(bs.models.Sets):
         self._set_uid = set_uid
         self._set_name = set_name
         self._key_hash_64 = key_hash_64
+        self._set_db_path = set_db_path
         self._sources = source_objs
         self._filters = filter_objs
         self._targets = target_objs
@@ -927,12 +931,13 @@ class BackupSetCtrl(bs.models.Sets):
             for target_obj in target_objs:
                 target_ids.append(target_obj._target_id)
             target_ids_list = target_ids
-            res = self._add("user_id, set_uid, set_name, key_hash_64, sources, filters, targets",
+            res = self._add("user_id, set_uid, set_name, key_hash_64, set_db_path, sources, filters, targets",
                       (
                        self._session.user.id,
                        set_uid,
                        set_name,
                        key_hash_64,
+                       set_db_path,
                        json.dumps(source_ids_list),
                        json.dumps(filter_ids_list),
                        json.dumps(target_ids_list)
@@ -970,6 +975,14 @@ class BackupSetCtrl(bs.models.Sets):
         self._set_name = set_name
         # update db
         self._update((("set_name", set_name, ), ), (("id", "=", self._set_id, ), ))
+
+    @property
+    def set_db_path(self):
+        return self._set_db_path
+
+    @set_db_path.setter
+    def set_db_path(self):
+        return False
 
     @property
     def sources(self):
@@ -1070,6 +1083,23 @@ class BackupSetCtrl(bs.models.Sets):
         self._update((("targets", json.dumps(target_ids_list)), ),
                      (("id", "=", self._set_id, ), ))
 
+    @property
+    def set_uid(self):
+        return self._set_uid
+
+    @set_uid.setter
+    def set_uid(self):
+        return False
+
+    @property
+    def key_hash_64(self):
+        return self._key_hash_64
+
+    @key_hash_64.setter
+    def key_hash_64(self):
+        return False
+
+
 class BackupSetsCtrl(bs.models.Sets):
     """
     *
@@ -1094,24 +1124,25 @@ class BackupSetsCtrl(bs.models.Sets):
         """
         # sets list is empty, load from db
         if len(self._sets) == 0:
-            res = self._get("id, set_uid, set_name, key_hash_64, sources, filters, targets",
+            res = self._get("id, set_uid, set_name, key_hash_64, set_db_path, sources, filters, targets",
                             (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
                 set_id = data_set[0]
                 set_uid = data_set[1]
                 set_name = data_set[2]
                 key_hash_64 = data_set[3]
+                set_db_path = data_set[4]
                 source_objs = []
                 for source_obj in self._session.backup_sources.sources:
-                    if source_obj._source_id in json.loads(data_set[4]):
+                    if source_obj._source_id in json.loads(data_set[5]):
                         source_objs.append(source_obj)
                 filter_objs = []
                 for filter_obj in self._session.backup_filters.filters:
-                    if filter_obj._filter_id in json.loads(data_set[5]):
+                    if filter_obj._filter_id in json.loads(data_set[6]):
                         filter_objs.append(filter_obj)
                 target_objs = []
                 for target_obj in self._session.backup_targets.targets:
-                    if target_obj._target_id in json.loads(data_set[6]):
+                    if target_obj._target_id in json.loads(data_set[7]):
                         target_objs.append(target_obj)
 
                 new_filter_obj = BackupSetCtrl(self._session,
@@ -1119,6 +1150,7 @@ class BackupSetsCtrl(bs.models.Sets):
                                                set_uid,
                                                set_name,
                                                key_hash_64,
+                                               set_db_path,
                                                source_objs,
                                                filter_objs,
                                                target_objs)
@@ -1161,7 +1193,7 @@ class BackupSetsCtrl(bs.models.Sets):
             return False
     # /OVERLOADS
 
-    def add(self, set_name, key_raw, source_objs, filter_objs, target_objs):
+    def add(self, set_name, key_raw, set_db_path, source_objs, filter_objs, target_objs):
         """
         *
         """
@@ -1182,6 +1214,21 @@ class BackupSetsCtrl(bs.models.Sets):
             return False
         else:
             key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
+        # set_db_path
+        check = False
+        if not isinstance(set_db_path, str):
+            check = True
+        elif not os.path.isdir(os.path.dirname(set_db_path)):
+            check = True
+        elif not re.match(".*\.sqlite$", set_db_path):
+            check = True
+        if check:
+            logging.warning("%s: The given path does not point to an existing"\
+                            "location on this system or the filename is in "\
+                            "an invalid format (extension <.sqlite> "\
+                            "expected)."
+                            % (self.__class__.__name__, ))
+            return False
         # source_objs
         if not isinstance(source_objs, (list, tuple)):
             check = True
@@ -1234,6 +1281,7 @@ class BackupSetsCtrl(bs.models.Sets):
                                     set_uid,
                                     set_name,
                                     key_hash_64,
+                                    set_db_path,
                                     source_objs,
                                     filter_objs,
                                     target_objs)
