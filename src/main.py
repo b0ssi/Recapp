@@ -73,16 +73,15 @@ my_user_1.log_in("alpha", "1")
 
 time_start = time.time()
 
-#my_backup = bs.backup.Backup(
-#                             my_sets_1.sets[0],
-#                             "Z:\\test.sqlite"
-#                             )
-#my_backup.backup_exec()
+my_backup = bs.backup.Backup(
+                             my_sets_1.sets[0]
+                             )
+my_backup.backup_exec()
 
-my_backup_restore = bs.backup.BackupRestore(my_sets_1.sets[0],
-                                            [2],
-                                            "Z:\\test_restore",
-                                            "snapshot_1366216500")
-my_backup_restore.start()
+#my_backup_restore = bs.backup.BackupRestore(my_sets_1.sets[0],
+#                                            [2],
+#                                            "Z:\\test_restore",
+#                                            "snapshot_1366216500")
+#my_backup_restore.start()
 
 print("Time elapsed: %s" % (time.time() - time_start))

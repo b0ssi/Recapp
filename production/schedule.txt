@@ -8,125 +8,6 @@
 # SCHEDULE
 ################################
 ................................
-[ ]		LATER
-		........................
-[ ]	File-Backup
-		[ ]	Implement sidecart-metadata files for backed-up datastreams
-................................
-[ ]		Q/A
-		........................
-[ ]		.
-................................
-................................
-................................
-[ ]		NEXT MILESTONE: 0004
-		........................
-[ ]		.
-................................
-[ ]		Q/A
-		........................
-[ ]		.
-................................
-[ ]		NEXT MILESTONE: 0003
-		........................
-[ ]		.
-................................
-[ ]		Q/A
-		........................
-[ ]		.
-................................
-[.]		NEXT MILESTONE: 0002
-		........................
-[X]		Controllers: Restrict methods to logged_in only
-[X]		Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
-[X]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
-		> possibly irrelevant as sessions will operate in their local scope. Methods requiring a global scope across all sessions can refer to the sessions parent and iterate through active sessions.
-[X]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
-[X]		SessionsModel:
-		[X]	figure out how to identify a session
-			> address when actually needed (refer to "switch between sessions" task)
-		[X]	remove_session()
-[.]	Do I need objects to represent sources, targets, filters, etc. or do lists suffice?
-[X]	SourcesModel:
-		[X]	add_source(source)
-		[X]	remove_source(source)
-		[X]	sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
-		[X]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[X]	source_name
-			[X]	source_path
-[X]	TargetsModel:
-		[X]	add_target(target, password)
-		[X]	remove_target(target)
-		[X]	targets property (return list of targets)
-		[X]	Transform separate targets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[X]	target_name
-			[X]	target_id
-[.]	FiltersModel
-		[X]	add_filter(filter)
-		[X]	remove_filter(filter)
-		[X]	filters property (return list of filters)
-		[ ]	define format for filters, add validation to filters.add()
-		[X]	Transform separate filters into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[X]	filter_pattern
-[X]	SetsModel
-		[X]	add_set(sources, targets, filters)
-		[X]	remove_set(set)
-		[X]	sets property (return list of sets)
-		[X]	Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-			[X]	set_name
-			[X]	sources? (recurse sources stack to get obj pointers?)
-			[X]	filters? (recurse filters stack to get obj pointers?)
-			[X]	targets? (recurse targets stack to get obj pointers?)
-		[X]	BackupSetCtrl
-			[X]	set_name
-			[X]	sources
-			[X]	filters
-			[X]	targets
-[.]	Start with backup-factory
-		[.]	Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
-		[X]	Implement conditional matrixes to handle different cases
-		[X]	Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
-			> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
-		[X] Implement 2-threaded hash-calculation into backup-routines
-		[X]	Implement organizational plan for file-data
-		[X]	Implement compression
-		[X]	Implement sidecart-metadata files for backed-up datastreams
-			> Not for now~
-		[X]	Integrate code properly into bs structure (from current tmp working files)
-		[X]	benchmark/optimize for speed
-		[X]	Implement backup-process into system
-			[X]	pass in/check etc. password
-			[X]	...
-		[.]	BackupRestore:
-			[X]	BackupSetCtrl/db: add field to store (last known) database location
-			[ ]	BackupSetCtrl/db: If db could not be found at stored path, prompt for new path
-			[X]	Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
-		[X]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
-		[X]	Store *one* password hash with a whole *backup-SET*
-		[X]	Pass password into backup-method and check for validity before starting backup-process ()
-			[X]	Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
-				> Simplicity: All data-sets related to a specific set in all targets associated with the set always have the same password
-[ ]	Backup obj/Database
-		[ ]	Implement mechanism to mark an entity as absent in a snapshot
-		[ ]	Table `path` still needed? Unique per entity anyway, so won't change between snapshots
-................................
-[ ]		Q/A
-		........................
-[ ]		clean-up old code
-[ ]		check module-structure
-[ ]		maintain integrity:
-		[ ]	document code
-		[ ]	validate user-input
-		[ ]	write test/test
-		[ ]	manage conditional exception-handling
-		[ ]	implement correct return data for *everything*
-		[ ]	address warnings/errors
-		[ ] standardize logging-messages
-		[ ]	make sure all logging messages are very *specific* in regards to
-				- origin of message
-[ ]		clean-up current code:
-		[ ]	update representations
-		[ ] any code-warnings/errors
 ................................
 [X]		NEXT MILESTONE: 0001
 		........................
@@ -151,4 +32,128 @@
 [X]		clean-up current code:
 		[X]	update representations
 		[X] any code-warnings/errors
+................................
+................................
+[.]		NEXT MILESTONE: 0002
+		........................
+[X]		Controllers: Restrict methods to logged_in only
+[X]		Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
+[X]		figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
+		> possibly irrelevant as sessions will operate in their local scope. Methods requiring a global scope across all sessions can refer to the sessions parent and iterate through active sessions.
+[X]		models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
+[X]		SessionsModel:
+		[X]	figure out how to identify a session
+			> address when actually needed (refer to "switch between sessions" task)
+		[X]	remove_session()
+[X]	Do I need objects to represent sources, targets, filters, etc. or do lists suffice?
+	> yes, done!
+[X]	SourcesModel:
+		[X]	add_source(source)
+		[X]	remove_source(source)
+		[X]	sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
+		[X]	Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	source_name
+			[X]	source_path
+[X]	TargetsModel:
+		[X]	add_target(target, password)
+		[X]	remove_target(target)
+		[X]	targets property (return list of targets)
+		[X]	Transform separate targets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	target_name
+			[X]	target_id
+[X]	FiltersModel
+		[X]	add_filter(filter)
+		[X]	remove_filter(filter)
+		[X]	filters property (return list of filters)
+		[X]	define format for filters, add validation to filters.add()
+			> filters will be regex patterns for now (or, sets of such); leave it unvalidated for now
+		[X]	Transform separate filters into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	filter_pattern
+[X]	SetsModel
+		[X]	add_set(sources, targets, filters)
+		[X]	remove_set(set)
+		[X]	sets property (return list of sets)
+		[X]	Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+			[X]	set_name
+			[X]	sources? (recurse sources stack to get obj pointers?)
+			[X]	filters? (recurse filters stack to get obj pointers?)
+			[X]	targets? (recurse targets stack to get obj pointers?)
+		[X]	BackupSetCtrl
+			[X]	set_name
+			[X]	sources
+			[X]	filters
+			[X]	targets
+[X]	Start with backup-factory
+		[X]	Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
+		[X]	Implement conditional matrixes to handle different cases
+		[X]	Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
+			> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
+		[X] Implement 2-threaded hash-calculation into backup-routines
+		[X]	Implement organizational plan for file-data
+		[X]	Implement compression
+		[X]	Implement sidecart-metadata files for backed-up datastreams
+			> Not for now~
+		[X]	Integrate code properly into bs structure (from current tmp working files)
+		[X]	benchmark/optimize for speed
+		[X]	Implement backup-process into system
+			[X]	pass in/check etc. password
+			[X]	...
+		[X]	BackupRestore:
+			[X]	BackupSetCtrl/db: add field to store (last known) database location
+			[X]	BackupSetCtrl/db: If db could not be found at stored path, prompt for new path
+			[X]	Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
+		[X]	Implement mechanism to check password on extract before starting (on one specifically selected target...)
+		[X]	Store *one* password hash with a whole *backup-SET*
+		[X]	Pass password into backup-method and check for validity before starting backup-process ()
+			[X]	Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
+				> Simplicity: All data-sets related to a specific set in all targets associated with the set always have the same password
+[.]	Backup obj/Database
+		[.]	Implement mechanism to mark an entity as absent in a snapshot
+		[ ]	Table `path` still needed? Unique per entity anyway, so won't change between snapshots
+................................
+[ ]		Q/A
+		........................
+[ ]		clean-up old code
+[ ]		check module-structure
+[ ]		maintain integrity:
+		[ ]	document code
+		[ ]	validate user-input
+		[ ]	write test/test
+		[ ]	manage conditional exception-handling
+		[ ]	implement correct return data for *everything*
+		[ ]	address warnings/errors
+		[ ] standardize logging-messages
+		[ ]	make sure all logging messages are very *specific* in regards to
+				- origin of message
+[ ]		clean-up current code:
+		[ ]	update representations
+		[ ] any code-warnings/errors
+................................
+................................
+[ ]		NEXT MILESTONE: 0003
+		........................
+[ ]		.
+................................
+[ ]		Q/A
+		........................
+[ ]		.
+................................
+................................
+[ ]		NEXT MILESTONE: 0004
+		........................
+[ ]		.
+................................
+[ ]		Q/A
+		........................
+[ ]		.
+................................
+................................
+[ ]		LATER
+		........................
+[ ]	File-Backup
+		[ ]	Implement sidecart-metadata files for backed-up datastreams
+................................
+[ ]		Q/A
+		........................
+[ ]		.
 ................................

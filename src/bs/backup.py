@@ -38,25 +38,23 @@ class Backup(object):
     _key_hash_32 = None
     _sources = None
     _targets = None
-    _db_path = None
     _tmp_dir = None
 
-    def __init__(self, set, db_path):
+    def __init__(self, set):
         """
         *
         """
         self._backup_set = set
         self._sources = set.sources
         self._targets = set.targets
-        self._db_path = db_path
         self._tmp_dir = tempfile.TemporaryDirectory()
 
-    def _update_db(self, db_path):
+    def _update_db(self):
         """
         *
         Returns the name of the new (session-)column
         """
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(self._backup_set.set_db_path)
         # create tables
         conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "\
                                                         "path TEXT UNIQUE, "\
@@ -166,7 +164,7 @@ class Backup(object):
         except: pass
 
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = sqlite3.connect(self._backup_set.set_db_path)
             # check if entity already exists
             res = conn.execute("SELECT id FROM lookup WHERE id = ?", (entity_id, )).fetchall()
             # new entity
@@ -247,13 +245,13 @@ class Backup(object):
     def backup_exec(self):
         # check if set is encrypted and prompt for key_raw-input
         # a key_raw is set as indicated by 64-bit verification hash in db:
-        if self._backup_set._key_hash_64:
+        if self._backup_set.key_hash_64:
             key_raw = getpass.getpass("The backup-set is encrypted. Please enter "\
                                  "the key_raw to continue:")
             key_hash_32 = hashlib.sha256(key_raw.encode()).digest()
             key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
             # compare hash of entered key against hash_64 in db/on set-obj
-            if key_hash_64 == self._backup_set._key_hash_64:
+            if key_hash_64 == self._backup_set.key_hash_64:
                 self._key_hash_32 = key_hash_32
             # if mismatch, prompt and exit
             else:
@@ -262,9 +260,9 @@ class Backup(object):
                                  % (self.__class__.__name__, ))
                 raise SystemExit
         # update database
-        new_column_name = self._update_db(self._db_path)
+        new_column_name = self._update_db()
 
-        conn = sqlite3.connect(self._db_path)
+        conn = sqlite3.connect(self._backup_set.set_db_path)
         bytes_processed = [0, 0]
         files_processed = 0
 
@@ -706,7 +704,7 @@ class BackupFile(object):
             for target in self._targets:
                 target_path = target.target_path
                 # create set dir
-                backup_set_path = os.path.join(target_path, self._backup_set._set_uid)
+                backup_set_path = os.path.join(target_path, self._backup_set.set_uid)
                 if not os.path.isdir(backup_set_path):
                     os.makedirs(backup_set_path)
                 for folder_path, folders, files in os.walk(backup_set_path):
@@ -734,7 +732,7 @@ class BackupFile(object):
                 # on all targets:
                 for target in self._targets:
                     target_path = target.target_path
-                    backup_set_path = os.path.join(target_path, self._backup_set._set_uid)
+                    backup_set_path = os.path.join(target_path, self._backup_set.set_uid)
                     # create archive on all targets/check for valid file if exists
                     if not os.path.isfile(backup_archive_path):
                         try:
@@ -751,7 +749,7 @@ class BackupFile(object):
                 for target in self._targets:
                     target_path = target.target_path
                     new_archive_path = os.path.join(target_path,
-                                                    self._backup_set._set_uid,
+                                                    self._backup_set.set_uid,
                                                     new_archive_name)
                     # create set path, archive
                     try:
@@ -855,7 +853,9 @@ class BackupFile(object):
 
         for target in self._targets:
             target_path = target.target_path
-            backup_archive_path = os.path.join(target_path, self._backup_set._set_uid, backup_archive_name)
+            backup_archive_path = os.path.join(target_path,
+                                               self._backup_set.set_uid,
+                                               backup_archive_name)
             f_archive = zipfile.ZipFile(backup_archive_path, "a", allowZip64=True)
             # only add if not already exist
             members = f_archive.namelist()
@@ -901,7 +901,9 @@ class BackupRestoreFile(object):
         if not self._backup_archive_paths:
             for target in self._set_obj.targets:
                 target_path = target.target_path
-                backup_archive_path = os.path.join(target_path, self._set_obj.set_uid, self.backup_archive_name)
+                backup_archive_path = os.path.join(target_path,
+                                                   self._set_obj.set_uid,
+                                                   self.backup_archive_name)
                 self._backup_archive_paths.append(backup_archive_path)
         return self._backup_archive_paths[0]
 

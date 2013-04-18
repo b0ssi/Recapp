@@ -860,6 +860,13 @@ class BackupFiltersCtrl(bs.models.Filters):
         """
         # VALIDATE DATA
         # filter
+        if not re.match("$.*^", filter_pattern):
+            logging.warning("%s: The filter_pattern contains invalid "\
+                            "characters. It needs to start with an "\
+                            "alphabetic and contain alphanumerical characters "\
+                            "plus '\_\-\#' and space."
+                            % (self.__class__.__name__, ))
+            return False
         # validate filter data here once decided on format
         # add obj
         filter_id = None
@@ -944,6 +951,9 @@ class BackupSetCtrl(bs.models.Sets):
                        )
                       )
             self._set_id = res.lastrowid
+            # create db file
+            conn = sqlite3.connect(set_db_path)
+            conn.close()
 
     def __repr__(self):
         """
@@ -978,11 +988,23 @@ class BackupSetCtrl(bs.models.Sets):
 
     @property
     def set_db_path(self):
+        if not os.path.isfile(self._set_db_path):
+            self.set_db_path = self._set_db_path
         return self._set_db_path
 
     @set_db_path.setter
-    def set_db_path(self):
-        return False
+    def set_db_path(self, set_db_path):
+        # validate existence of path
+        if not os.path.isfile(self._set_db_path):
+            set_db_path_new = ""
+            while not os.path.isfile(set_db_path_new):
+                set_db_path_new = input("The last used path ('%s') is invalid; please "\
+                                        "enter the current path of this set's database:"
+                                        % (self._set_db_path, ))
+            self._set_db_path = set_db_path_new
+            # update db
+            self._update((("set_db_path", set_db_path_new, ), ), (("id", "=", self._set_id, ), ))
+        return True
 
     @property
     def sources(self):
