@@ -49,13 +49,15 @@ class Backup(object):
         self._targets = set.targets
         self._tmp_dir = tempfile.TemporaryDirectory()
 
-    def _update_db(self):
+    def _update_db(self, conn):
         """
         *
         Returns the name of the new (session-)column
         """
-        conn = sqlite3.connect(self._backup_set.set_db_path)
         # create tables
+        conn.execute("CREATE TABLE IF NOT EXISTS atime (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS ctime (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS inode (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "\
                                                         "path TEXT UNIQUE, "\
                                                         "ctime REAL, "\
@@ -66,19 +68,16 @@ class Backup(object):
                                                         "sha512 TEXT,"\
                                                         "backup_archive_name TEXT)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS lookup_path ON lookup (path)")
+        conn.execute("CREATE TABLE IF NOT EXISTS mtime (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS online (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS path (id INTEGER PRIMARY KEY, "\
+                                                      "path TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS sha512 (id INTEGER PRIMARY KEY)")
         # a hash index table with all hashes (data-streams) in backup-set.
         conn.execute("CREATE TABLE IF NOT EXISTS sha512_index (sha512 TEXT PRIMARY KEY, "\
-                                                               "backup_archive_name TEXT)")
+                                                              "backup_archive_name TEXT)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sha512_index_sha512 ON sha512_index (sha512)")
-
-        conn.execute("CREATE TABLE IF NOT EXISTS path (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS ctime (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS mtime (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS atime (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS inode (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS size (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS sha512 (id INTEGER PRIMARY KEY)")
-        conn.commit()
         # create new columns for current run
         # on fast successive attempts same name might be produced (based on unix
         # timestamp) so, cycle through and update timestamp string in name until
@@ -87,27 +86,29 @@ class Backup(object):
         while not new_columns_created:
             new_column_name = "snapshot_%s" % (int(time.time()), )
             try:
-                conn.execute("ALTER TABLE path ADD COLUMN %s TEXT"
+                conn.execute("ALTER TABLE atime ADD COLUMN %s REAL"
                              % (new_column_name, ))
                 conn.execute("ALTER TABLE ctime ADD COLUMN %s REAL"
                              % (new_column_name, ))
-                conn.execute("ALTER TABLE mtime ADD COLUMN %s REAL"
-                             % (new_column_name, ))
-                conn.execute("ALTER TABLE atime ADD COLUMN %s REAL"
-                             % (new_column_name, ))
                 conn.execute("ALTER TABLE inode ADD COLUMN %s INTEGER"
                              % (new_column_name, ))
-                conn.execute("ALTER TABLE size ADD COLUMN %s INTEGER"
+                conn.execute("ALTER TABLE mtime ADD COLUMN %s REAL"
                              % (new_column_name, ))
+                conn.execute("ALTER TABLE online ADD COLUMN %s INTEGER"
+                             % (new_column_name, ))
+                # no need to update, path would never change between sessions
+#                conn.execute("ALTER TABLE path ADD COLUMN %s TEXT"
+#                             % (new_column_name, ))
                 conn.execute("ALTER TABLE sha512 ADD COLUMN %s TEXT"
+                             % (new_column_name, ))
+                conn.execute("ALTER TABLE size ADD COLUMN %s INTEGER"
                              % (new_column_name, ))
                 new_columns_created = True
             except:
                 time.sleep(0.5)
-        conn.close()
         return new_column_name
 
-    def _update_data_in_db(self, new_column_name, **kwargs):
+    def _update_data_in_db(self, conn, new_column_name, **kwargs):
         """
         *
         Depending on what values are passed in, updates according tables in
@@ -123,9 +124,14 @@ class Backup(object):
             columns_to_update_data.append(entity_id)
         except: pass
         try:
-            file_path = kwargs["file_path"]
-            columns_to_update.append("path")
-            columns_to_update_data.append(file_path)
+            file_atime = kwargs["file_atime"]
+            columns_to_update.append("atime")
+            columns_to_update_data.append(file_atime)
+        except: pass
+        try:
+            backup_archive_name = kwargs["backup_archive_name"]
+            columns_to_update.append("backup_archive_name")
+            columns_to_update_data.append(backup_archive_name)
         except: pass
         try:
             file_ctime = kwargs["file_ctime"]
@@ -133,19 +139,19 @@ class Backup(object):
             columns_to_update_data.append(file_ctime)
         except: pass
         try:
+            file_inode = kwargs["file_inode"]
+            columns_to_update.append("inode")
+            columns_to_update_data.append(file_inode)
+        except: pass
+        try:
             file_mtime = kwargs["file_mtime"]
             columns_to_update.append("mtime")
             columns_to_update_data.append(file_mtime)
         except: pass
         try:
-            file_atime = kwargs["file_atime"]
-            columns_to_update.append("atime")
-            columns_to_update_data.append(file_atime)
-        except: pass
-        try:
-            file_inode = kwargs["file_inode"]
-            columns_to_update.append("inode")
-            columns_to_update_data.append(file_inode)
+            file_path = kwargs["file_path"]
+            columns_to_update.append("path")
+            columns_to_update_data.append(file_path)
         except: pass
         try:
             file_size = kwargs["file_size"]
@@ -157,29 +163,35 @@ class Backup(object):
             columns_to_update.append("sha512")
             columns_to_update_data.append(file_sha512)
         except: pass
-        try:
-            backup_archive_name = kwargs["backup_archive_name"]
-            columns_to_update.append("backup_archive_name")
-            columns_to_update_data.append(backup_archive_name)
-        except: pass
 
         try:
-            conn = sqlite3.connect(self._backup_set.set_db_path)
             # check if entity already exists
-            res = conn.execute("SELECT id FROM lookup WHERE id = ?", (entity_id, )).fetchall()
+            res = conn.execute("SELECT id FROM lookup WHERE id = ?",
+                               (entity_id, )).fetchall()
             # new entity
             if len(res) == 0:
                 # write data to database
-                conn.execute("INSERT INTO lookup (id, path, ctime, mtime, atime, inode, size, sha512, backup_archive_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (entity_id, file_path, file_ctime, file_mtime, file_atime, file_inode, file_size, file_sha512, backup_archive_name, ))
+                conn.execute("INSERT INTO lookup (id, path, ctime, mtime, atime, inode, size, sha512, backup_archive_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             (entity_id, file_path, file_ctime, file_mtime, file_atime, file_inode, file_size, file_sha512, backup_archive_name, ))
 
-                conn.execute("INSERT INTO path (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_path, ))
-                conn.execute("INSERT INTO ctime (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_ctime, ))
-                conn.execute("INSERT INTO mtime (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_mtime, ))
-                conn.execute("INSERT INTO atime (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_atime, ))
-                conn.execute("INSERT INTO inode (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_inode, ))
-                conn.execute("INSERT INTO size (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_size, ))
-                conn.execute("INSERT INTO sha512 (id, %s) VALUES (?, ?)" % (new_column_name, ), (entity_id, file_sha512, ))
-                logging.debug("%s: New Entity added: %s" % (self.__class__.__name__, entity_id, ))
+                conn.execute("INSERT INTO atime (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_atime, ))
+                conn.execute("INSERT INTO ctime (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_ctime, ))
+                conn.execute("INSERT INTO inode (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_inode, ))
+                conn.execute("INSERT INTO mtime (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_mtime, ))
+                conn.execute("INSERT INTO online (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, True, ))
+                conn.execute("INSERT INTO path (id, path) VALUES (?, ?)",
+                             (entity_id, file_path, ))
+                conn.execute("INSERT INTO size (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_size, ))
+                conn.execute("INSERT INTO sha512 (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_sha512, ))
+                logging.debug("%s: New Entity added: %s"
+                              % (self.__class__.__name__, entity_id, ))
             # existing entity
             else:
                 # update lookup
@@ -189,56 +201,91 @@ class Backup(object):
                     for column in columns_to_update:
                         setters += "%s = ?, " % (column, )
                     setters = setters[:-2] + " WHERE id = " + str(entity_id)
-                    conn.execute("UPDATE lookup SET %s" % (setters, ), list(columns_to_update_data))
-                    logging.debug("%s: lookup updated: %s" % (self.__class__.__name__, entity_id, ))
-                # update path
+                    conn.execute("UPDATE lookup SET %s"
+                                 % (setters, ), list(columns_to_update_data))
+                    logging.debug("%s: lookup updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                # update atime
                 try:
-                    conn.execute("UPDATE path SET %s = ? WHERE id = ?" % (new_column_name, ), (file_path, entity_id, ))
-                    logging.debug("%s: path updated: %s" % (self.__class__.__name__, entity_id, ))
+                    conn.execute("UPDATE atime SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_atime, entity_id, ))
+                    logging.debug("%s: atime updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
                 except: pass
                 # update ctime
                 try:
-                    conn.execute("UPDATE ctime SET %s = ? WHERE id = ?" % (new_column_name, ), (file_ctime, entity_id, ))
-                    logging.debug("%s: ctime updated: %s" % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update mtime
-                try:
-                    conn.execute("UPDATE mtime SET %s = ? WHERE id = ?" % (new_column_name, ), (file_mtime, entity_id, ))
-                    logging.debug("%s: mtime updated: %s" % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update atime
-                try:
-                    conn.execute("UPDATE atime SET %s = ? WHERE id = ?" % (new_column_name, ), (file_atime, entity_id, ))
-                    logging.debug("%s: atime updated: %s" % (self.__class__.__name__, entity_id, ))
+                    conn.execute("UPDATE ctime SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_ctime, entity_id, ))
+                    logging.debug("%s: ctime updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
                 except: pass
                 # update inode
                 try:
-                    conn.execute("UPDATE inode SET %s = ? WHERE id = ?" % (new_column_name, ), (file_inode, entity_id, ))
-                    logging.debug("%s: inode updated: %s" % (self.__class__.__name__, entity_id, ))
+                    conn.execute("UPDATE inode SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_inode, entity_id, ))
+                    logging.debug("%s: inode updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
                 except: pass
+                # update mtime
+                try:
+                    conn.execute("UPDATE mtime SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_mtime, entity_id, ))
+                    logging.debug("%s: mtime updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update online
+                try:
+                    conn.execute("UPDATE online SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (True, entity_id, ))
+                    logging.debug("%s: online updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update path
+                # no need to update: path is primary representation of entity,
+                # thus would never change between snapshots for a singe entity_id
+#                try:
+#                    conn.execute("UPDATE path SET %s = ? WHERE id = ?"
+#                                 % (new_column_name, ),
+#                                 (file_path, entity_id, ))
+#                    logging.debug("%s: path updated: %s"
+#                                  % (self.__class__.__name__, entity_id, ))
+#                except: pass
                 # update size
                 try:
-                    conn.execute("UPDATE size SET %s = ? WHERE id = ?" % (new_column_name, ), (file_size, entity_id, ))
-                    logging.debug("%s: size updated: %s" % (self.__class__.__name__, entity_id, ))
+                    conn.execute("UPDATE size SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_size, entity_id, ))
+                    logging.debug("%s: size updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
                 except: pass
                 # update sha512
-                # update sha512_index
                 try:
-                    conn.execute("UPDATE sha512 SET %s = ? WHERE id = ?" % (new_column_name, ), (file_sha512, entity_id, ))
-                    logging.debug("%s: sha512 updated: %s" % (self.__class__.__name__, entity_id, ))
+                    conn.execute("UPDATE sha512 SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_sha512, entity_id, ))
+                    logging.debug("%s: sha512 updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
                 except: pass
-
+            # update sha512_index
             # add hash to db and stream to targets
             try:
 #                if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?", (file_sha512, )).fetchall()) == 0:
-                conn.execute("INSERT INTO sha512_index (sha512, backup_archive_name) VALUES (?, ?)", (file_sha512, backup_archive_name))
-                logging.debug("%s: sha512_index updated: %s" % (self.__class__.__name__, entity_id, ))
+                conn.execute("INSERT INTO sha512_index (sha512, backup_archive_name) VALUES (?, ?)",
+                             (file_sha512, backup_archive_name))
+                logging.debug("%s: sha512_index updated: %s"
+                              % (self.__class__.__name__, entity_id, ))
             # If hash already exists in index table, pass following exception
             except sqlite3.IntegrityError as e:
                 pass
-
-            conn.commit()
-            conn.close()
+            # if data is not available (attributes weren't passed into method,
+            # e.g. when only marking entity as online...)
+            except UnboundLocalError as e:
+                pass
         except:
             raise
 
@@ -260,9 +307,8 @@ class Backup(object):
                                  % (self.__class__.__name__, ))
                 raise SystemExit
         # update database
-        new_column_name = self._update_db()
-
         conn = sqlite3.connect(self._backup_set.set_db_path)
+        new_column_name = self._update_db(conn)
         bytes_processed = [0, 0]
         files_processed = 0
 
@@ -300,16 +346,17 @@ class Backup(object):
                             # BACKUP
                             file_obj.backup()
                         # UPDATE DB
-                        self._update_data_in_db(new_column_name,
-                                          entity_id=entity_id,
-                                          file_path=file_obj.path,
-                                          file_ctime=file_obj.ctime,
-                                          file_mtime=file_obj.mtime,
-                                          file_atime=file_obj.atime,
-                                          file_inode=file_obj.inode,
-                                          file_size=file_obj.size,
-                                          file_sha512=file_obj.sha512,
-                                          backup_archive_name=file_obj.current_backup_archive_name)
+                        self._update_data_in_db(conn,
+                                                new_column_name,
+                                                entity_id=entity_id,
+                                                file_atime=file_obj.atime,
+                                                file_ctime=file_obj.ctime,
+                                                file_inode=file_obj.inode,
+                                                file_mtime=file_obj.mtime,
+                                                file_path=file_obj.path,
+                                                file_size=file_obj.size,
+                                                file_sha512=file_obj.sha512,
+                                                backup_archive_name=file_obj.current_backup_archive_name)
                     # existing path
                     elif len(entity_datas) == 1:
                         entity_id = entity_datas[0][0]
@@ -461,11 +508,20 @@ class Backup(object):
                                                combinations,
                                                file_obj.path, ))
                         if combinations == "10101":
-                            # ERROR: ctime, atime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
+                            # OK: ctime, atime changed
+                            # e.g. previously existing file was absent
+                            # temporarily and has been moved/copied back in
+                            # without change in data
+                            logging.info("%s: OK: %s: %s"
+                                         % (self.__class__.__name__,
+                                            combinations,
+                                            file_obj.path, ))
+                            # update DB
+                            self._update_data_in_db(conn,
+                                                    new_column_name,
+                                                    entity_id=entity_id,
+                                                    file_ctime=file_obj.ctime,
+                                                    file_atime=file_obj.atime)
                         if combinations == "10110":
                             # ERROR: inode same but ctime changed
                             logging.warning("%s: Unhandled combination: %s: %s"
@@ -489,7 +545,8 @@ class Backup(object):
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
                             # update DB
-                            self._update_data_in_db(new_column_name,
+                            self._update_data_in_db(conn,
+                                                    new_column_name,
                                                     entity_id=entity_id,
                                                     file_mtime=file_obj.mtime,
                                                     file_atime=file_obj.atime,
@@ -507,7 +564,7 @@ class Backup(object):
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
                             # update DB
-                            self._update_data_in_db(
+                            self._update_data_in_db(conn,
                                                     new_column_name,
                                                     entity_id=entity_id,
                                                     file_mtime=file_obj.mtime,
@@ -525,7 +582,8 @@ class Backup(object):
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
                             # update DB
-                            self._update_data_in_db(new_column_name,
+                            self._update_data_in_db(conn,
+                                                    new_column_name,
                                                     entity_id=entity_id,
                                                     file_mtime=file_obj.mtime,
                                                     file_size=file_obj.size,
@@ -542,7 +600,8 @@ class Backup(object):
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
                             # update DB
-                            self._update_data_in_db(new_column_name,
+                            self._update_data_in_db(conn,
+                                                    new_column_name,
                                                     entity_id=entity_id,
                                                     file_mtime=file_obj.mtime,
                                                     file_sha512=file_obj.sha512,
@@ -567,12 +626,21 @@ class Backup(object):
                                                file_obj.path, ))
                         if combinations == "11111":
                             # OK: no change at all
-                            pass
-
+                            logging.info("%s: OK: %s: %s"
+                                         % (self.__class__.__name__,
+                                            combinations,
+                                            file_obj.path, ))
+                            # update DB
+                            self._update_data_in_db(conn,
+                                                    new_column_name,
+                                                    entity_id=entity_id)
                     if i % 1 == 0:
-                            print("%i files/s" % (i / (time.time() - time_start - 0.001), ))
+                        print("%i files/s" % (i / (time.time() - time_start - 0.001), ))
+                    if i % 1000 == 0:
+                        conn.commit()
                     i += 1
-                conn.commit()
+        conn.commit()
+        conn.close()
         return True
 
 
@@ -872,107 +940,6 @@ class BackupFile(object):
                                 % (self.__class__.__name__,
                                    self.sha512))
 
-class BackupRestoreFile(object):
-    """
-    *
-    """
-    _set_obj = None
-    _entity_id = None
-    _snapshot_to_restore = None
-    _backup_archive_paths = []  # list of all available backup archive paths
-    _sha512_db = None
-    _backup_archive_name = None
-    _file_name = None
-
-    def __init__(self, set_obj, entity_id, snapshot_to_restore):
-        """
-        *
-        """
-        self._set_obj = set_obj
-        self._entity_id = entity_id
-        self._snapshot_to_restore = snapshot_to_restore
-
-    @property
-    def backup_archive_path(self):
-        """
-        *
-        Returns a list of all available backup archive paths.
-        """
-        if not self._backup_archive_paths:
-            for target in self._set_obj.targets:
-                target_path = target.target_path
-                backup_archive_path = os.path.join(target_path,
-                                                   self._set_obj.set_uid,
-                                                   self.backup_archive_name)
-                self._backup_archive_paths.append(backup_archive_path)
-        return self._backup_archive_paths[0]
-
-    @backup_archive_path.setter
-    def backup_archive_path(self):
-        """
-        *
-        """
-        return False
-
-    @property
-    def sha512_db(self):
-        if not self._sha512_db:
-            self._sha512_db = self.get_latest_data_in_table("sha512")
-        return self._sha512_db
-
-    @sha512_db.setter
-    def sha512_db(self):
-        return False
-
-    @property
-    def backup_archive_name(self):
-        if not self._backup_archive_name:
-            conn = sqlite3.connect(self._set_obj.set_db_path)
-            res = conn.execute("SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?",
-                               (str(self.sha512_db), )).fetchall()
-            self._backup_archive_name = res[0][0]
-            conn.close()
-        return self._backup_archive_name
-
-    @backup_archive_name.setter
-    def backup_archive_name(self):
-        return False
-
-    @property
-    def file_path(self):
-        if not self._file_name:
-            self._file_name = self.get_latest_data_in_table("path")
-        return self._file_name
-
-    @file_path.setter
-    def file_path(self):
-        return False
-
-    def get_latest_data_in_table(self, table_name):
-        """
-        *
-        Gets the file_id's data in db for the latest snapshot-column that has
-        data on it.
-        """
-        conn = sqlite3.connect(self._set_obj.set_db_path)
-        # sorted list of of all snapshot_names (snapshot column-names) in
-        # table_name, latest first, descending
-        snapshot_names = conn.execute("PRAGMA table_info(%s)"
-                                      % (table_name, )).fetchall()
-        snapshot_names = sorted([x[1] for x in snapshot_names], reverse=True)
-        snapshot_names.pop(len(snapshot_names)-1)
-        snapshot_data = None
-        for snapshot_name in snapshot_names:
-            while not snapshot_data:
-                res = conn.execute("SELECT %s FROM %s WHERE id = ?"
-                                   % (snapshot_name, table_name, ),
-                                   (self._entity_id, )).fetchall()
-                if len(res[0]) > 0:
-                    snapshot_data = res[0][0]
-                    break
-        conn.close()
-        return snapshot_data
-
 class BackupRestore(object):
     """
     *
@@ -980,18 +947,18 @@ class BackupRestore(object):
     _set_obj = None
     _entity_ids = None
     _restore_location = None
-    _snapshot_to_restore = None
+    _snapshot_to_restore_tstamp = None
     _key_hash_32 = None
     _buffer_size = 1024 * 1024
 
-    def __init__(self, set_obj, entity_ids, restore_location, snapshot_to_restore):
+    def __init__(self, set_obj, entity_ids, restore_location, snapshot_to_restore_tstamp):
         """
         *
         """
         self._set_obj = set_obj
         self._entity_ids = entity_ids
         self._restore_location = restore_location
-        self._snapshot_to_restore = snapshot_to_restore
+        self._snapshot_to_restore_tstamp = snapshot_to_restore_tstamp
         self._tmp_dir = tempfile.TemporaryDirectory()
 
     @property
@@ -1019,7 +986,7 @@ class BackupRestore(object):
             # restore-file obj, provides all necessary metadata about entity
             backup_restore_file = BackupRestoreFile(self._set_obj,
                                                     entity_id,
-                                                    self._snapshot_to_restore)
+                                                    self._snapshot_to_restore_tstamp)
             self._unzip_file(backup_restore_file)
             self._decrypt_aes_decompress_zlib(backup_restore_file)
 
@@ -1099,3 +1066,115 @@ class BackupRestore(object):
         logging.debug("%s: File successfully decrypted (%.2fs)."
                       % (self.__class__.__name__,
                          time_elapsed))
+
+class BackupRestoreFile(object):
+    """
+    *
+    """
+    _set_obj = None
+    _entity_id = None
+    _snapshot_to_restore_tstamp = None
+    _backup_archive_paths = []  # list of all available backup archive paths
+    _sha512_db = None
+    _backup_archive_name = None
+    _file_name = None
+
+    def __init__(self, set_obj, entity_id, snapshot_to_restore_tstamp):
+        """
+        *
+        """
+        self._set_obj = set_obj
+        self._entity_id = entity_id
+        self._snapshot_to_restore_tstamp = snapshot_to_restore_tstamp
+
+    @property
+    def backup_archive_path(self):
+        """
+        *
+        Returns a list of all available backup archive paths.
+        """
+        if not self._backup_archive_paths:
+            for target in self._set_obj.targets:
+                target_path = target.target_path
+                backup_archive_path = os.path.join(target_path,
+                                                   self._set_obj.set_uid,
+                                                   self.backup_archive_name)
+                self._backup_archive_paths.append(backup_archive_path)
+        return self._backup_archive_paths[0]
+
+    @backup_archive_path.setter
+    def backup_archive_path(self):
+        """
+        *
+        """
+        return False
+
+    @property
+    def sha512_db(self):
+        if not self._sha512_db:
+            self._sha512_db = self.get_latest_data_in_table("sha512")
+        return self._sha512_db
+
+    @sha512_db.setter
+    def sha512_db(self):
+        return False
+
+    @property
+    def backup_archive_name(self):
+        if not self._backup_archive_name:
+            conn = sqlite3.connect(self._set_obj.set_db_path)
+            res = conn.execute("SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?",
+                               (str(self.sha512_db), )).fetchall()
+            self._backup_archive_name = res[0][0]
+            conn.close()
+        return self._backup_archive_name
+
+    @backup_archive_name.setter
+    def backup_archive_name(self):
+        return False
+
+    @property
+    def file_path(self):
+        if not self._file_name:
+            conn = sqlite3.connect(self._set_obj.set_db_path)
+            res = conn.execute("SELECT path FROM path WHERE id = ?",
+                               (self._entity_id, )).fetchall()
+            self._file_name = res[0][0]
+            conn.close()
+        return self._file_name
+
+    @file_path.setter
+    def file_path(self):
+        return False
+
+    def get_latest_data_in_table(self, table_name):
+        """
+        *
+        Gets the file_id's data in db for the latest snapshot-column that has
+        data on it.
+        """
+        conn = sqlite3.connect(self._set_obj.set_db_path)
+        # sorted list of of all snapshot_timestamps (snapshot column-names) in
+        # table_name, latest first, descending
+        res = conn.execute("PRAGMA table_info(%s)"
+                                      % (table_name, )).fetchall()
+        column_names = sorted([x[1] for x in res], reverse=True)
+        column_names.pop(len(column_names)-1)
+        # extract timestamps from snapshot-column-names and cast into int
+        snapshot_timestamps = []
+        for column_name in column_names:
+            snapshot_timestamps.append(int(column_name[9:]))
+        snapshot_data = None
+        for snapshot_timestamp in snapshot_timestamps:
+            # ignore snapshots that are younger than targeted timestamp
+            if snapshot_timestamp <= self._snapshot_to_restore_tstamp:
+                while not snapshot_data:
+                    snapshot_name = "snapshot_" + str(snapshot_timestamp)
+                    res = conn.execute("SELECT %s FROM %s WHERE id = ?"
+                                       % (snapshot_name, table_name, ),
+                                       (self._entity_id, )).fetchall()
+                    if len(res[0]) > 0:
+                        snapshot_data = res[0][0]
+                        break
+        conn.close()
+        return snapshot_data

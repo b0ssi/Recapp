@@ -500,4 +500,60 @@ import zlib
 
 ###############################################################################
 
+#conn = sqlite3.connect("Z:\\xyz.sqlite")
+
+################################
+
+#conn.execute("CREATE TABLE IF NOT EXISTS test ('id' INTEGER PRIMARY KEY, "\
+#                                              "'path' TEXT)")
+#conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS test_path ON test (path)")
+## collect online file-paths
+#file_paths = []
+#time_start = time.time()
+#i = 0
+#for folder_path, folders, files in os.walk("Z:\\"):
+#    for file in files:
+#        file_path = os.path.join(folder_path, file)
+#        file_paths.append(file_path)
+#        if i % 1000 == 0:
+#            print("%.2f files/s" % (i/(time.time() - time_start + 0.00001)))
+#        i += 1
+#
+## check online file_paths against db
+#time_start = time.time()
+#i = 0
+#for file_path in file_paths:
+#    res = conn.execute("SELECT id FROM test WHERE path = ?",
+#                 (file_path, )).fetchall()
+#    if len(res) == 0:
+#        conn.execute("INSERT INTO test (path) VALUES (?)",
+#                     (file_path, ))
+#    if i % 1000 == 0:
+#        conn.commit()
+#        print("%.2f cross-reference checks/s" % (i/(time.time() - time_start + 0.00001)))
+#    i += 1
+
+################################
+
+#column_name = "snapshot_%s" % (int(time.time()), )
+#conn.execute("ALTER TABLE test ADD COLUMN %s INTEGER"
+#             % (column_name, ))
+
+################################
+
+#conn.execute("UPDATE test SET snapshot_1366530199 = 1")
+
+################################
+
+#conn.execute("VACUUM")
+#conn.commit()
+#conn.close()
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
 ###############################################################################
