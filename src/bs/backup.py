@@ -79,9 +79,9 @@ class Backup(object):
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sha512_index_sha512 ON sha512_index (sha512)")
         conn.execute("CREATE TABLE IF NOT EXISTS size (id INTEGER PRIMARY KEY)")
         # create new columns for current run
-        # on fast successive attempts same name might be produced (based on unix
-        # timestamp) so, cycle through and update timestamp string in name until
-        # success
+        # on fast successive attempts same name might be produced (based on
+        # unix timestamp) so, cycle through and update timestamp string in name
+        # until success
         new_columns_created = False
         while not new_columns_created:
             new_column_name = "snapshot_%s" % (int(time.time()), )
@@ -172,7 +172,9 @@ class Backup(object):
             if len(res) == 0:
                 # write data to database
                 conn.execute("INSERT INTO lookup (id, path, ctime, mtime, atime, inode, size, sha512, backup_archive_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                             (entity_id, file_path, file_ctime, file_mtime, file_atime, file_inode, file_size, file_sha512, backup_archive_name, ))
+                             (entity_id, file_path, file_ctime, file_mtime,
+                              file_atime, file_inode, file_size, file_sha512,
+                              backup_archive_name, ))
 
                 conn.execute("INSERT INTO atime (id, %s) VALUES (?, ?)"
                              % (new_column_name, ), (entity_id, file_atime, ))
@@ -247,7 +249,8 @@ class Backup(object):
                 except: pass
                 # update path
                 # no need to update: path is primary representation of entity,
-                # thus would never change between snapshots for a singe entity_id
+                # thus would never change between snapshots for a singe
+                # entity_id
 #                try:
 #                    conn.execute("UPDATE path SET %s = ? WHERE id = ?"
 #                                 % (new_column_name, ),
@@ -274,7 +277,6 @@ class Backup(object):
             # update sha512_index
             # add hash to db and stream to targets
             try:
-#                if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?", (file_sha512, )).fetchall()) == 0:
                 conn.execute("INSERT INTO sha512_index (sha512, backup_archive_name) VALUES (?, ?)",
                              (file_sha512, backup_archive_name))
                 logging.debug("%s: sha512_index updated: %s"
@@ -293,8 +295,8 @@ class Backup(object):
         # check if set is encrypted and prompt for key_raw-input
         # a key_raw is set as indicated by 64-bit verification hash in db:
         if self._backup_set.key_hash_64:
-            key_raw = getpass.getpass("The backup-set is encrypted. Please enter "\
-                                 "the key_raw to continue:")
+            key_raw = getpass.getpass("The backup-set is encrypted. Please "\
+                                      "enter the key_raw to continue:")
             key_hash_32 = hashlib.sha256(key_raw.encode()).digest()
             key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
             # compare hash of entered key against hash_64 in db/on set-obj
@@ -325,7 +327,8 @@ class Backup(object):
                                           self._tmp_dir,
                                           key_hash_32)
 
-                    entity_datas = conn.execute("SELECT id, path, ctime, mtime, atime, inode, size, sha512 FROM lookup WHERE path = ?", (file_obj.path, )).fetchall()
+                    entity_datas = conn.execute("SELECT id, path, ctime, mtime, atime, inode, size, sha512 FROM lookup WHERE path = ?",
+                                                (file_obj.path, )).fetchall()
                     # new path
                     if len(entity_datas) == 0:
                         # create new entity
@@ -379,7 +382,8 @@ class Backup(object):
                         if file_obj.size == entity_size: size = 1
                         else: size = 0
 
-                        combinations = "%s%s%s%s%s" % (path, ctime, mtime, atime, size, )
+                        combinations = "%s%s%s%s%s" \
+                                       % (path, ctime, mtime, atime, size, )
 
                         if combinations == "00000":
                             # ERROR: inode same but ctime changed
@@ -430,13 +434,15 @@ class Backup(object):
                                                combinations,
                                                file_obj.path, ))
                         if combinations == "01000":
-                            # OK: simple move and change in mtime, size and recent access
+                            # OK: simple move and change in mtime, size and
+                            # recent access
                             logging.warning("%s: Unhandled combination: %s: %s"
                                             % (self.__class__.__name__,
                                                combinations,
                                                file_obj.path, ))
                         if combinations == "01001":
-                            # OK: simple move and change in mtime, size same and recent access
+                            # OK: simple move and change in mtime, size same
+                            # and recent access
                             logging.warning("%s: Unhandled combination: %s: %s"
                                             % (self.__class__.__name__,
                                                combinations,
@@ -782,7 +788,7 @@ class BackupFile(object):
                             file_path = os.path.join(folder_path, file)
                             # if found latest archive (name) is "newer" than
                             # current latest_archive_name, replace with current
-                            if not latest_archive_name or\
+                            if not latest_archive_name or \
                                 int(os.path.splitext(file)[0]) > int(os.path.splitext(latest_archive_name)[0]):
                                 latest_archive_name = file
                             break
@@ -791,17 +797,21 @@ class BackupFile(object):
             # construct path for latest backup archive, if found
             backup_archive_path = None
             try:
-                backup_archive_path = os.path.join(backup_set_path, latest_archive_name)
+                backup_archive_path = os.path.join(backup_set_path,
+                                                   latest_archive_name)
             except: pass
-            # if latest archive found and size below threshold, use this latest archive
+            # if latest archive found and size below threshold, use this latest
+            # archive
             if latest_archive_name and\
                 backup_archive_path and\
                 os.path.getsize(backup_archive_path) < self._target_archive_max_size:
                 # on all targets:
                 for target in self._targets:
                     target_path = target.target_path
-                    backup_set_path = os.path.join(target_path, self._backup_set.set_uid)
-                    # create archive on all targets/check for valid file if exists
+                    backup_set_path = os.path.join(target_path,
+                                                   self._backup_set.set_uid)
+                    # create archive on all targets/check for valid file if
+                    # exists
                     if not os.path.isfile(backup_archive_path):
                         try:
                             f = zipfile.ZipFile(backup_archive_path, "w")
@@ -809,7 +819,8 @@ class BackupFile(object):
                         # on fail: SystemExit
                         except Exception as e:
                             raise SystemExit(e)
-            # if no archive found at all or latest found archive exceeds size threshold:
+            # if no archive found at all or latest found archive exceeds size
+            # threshold:
             else:
                 # create new archive name
                 new_archive_name = str(int(time.time())) + ".zip"
@@ -855,16 +866,20 @@ class BackupFile(object):
         *
         """
         time_start = time.time()
-        logging.debug("%s: Compressing (zlib)/encrypting (AES) file: %s" % (self.__class__.__name__, self._path, ))
+        logging.debug("%s: Compressing (zlib)/encrypting (AES) file: %s" \
+                      % (self.__class__.__name__, self._path, ))
 
         f_in = open(self._path, "rb")
-        f_out = tempfile.NamedTemporaryFile(dir=self._tmp_dir.name, mode="a+b", delete=False)
+        f_out = tempfile.NamedTemporaryFile(dir=self._tmp_dir.name,
+                                            mode="a+b",
+                                            delete=False)
 
         compression_obj = zlib.compressobj(level=self._compression_level)
 
         iv = Crypto.Random.new().read(Crypto.Cipher.AES.block_size)
         counter = Crypto.Util.Counter.new(128)
-        aes = Crypto.Cipher.AES.new(self._key_hash_32, Crypto.Cipher.AES.MODE_CTR, iv, counter)
+        aes = Crypto.Cipher.AES.new(self._key_hash_32,
+                                    Crypto.Cipher.AES.MODE_CTR, iv, counter)
 
         f_out.write(iv)
 #        data_processed = 0
@@ -877,11 +892,6 @@ class BackupFile(object):
             data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
             f_out.write(data_compressed_encrypted)
 
-#            data_processed += self._buffer_size
-#            print("%s: Data compressed/encrypted: %s (%s/s)"
-#                  % (self.__class__.__name__,
-#                     bs.utils.format_data_size(data_processed),
-#                     bs.utils.format_data_size(data_processed / (time.time() - time_start))))
         data_compressed_unencrypted = compression_obj.flush(zlib.Z_FINISH)
         data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
         f_out.write(data_compressed_encrypted)
@@ -892,7 +902,8 @@ class BackupFile(object):
         self._tmp_file_path = f_out.name
 
         time_elapsed = time.time() - time_start
-        logging.debug("%s: Compression/Encryption done (%.2fs)." % (self.__class__.__name__, time_elapsed))
+        logging.debug("%s: Compression/Encryption done (%.2fs)." \
+                      % (self.__class__.__name__, time_elapsed))
         # add to target(s)
         self._add_to_targets()
 
@@ -924,7 +935,9 @@ class BackupFile(object):
             backup_archive_path = os.path.join(target_path,
                                                self._backup_set.set_uid,
                                                backup_archive_name)
-            f_archive = zipfile.ZipFile(backup_archive_path, "a", allowZip64=True)
+            f_archive = zipfile.ZipFile(backup_archive_path,
+                                        "a",
+                                        allowZip64=True)
             # only add if not already exist
             members = f_archive.namelist()
             if self.sha512 not in members:
@@ -932,11 +945,13 @@ class BackupFile(object):
                 f_archive.close()
 
                 time_elapsed = time.time() - time_start
-                logging.debug("%s: Successfully added to target archive(s) (%.2fs)."
+                logging.debug("%s: Successfully added to target archive(s) "\
+                              "(%.2fs)."
                               % (self.__class__.__name__,
                                  time_elapsed))
             else:
-                logging.warning("%s: The backup file already exists in the current archive file: %s"
+                logging.warning("%s: The backup file already exists in the "\
+                                "current archive file: %s"
                                 % (self.__class__.__name__,
                                    self.sha512))
 
@@ -951,7 +966,8 @@ class BackupRestore(object):
     _key_hash_32 = None
     _buffer_size = 1024 * 1024
 
-    def __init__(self, set_obj, entity_ids, restore_location, snapshot_to_restore_tstamp):
+    def __init__(self, set_obj, entity_ids, restore_location,
+                 snapshot_to_restore_tstamp):
         """
         *
         """
@@ -965,8 +981,8 @@ class BackupRestore(object):
     def key_hashed_32(self):
         if not self._key_hash_32:
             while not self._key_hash_32:
-                key_raw = getpass.getpass("This set is encrypted; please enter "\
-                                          "the corresponding password:")
+                key_raw = getpass.getpass("This set is encrypted; please "\
+                                          "enter the corresponding password:")
                 key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
                 # verify hash_64
                 if key_hash_64 == self._set_obj.key_hash_64:
@@ -1009,9 +1025,11 @@ class BackupRestore(object):
                       % (self.__class__.__name__,
                          backup_restore_file.file_path, ))
 
-        f_zip = zipfile.ZipFile(backup_restore_file.backup_archive_path, mode="r")
+        f_zip = zipfile.ZipFile(backup_restore_file.backup_archive_path,
+                                mode="r")
 
-        self._tmp_file_path = f_zip.extract(backup_restore_file.sha512_db, path=self._tmp_dir.name)
+        self._tmp_file_path = f_zip.extract(backup_restore_file.sha512_db,
+                                            path=self._tmp_dir.name)
 
         time_elapsed = time.time() - time_start
         logging.debug("%s: File successfully unzipped (%.2fs)."
@@ -1047,7 +1065,8 @@ class BackupRestore(object):
 
         iv = f_in.read(Crypto.Cipher.AES.block_size)
         counter = Crypto.Util.Counter.new(128)
-        aes = Crypto.Cipher.AES.new(self.key_hashed_32, Crypto.Cipher.AES.MODE_CTR, iv, counter)
+        aes = Crypto.Cipher.AES.new(self.key_hashed_32,
+                                    Crypto.Cipher.AES.MODE_CTR, iv, counter)
 
         while True:
             data = f_in.read(self._buffer_size)

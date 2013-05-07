@@ -112,9 +112,9 @@
 		[X]	Table `path` still needed? Unique per entity anyway, so won't change between snapshots
 			> no subsequent snapshot columns added after. Only `id` and `path` exist.
 ................................
-[ ]		Q/A
+[.]		Q/A
 		........................
-[ ]		clean-up old code
+[.]		clean-up old code
 [ ]		check module-structure
 [ ]		maintain integrity:
 		[ ]	document code

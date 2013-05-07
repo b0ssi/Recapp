@@ -108,7 +108,8 @@ class BSString(object):
                    ]
         for ending in endings:
             if self.endswith(ending[0]):
-                self.__unicode__ = self.__unicode__[:(0-len(ending[0]))] + ending[1]
+                i1b = (0 - len(ending[0]))
+                self.__unicode__ = self.__unicode__[:i1b] + ending[1]
         return self
 
     def singularize(self):
@@ -123,7 +124,8 @@ class BSString(object):
                    ]
         for ending in endings:
             if self.endswith(ending[0]):
-                self.__unicode__ = self.__unicode__[:(0-len(ending[0]))] + ending[1]
+                i1b = (0 - len(ending[0]))
+                self.__unicode__ = self.__unicode__[:i1b] + ending[1]
         return self
 
     def capitalize(self):
@@ -198,20 +200,14 @@ class HashFile(object):
         logging.info("%s: Hash-calculation started."
                      % (self.__class__.__name__, ))
         file_hash = self._hash_obj
-        time_start = time.time()
 
         while self._status == 0 or self._data:
             if len(self._data) > 0:
-#                logging.debug("%s: Updating _hash... (%s)"
-#                              % (self.__class__.__name__, len(self._data), ))
                 file_hash.update(self._data[0])
                 self._data.pop(0)
             else:
-#                logging.debug("%s: Sleeping... (%s)"
-#                              % (self.__class__.__name__, len(self._data), ))
                 time.sleep(self._sleeping_time)
         self._hash = file_hash.hexdigest()
-#        print(time.time() - time_start)
 
     def start(self):
         """
@@ -252,7 +248,8 @@ def get_drives(drive_types, ignore_a=True):
     """
     *
     Returns a list of drive root paths, depending on the desired types passed
-    in through `drive_types`, which needs to be a list of the following constants:
+    in through `drive_types`, which needs to be a list of the following
+    constants:
     win32file.DRIVE_*
     """
     # VALIDATE DATA
@@ -276,7 +273,11 @@ def get_drives(drive_types, ignore_a=True):
         return False
 
     # scan drives-letters, assemble requested drive-root-paths
-    drive_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+    drive_letters = [
+                     "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
+                     "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+                     "W", "X", "Y", "Z"
+                     ]
     # ignore drive letter A by default (still detects positively as removable
     # drive even if it doesn't physically exist in system.
     if ignore_a:

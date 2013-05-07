@@ -91,19 +91,20 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._add_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot save data "\
-                                "due to a lack of permission."
+                logging.warning("%s: PermissionError: Object cannot save "\
+                                "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return False
         # VALIDATE DATA
         # columns
         if not isinstance(columns, str) or \
             not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns):
-            logging.critical("%s: ValueError: Attribute 1 is in invalid format. "\
-                             "Valid syntax: (<value1>[, <value2>]...), where "\
-                             "values need to begin/end with an alphanumeric "\
-                             "character and contain '_' in addition. with a "\
-                             "length between 2 and 32 characters."
+            logging.critical("%s: ValueError: Attribute 1 is in invalid "\
+                             "format. Valid syntax: "\
+                             "(<value1>[, <value2>]...), where values need "\
+                             "to begin/end with an alphanumeric character "\
+                             "and contain '_' in addition. with a length "\
+                             "between 2 and 32 characters."
                              % (self.__class__.__name__, ))
             raise SystemExit()
         # datasets
@@ -173,8 +174,8 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._get_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot _get data "\
-                                "due to a lack of permission."
+                logging.warning("%s: PermissionError: Object cannot _get "\
+                                "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return []
         # VALIDATE PARAMETERS
@@ -260,8 +261,8 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._remove_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot _remove data "\
-                                "due to a lack of permission."
+                logging.warning("%s: PermissionError: Object cannot _remove "\
+                                "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return False
         # VALIDATE DATA
@@ -323,8 +324,8 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._remove_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot _remove data "\
-                                "due to a lack of permission."
+                logging.warning("%s: PermissionError: Object cannot _remove "\
+                                "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return False
         # VALIDATE DATA
@@ -335,7 +336,8 @@ class BSModel(object):
         if not type(column_assignments) in (tuple, list, ):
             check = False
         for column_assignment in column_assignments:
-            if not re.match(bs.config.REGEX_PATTERN_COLUMN, column_assignment[0]):
+            if not re.match(bs.config.REGEX_PATTERN_COLUMN,
+                            column_assignment[0]):
                 check = False
         if not check:
             logging.warning("%s: The first argument is in a wrong format or "\

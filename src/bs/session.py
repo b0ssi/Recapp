@@ -313,13 +313,17 @@ class BackupSourceCtrl(bs.models.Sources):
         # VALIDATE DATA
         # source_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, source_name):
-            logging.warning("%s: The source_name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
-                            "space." % (self.__class__.__name__, ))
+            logging.warning("%s: The source_name contains invalid "\
+                            "characters. It needs to start  with an "\
+                            "alphabetic and contain alphanumerical "\
+                            "characters plus '\_\-\#' and space."
+                            % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update((("source_name", source_name), ), (("id", "=", self._source_id), ))
+        self._update(
+                     (("source_name", source_name), ),
+                     (("id", "=", self._source_id), )
+                     )
         self._source_name = source_name
         # out
         return True
@@ -338,7 +342,10 @@ class BackupSourceCtrl(bs.models.Sources):
                             % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update((("source_path", source_path), ), (("id", "=", self._source_id), ))
+        self._update(
+                     (("source_path", source_path), ),
+                     (("id", "=", self._source_id), )
+                     )
         self._source_path = source_path
         # out
         return True
@@ -469,7 +476,8 @@ class BackupSourcesCtrl(bs.models.Sources):
         # VALIDATE DATA
         # source_obj
         if not isinstance(source_obj, BackupSourceCtrl):
-            logging.warning("%s: The first argument needs to be a backup source object."
+            logging.warning("%s: The first argument needs to be a backup "\
+                            "source object."
                             % (self.__class__.__name__, ))
             return False
         # remove data from database
@@ -525,13 +533,17 @@ class BackupTargetCtrl(bs.models.Targets):
         # VALIDATE DATA
         # target_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, target_name):
-            logging.warning("%s: The target_name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
-                            "space." % (self.__class__.__name__, ))
+            logging.warning("%s: The target_name contains invalid "\
+                            "characters. It needs to start  with an "\
+                            "alphabetic and contain alphanumerical "\
+                            "characters plus '\_\-\#' and space."
+                            % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update((("target_name", target_name), ), (("id", "=", self._target_id), ))
+        self._update(
+                     (("target_name", target_name), ),
+                     (("id", "=", self._target_id), )
+                     )
         self._target_name = target_name
         # out
         return True
@@ -549,14 +561,16 @@ class BackupTargetCtrl(bs.models.Targets):
         out = []
         for drive_root_path in bs.utils.get_drives((win32file.DRIVE_FIXED, )):
             target_config_file_path = os.path.join(drive_root_path,
-                                                   bs.config.PROJECT_NAME, "volume.json")
+                                                   bs.config.PROJECT_NAME,
+                                                   "volume.json")
             if os.path.isfile(target_config_file_path):
                 f = open(target_config_file_path, "r")
                 data = f.read()
                 target_device_id_drive = json.loads(data)[1]
                 # if current target_device_id same as own device_id...
                 if target_device_id_drive == self._target_device_id:
-                    out.append(os.path.join(drive_root_path, bs.config.PROJECT_NAME))
+                    out.append(os.path.join(drive_root_path,
+                                            bs.config.PROJECT_NAME))
                 f.close()
         # out
         if len(out) > 1:
@@ -673,8 +687,8 @@ class BackupTargetsCtrl(bs.models.Targets):
         if not os.path.isdir(root_path) and\
             not os.path.isfile(root_config_file_path):
             # generate target_device_id
-            # timestamp at high sub-second-precision as string appended by random
-            # 16-bit integer as string, encoded as HEX-SHA512
+            # timestamp at high sub-second-precision as string appended by
+            # random 16-bit integer as string, encoded as HEX-SHA512
             timestamp = str(int(time.time() * 1000000))
             random_num = str(random.randint(1000000000000000, 9999999999999999))
             timestamp_random_num = timestamp + random_num
@@ -714,7 +728,8 @@ class BackupTargetsCtrl(bs.models.Targets):
         # VALIDATE DATA
         # target_obj
         if not isinstance(target_obj, BackupTargetCtrl):
-            logging.warning("%s: The first argument needs to be a backup target object."
+            logging.warning("%s: The first argument needs to be a backup "\
+                            "target object."
                             % (self.__class__.__name__, ))
             return False
         # delete from DB
@@ -771,12 +786,15 @@ class BackupFilterCtrl(bs.models.Filters):
         if not re.match("$.*^", filter_pattern):
             logging.warning("%s: The filter_pattern contains invalid "\
                             "characters. It needs to start with an "\
-                            "alphabetic and contain alphanumerical characters "\
-                            "plus '\_\-\#' and space."
+                            "alphabetic and contain alphanumerical "\
+                            "characters plus '\_\-\#' and space."
                             % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update(("filter_pattern", filter_pattern, ), ("id", "=", self._filter_id, ), )
+        self._update(
+                     ("filter_pattern", filter_pattern, ),
+                     ("id", "=", self._filter_id, ),
+                     )
         self._filter_pattern = filter_pattern
         # out
         return True
@@ -863,8 +881,8 @@ class BackupFiltersCtrl(bs.models.Filters):
         if not re.match("$.*^", filter_pattern):
             logging.warning("%s: The filter_pattern contains invalid "\
                             "characters. It needs to start with an "\
-                            "alphabetic and contain alphanumerical characters "\
-                            "plus '\_\-\#' and space."
+                            "alphabetic and contain alphanumerical "\
+                            "characters plus '\_\-\#' and space."
                             % (self.__class__.__name__, ))
             return False
         # validate filter data here once decided on format
@@ -910,7 +928,8 @@ class BackupSetCtrl(bs.models.Sets):
     _filters = None
     _targets = None
 
-    def __init__(self, session, set_id, set_uid, set_name, key_hash_64, set_db_path, source_objs, filter_objs, target_objs):
+    def __init__(self, session, set_id, set_uid, set_name, key_hash_64, \
+                 set_db_path, source_objs, filter_objs, target_objs):
         """
         *
         """
@@ -984,7 +1003,10 @@ class BackupSetCtrl(bs.models.Sets):
         # set new name
         self._set_name = set_name
         # update db
-        self._update((("set_name", set_name, ), ), (("id", "=", self._set_id, ), ))
+        self._update(
+                     (("set_name", set_name, ), ),
+                     (("id", "=", self._set_id, ), )
+                     )
 
     @property
     def set_db_path(self):
@@ -998,12 +1020,16 @@ class BackupSetCtrl(bs.models.Sets):
         if not os.path.isfile(self._set_db_path):
             set_db_path_new = ""
             while not os.path.isfile(set_db_path_new):
-                set_db_path_new = input("The last used path ('%s') is invalid; please "\
-                                        "enter the current path of this set's database:"
+                set_db_path_new = input("The last used path ('%s') is "\
+                                        "invalid; please enter the current "\
+                                        "path of this set's database:"
                                         % (self._set_db_path, ))
             self._set_db_path = set_db_path_new
             # update db
-            self._update((("set_db_path", set_db_path_new, ), ), (("id", "=", self._set_id, ), ))
+            self._update(
+                         (("set_db_path", set_db_path_new, ), ),
+                         (("id", "=", self._set_id, ), )
+                         )
         return True
 
     @property
@@ -1292,7 +1318,8 @@ class BackupSetsCtrl(bs.models.Sets):
             timestamp_random_num = timestamp + random_num
             set_uid = hashlib.md5(timestamp_random_num.encode()).hexdigest()
             # check if unique in db
-            res = conn.execute("SELECT id FROM sets WHERE set_uid = ?", (set_uid, )).fetchall()
+            res = conn.execute("SELECT id FROM sets WHERE set_uid = ?",
+                               (set_uid, )).fetchall()
             if len(res) == 0:
                 check = True
                 break
