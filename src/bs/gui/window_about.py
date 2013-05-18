@@ -15,11 +15,14 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 import bs.config
 from PySide import QtGui
 
 
 class WindowAbout(QtGui.QDialog):
+    """ * """
     _default_width = 300
     _default_height = 200
     _session_gui = None
@@ -31,9 +34,10 @@ class WindowAbout(QtGui.QDialog):
         self.init_ui()
 
     def init_ui(self):
+        """ * """
         # set size
-        self.setGeometry(self._session_gui._main_window.x() + self._session_gui._main_window.width() / 2 - self._default_width / 2,
-                         self._session_gui._main_window.y() + self._session_gui._main_window.height() / 2 - self._default_height / 2,
+        self.setGeometry(self._session_gui.main_window.x() + self._session_gui.main_window.width() / 2 - self._default_width / 2,
+                         self._session_gui.main_window.y() + self._session_gui.main_window.height() / 2 - self._default_height / 2,
                          self._default_width,
                          self._default_height)
         self.setWindowTitle("About %s" % (bs.config.PROJECT_NAME, ))

@@ -15,6 +15,8 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 import bs.config
 import bs.messages.database
 import importlib
@@ -76,10 +78,6 @@ class SyncDb(object):
                 out[member_name.lower()] = class_attributes
         return out
 
-    @_schema_datas.setter
-    def _schema_datas(self):
-        return False
-
     @property
     def _db_datas(self):
         """
@@ -121,11 +119,8 @@ class SyncDb(object):
             raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
         return out
 
-    @_db_datas.setter
-    def _db_datas(self):
-        return False
-
     def sync(self, execute=True):
+        """ Just add description """
         logging.info("## Synchronizing database-structure with Schema... #############")
         compact_db = False
         # verifying that schema-data is true...

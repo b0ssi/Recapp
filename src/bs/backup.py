@@ -1,18 +1,4 @@
 # -*- coding: utf-8 -*-
-import Crypto.Cipher.AES
-import Crypto.Random
-import Crypto.Util.Counter
-import bs.utils
-import getpass
-import hashlib
-import logging
-import os
-import re
-import sqlite3
-import tempfile
-import time
-import zipfile
-import zlib
 
 ###############################################################################
 ##    bs.backup                                                              ##
@@ -29,11 +15,26 @@ import zlib
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
+import Crypto.Cipher.AES
+import Crypto.Random
+import Crypto.Util.Counter
+import bs.utils
+import getpass
+import hashlib
+import logging
+import os
+import re
+import sqlite3
+import tempfile
+import time
+import zipfile
+import zlib
+
 
 class Backup(object):
-    """
-    *
-    """
+    """ * """
     _backup_set = None
     _key_hash_32 = None
     _sources = None
@@ -41,17 +42,13 @@ class Backup(object):
     _tmp_dir = None
 
     def __init__(self, set):
-        """
-        *
-        """
         self._backup_set = set
         self._sources = set.sources
         self._targets = set.targets
         self._tmp_dir = tempfile.TemporaryDirectory()
 
     def _update_db(self, conn):
-        """
-        *
+        """ *
         Returns the name of the new (session-)column
         """
         # create tables
@@ -109,8 +106,7 @@ class Backup(object):
         return new_column_name
 
     def _update_data_in_db(self, conn, new_column_name, **kwargs):
-        """
-        *
+        """ *
         Depending on what values are passed in, updates according tables in
         backup set database.
         `entity_id` is mandatory as the lookup always needs to be updated as
@@ -292,6 +288,7 @@ class Backup(object):
             raise
 
     def backup_exec(self):
+        """ * """
         # check if set is encrypted and prompt for key_raw-input
         # a key_raw is set as indicated by 64-bit verification hash in db:
         if self._backup_set.key_hash_64:
@@ -651,9 +648,7 @@ class Backup(object):
 
 
 class BackupFile(object):
-    """
-    *
-    """
+    """ * """
     _backup_set = None
     _path = None
     _targets = None
@@ -672,9 +667,7 @@ class BackupFile(object):
     _current_backup_archive_name = None
 
     def __init__(self, backup_set, file_path, targets, tmp_dir, key_hash_32):
-        """
-        *
-        """
+        """ * """
         self._backup_set = backup_set
         self._path = os.path.realpath(file_path)
         self._targets = targets
@@ -689,55 +682,32 @@ class BackupFile(object):
         self._key_hash_32 = key_hash_32
 
     def __del__(self):
+        """ * """
         self._remove_tmp_file()
 
     @property
     def path(self):
         return self._path
 
-    @path.setter
-    def path(self):
-        return None
-
     @property
     def ctime(self):
         return self._ctime
-
-    @ctime.setter
-    def ctime(self):
-        return None
 
     @property
     def mtime(self):
         return self._mtime
 
-    @mtime.setter
-    def mtime(self):
-        return None
-
     @property
     def atime(self):
         return self._atime
-
-    @atime.setter
-    def atime(self):
-        return None
 
     @property
     def inode(self):
         return self._inode
 
-    @inode.setter
-    def inode(self):
-        return None
-
     @property
     def size(self):
         return self._size
-
-    @size.setter
-    def size(self):
-        return None
 
     @property
     def sha512(self):
@@ -747,15 +717,9 @@ class BackupFile(object):
             self._sha512 = bs.utils.HashFile(self._path).start()
             return self._sha512
 
-    @sha512.setter
-    def sha512(self):
-        return None
-
     @property
     def current_backup_archive_name(self):
-        """
-        *
-        """
+        """ * """
         if self._current_backup_archive_name:
             return self._current_backup_archive_name
         else:
@@ -841,20 +805,12 @@ class BackupFile(object):
             self._current_backup_archive_name = latest_archive_name
             return self._current_backup_archive_name
 
-    @current_backup_archive_name.setter
-    def current_backup_archive_name(self):
-        return False
-
     def backup(self):
-        """
-        *
-        """
+        """ * """
         self._compress_zlib_encrypt_aes()
 
     def _remove_tmp_file(self):
-        """
-        *
-        """
+        """ * """
         try:
             os.unlink(self._tmp_file_path)
             return True
@@ -862,9 +818,7 @@ class BackupFile(object):
             return False
 
     def _compress_zlib_encrypt_aes(self):
-        """
-        *
-        """
+        """ * """
         time_start = time.time()
         logging.debug("%s: Compressing (zlib)/encrypting (AES) file: %s" \
                       % (self.__class__.__name__, self._path, ))
@@ -908,21 +862,15 @@ class BackupFile(object):
         self._add_to_targets()
 
     def _compress_bz2(self):
-        """
-        *
-        """
+        """ * """
         pass
 
     def _compress_lzma(self):
-        """
-        *
-        """
+        """ * """
         pass
 
     def _add_to_targets(self):
-        """
-        *
-        """
+        """ * """
         backup_archive_name = self.current_backup_archive_name
 
         time_start = time.time()
@@ -955,10 +903,9 @@ class BackupFile(object):
                                 % (self.__class__.__name__,
                                    self.sha512))
 
+
 class BackupRestore(object):
-    """
-    *
-    """
+    """ * """
     _set_obj = None
     _entity_ids = None
     _restore_location = None
@@ -968,9 +915,7 @@ class BackupRestore(object):
 
     def __init__(self, set_obj, entity_ids, restore_location,
                  snapshot_to_restore_tstamp):
-        """
-        *
-        """
+        """ * """
         self._set_obj = set_obj
         self._entity_ids = entity_ids
         self._restore_location = restore_location
@@ -990,14 +935,8 @@ class BackupRestore(object):
                     self._key_hash_32 = key_hash_32
                     return self._key_hash_32
 
-    @key_hashed_32.setter
-    def key_hashed_32(self):
-        return False
-
     def start(self):
-        """
-        *
-        """
+        """ * """
         for entity_id in self._entity_ids:
             # restore-file obj, provides all necessary metadata about entity
             backup_restore_file = BackupRestoreFile(self._set_obj,
@@ -1007,9 +946,7 @@ class BackupRestore(object):
             self._decrypt_aes_decompress_zlib(backup_restore_file)
 
     def _remove_tmp_file(self):
-        """
-        *
-        """
+        """ * """
         try:
             os.unlink(self._tmp_file_path)
             return True
@@ -1017,9 +954,7 @@ class BackupRestore(object):
             return False
 
     def _unzip_file(self, backup_restore_file):
-        """
-        *
-        """
+        """ * """
         time_start = time.time()
         logging.debug("%s: Unzipping file: %s"
                       % (self.__class__.__name__,
@@ -1037,9 +972,7 @@ class BackupRestore(object):
                          time_elapsed))
 
     def _decrypt_aes_decompress_zlib(self, backup_restore_file):
-        """
-        *
-        """
+        """ * """
         time_start = time.time()
         logging.debug("%s: Decrypting (AES) file..."
                       % (self.__class__.__name__, ))
@@ -1086,10 +1019,9 @@ class BackupRestore(object):
                       % (self.__class__.__name__,
                          time_elapsed))
 
+
 class BackupRestoreFile(object):
-    """
-    *
-    """
+    """ * """
     _set_obj = None
     _entity_id = None
     _snapshot_to_restore_tstamp = None
@@ -1099,17 +1031,14 @@ class BackupRestoreFile(object):
     _file_name = None
 
     def __init__(self, set_obj, entity_id, snapshot_to_restore_tstamp):
-        """
-        *
-        """
+        """ * """
         self._set_obj = set_obj
         self._entity_id = entity_id
         self._snapshot_to_restore_tstamp = snapshot_to_restore_tstamp
 
     @property
     def backup_archive_path(self):
-        """
-        *
+        """ *
         Returns a list of all available backup archive paths.
         """
         if not self._backup_archive_paths:
@@ -1121,25 +1050,15 @@ class BackupRestoreFile(object):
                 self._backup_archive_paths.append(backup_archive_path)
         return self._backup_archive_paths[0]
 
-    @backup_archive_path.setter
-    def backup_archive_path(self):
-        """
-        *
-        """
-        return False
-
     @property
     def sha512_db(self):
         if not self._sha512_db:
             self._sha512_db = self.get_latest_data_in_table("sha512")
         return self._sha512_db
 
-    @sha512_db.setter
-    def sha512_db(self):
-        return False
-
     @property
     def backup_archive_name(self):
+        """ * """
         if not self._backup_archive_name:
             conn = sqlite3.connect(self._set_obj.set_db_path)
             res = conn.execute("SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?",
@@ -1148,12 +1067,9 @@ class BackupRestoreFile(object):
             conn.close()
         return self._backup_archive_name
 
-    @backup_archive_name.setter
-    def backup_archive_name(self):
-        return False
-
     @property
     def file_path(self):
+        """ * """
         if not self._file_name:
             conn = sqlite3.connect(self._set_obj.set_db_path)
             res = conn.execute("SELECT path FROM path WHERE id = ?",
@@ -1162,13 +1078,8 @@ class BackupRestoreFile(object):
             conn.close()
         return self._file_name
 
-    @file_path.setter
-    def file_path(self):
-        return False
-
     def get_latest_data_in_table(self, table_name):
-        """
-        *
+        """ *
         Gets the file_id's data in db for the latest snapshot-column that has
         data on it.
         """

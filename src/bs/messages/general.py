@@ -15,8 +15,11 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 
 def general_error(e):
+    """ * """
     exception_msg = "A general error occurred: %s" % (e, )
     exit_msg = "EXIT: Operation could not be successfully completed; system "\
                "needs to exit."
@@ -25,6 +28,7 @@ def general_error(e):
     return out
 
 def PATTERN_NAME_INVALID():
+    """ * """
     msg_default = "The given name is invalid or contains illegal characters."
     msg_detailed = "A valid name needs to follow these rules:\n"
     msg_detailed += "\n"

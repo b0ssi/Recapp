@@ -15,6 +15,8 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 import bs._db
 import bs.backup
 import bs.session
@@ -37,6 +39,7 @@ logging.basicConfig(format="--------------- "\
 
 
 if __name__ == '__main__':
+    """ * """
     # extract sys.argv
     gui_mode = False
 

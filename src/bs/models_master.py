@@ -15,6 +15,8 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 import bs.config
 import bs.messages.database
 import inspect
@@ -24,8 +26,7 @@ import sqlite3
 
 
 class BSModel(object):
-    """
-    *
+    """ *
     Structural superclass for all models.
     """
     def __init__(self):
@@ -44,8 +45,7 @@ class BSModel(object):
         return out
 
     def _get_model_superclass(self, parent=None):
-        """
-        *
+        """ *
         Returns the Model superclass (meant to be directly subclassed by
         this BSModel).
         """
@@ -60,21 +60,15 @@ class BSModel(object):
 
     @property
     def _add_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant self._add()
         permissions to execute. The return value must be a boolean.
         """
         return True
 
-    @_add_is_permitted.setter
-    def _add_is_permitted(self):
-        return False
-
     def _add(self, columns, datasets, **kwargs):
-        """
-        *
+        """ *
         Adds a single or multiple data-sets to the object's database-table.
         `columns` is a comma-separated list of column to be inserted,
         `datasets` a 1- or 2-dimensional list/tuple of sets of values. The
@@ -145,21 +139,15 @@ class BSModel(object):
 
     @property
     def _get_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant self._get()
         permissions to execute. The return value must be a boolean.
         """
         return True
 
-    @_get_is_permitted.setter
-    def _get_is_permitted(self):
-        return False
-
     def _get(self, columns, conditions="", **kwargs):
-        """
-        *
+        """ *
         Loads and returns dataset from selected `columns` in associated table
         under selection-conditions `conditions`, `conds_neg`.
 
@@ -231,19 +219,13 @@ class BSModel(object):
 
     @property
     def _remove_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant
         self._remove() permissions to execute. The return value must be a
         boolean.
         """
         return True
-
-    @_remove_is_permitted.setter
-    def _remove_is_permitted(self):
-        return False
-
 
     def _remove(self, conditions="", **kwargs):
         """
@@ -299,18 +281,13 @@ class BSModel(object):
 
     @property
     def _update_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant
         self._update() permissions to execute. The return value must be a
         boolean.
         """
         return True
-
-    @_update_is_permitted.setter
-    def _update_is_permitted(self):
-        return False
 
     def _update(self, column_assignments, conditions, **kwargs):
         """

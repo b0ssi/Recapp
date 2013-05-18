@@ -15,12 +15,15 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 from PySide import QtGui
 import bs.config
 import re
 
 
 class ViewLogin(QtGui.QWidget):
+    """ * """
     _layout = None
     _sessions = None
     _session_gui = None
@@ -34,7 +37,12 @@ class ViewLogin(QtGui.QWidget):
         self.setContentsMargins(0, 0, 0, 0)
         self._init_ui()
 
+    @property
+    def view_login_form(self):
+        return self._view_login_form
+
     def _init_ui(self):
+        """ * """
         # set-up layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -51,20 +59,17 @@ class ViewLogin(QtGui.QWidget):
         self._layout.addWidget(self._view_login_form, 0, 1, 1, 1)
 
     def unlock(self, username, password):
-        """
-        *
-        """
+        """ * """
 
     def log_in(self, username, password):
-        """
-        *
+        """ *
         Gets session for user if login is valid and sets up UI.
         """
         session = self._sessions.add_session(username, password)
         # log-in failed
         if not session:
-            self._view_login_form._input_username.setStyleSheet("background: #FF7373")
-            self._view_login_form._input_password.setStyleSheet("background: #FF7373")
+            self._view_login_form.input_username.setStyleSheet("background: #FF7373")
+            self._view_login_form.input_password.setStyleSheet("background: #FF7373")
         # session already active
         elif session == -1:
             window_msg = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
@@ -76,10 +81,11 @@ class ViewLogin(QtGui.QWidget):
             # add reference to new session to session_gui
             self._session_gui.session = session
             # set view
-            self._session_gui._main_window.set_view('x')
+            self._session_gui.main_window.set_view('x')
 
 
 class ViewLoginForm(QtGui.QWidget):
+    """ * """
     _layout = None
     _label_username = None
     _input_username = None
@@ -97,7 +103,16 @@ class ViewLoginForm(QtGui.QWidget):
         self._sessions = sessions
         self._init_ui()
 
+    @property
+    def input_username(self):
+        return self._input_username
+
+    @property
+    def input_password(self):
+        return self._input_password
+
     def _init_ui(self):
+        """ * """
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setRowMinimumHeight(1, 20)
@@ -147,8 +162,7 @@ class ViewLoginForm(QtGui.QWidget):
                 )
 
     def _on_text_changed(self):
-        """
-        *
+        """ *
         Refreshes form formatting, updates auto completer.
         """
         # INPUT_USERNAME: HIGHLIGHT LOCKED USERNAME
@@ -165,8 +179,7 @@ class ViewLoginForm(QtGui.QWidget):
         return False
 
     def _on_text_edited(self):
-        """
-        *
+        """ *
         Updates form only on text edits (prevents completion list from getting
         updated on cycling through list)
         """
@@ -178,9 +191,7 @@ class ViewLoginForm(QtGui.QWidget):
         self._input_username.setCompleter(self._input_username_completer)
 
     def _set_into_unlock(self, arg):
-        """
-        *
-        """
+        """ * """
         # set into unlock mode
         if arg:
             text = "Un&lock"

@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-import hashlib
-import logging
-import threading
-import time
-import win32file
 
 ###############################################################################
 ##    utils                                                                  ##
@@ -20,11 +15,16 @@ import win32file
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
+import hashlib
+import logging
+import threading
+import time
+import win32file
 
 class Event(object):
-    """
-    *
-    """
+    """ * """
     def __init__(self):
         self.handlers = set()
 
@@ -33,11 +33,13 @@ class Event(object):
                                     self.__class__.__name__, )
 
     def add_handler(self, handler):
+        """ * """
         self.handlers.add(handler)
         print("'%s' successfully added to handlers." % (handler,))
         return self
 
     def remove_handler(self, handler):
+        """ * """
         try:
             self.handlers.remove(handler)
             print("'%s' successfully removed from handlers." % (handler,))
@@ -47,10 +49,12 @@ class Event(object):
         return self
 
     def fire_handlers(self, *args, **kwargs):
+        """ * """
         for handler in self.handlers:
             handler(*args, **kwargs)
 
     def num_handlers(self):
+        """ * """
         return len(self.handlers)
 
     __iadd__ = add_handler
@@ -144,8 +148,7 @@ class BSString(object):
 
 
 class HashFile(object):
-    """
-    *
+    """ *
     _sleeping_time: The smaller the value the higher the speed and the higher
     the number of files, the higher the effective gain. Using no sleep at all
     maximizes CPU usage for that thread (unthrottled while loops...)
@@ -164,18 +167,13 @@ class HashFile(object):
     _hash = ""
 
     def __init__(self, file_path, hash_obj=None):
-        """
-        *
-        """
         self._file_path = file_path
         # instantiate default _hash_obj
         if not hash_obj:
             self._hash_obj = hashlib.sha512()
 
     def _read_data(self):
-        """
-        *
-        """
+        """ * """
         f = open(self._file_path, "rb")
         logging.info("%s: Reading of data-stream started."
                      % (self.__class__.__name__, ))
@@ -194,9 +192,7 @@ class HashFile(object):
         self._status = 1
 
     def _calc_hash(self):
-        """
-        *
-        """
+        """ * """
         logging.info("%s: Hash-calculation started."
                      % (self.__class__.__name__, ))
         file_hash = self._hash_obj
@@ -210,9 +206,7 @@ class HashFile(object):
         self._hash = file_hash.hexdigest()
 
     def start(self):
-        """
-        *
-        """
+        """ * """
         logging.info("%s: Starting to hash file: %s"
                      % (self.__class__.__name__, self._file_path, ))
         # fire _data/_hash wrangler threads
@@ -229,8 +223,7 @@ class HashFile(object):
 
 
 def format_data_size(size, lock_to=None):
-    """
-    *
+    """ *
     size: int: bytes
     lock_to: string: name of unit (e.g. "MiB") and returns value not
     higher than chosen unit.
@@ -245,8 +238,7 @@ def format_data_size(size, lock_to=None):
 
 
 def get_drives(drive_types, ignore_a=True):
-    """
-    *
+    """ *
     Returns a list of drive root paths, depending on the desired types passed
     in through `drive_types`, which needs to be a list of the following
     constants:

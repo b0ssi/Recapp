@@ -15,6 +15,8 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 from PySide import QtGui
 import bs.config
 import bs.gui.window_main
@@ -52,11 +54,19 @@ class SessionsCtrl(object):
         if self._gui_mode:
             self._app = QtGui.QApplication("asdf")
             self._app.setWindowIcon(QtGui.QIcon("img/favicon.png"))
-            self._gui_add()
+            self.add_gui()
             self._app.exec_()
 
     def __repr__(self):
         return str(self._sessions)
+
+    @property
+    def app(self):
+        return self._app
+
+    @property
+    def guis(self):
+        return self._guis
 
     @property
     def sessions(self):
@@ -114,8 +124,7 @@ class SessionsCtrl(object):
                 return False
 
     def remove_session(self, session):
-        """
-        *
+        """ *
         Removes an existing session including all of its associated objects.
         """
         if session:
@@ -127,9 +136,8 @@ class SessionsCtrl(object):
             logging.warning("%s: The session does not exist: %s"
                             % (self.__class__.__name__, session, ))
 
-    def _gui_add(self):
-        """
-        *
+    def add_gui(self):
+        """ *
         Adds a new UI instance to host a separate is_unlocked session.
         """
         session_gui = SessionGuiCtrl(self)
@@ -138,8 +146,7 @@ class SessionsCtrl(object):
 
 
 class SessionGuiCtrl(object):
-    """
-    *
+    """ *
     Container for a GUI session
     """
     _main_window = None
@@ -164,6 +171,7 @@ class SessionGuiCtrl(object):
 
     @session.setter
     def session(self, session):
+        """ * """
         if not isinstance(session, SessionCtrl):
             logging.warning("%s: The first argument needs to be of type "\
                             "`SessionCtrl`."
@@ -253,9 +261,7 @@ class SessionCtrl(object):
         return True
 
     def log_in(self, username, password):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # username
         if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
@@ -284,9 +290,7 @@ class SessionCtrl(object):
             return False
 
     def log_out(self):
-        """
-        *
-        """
+        """ * """
         if self.is_logged_in:
             self.is_unlocked = False
             self.is_logged_in = False
@@ -299,9 +303,7 @@ class SessionCtrl(object):
             return False
 
     def lock(self):
-        """
-        *
-        """
+        """ * """
         if self.is_logged_in:
             if self.is_unlocked:
                 self.is_unlocked = False
@@ -318,9 +320,7 @@ class SessionCtrl(object):
             return False
 
     def unlock(self, username, password):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # username
         if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
@@ -353,8 +353,7 @@ class SessionCtrl(object):
 
 
 class UserCtrl(bs.models.Users):
-    """
-    *
+    """ *
     Represents an is_unlocked user.
     """
     _id = None
@@ -362,9 +361,6 @@ class UserCtrl(bs.models.Users):
     _session = None
 
     def __init__(self, session_gui):
-        """
-        *
-        """
         super(UserCtrl, self).__init__()
         self._session = session_gui
 
@@ -390,14 +386,9 @@ class UserCtrl(bs.models.Users):
     def username(self):
         return self._username
 
-    @username.setter
-    def username(self):
-        return False
-
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session.is_logged_in:
@@ -406,8 +397,7 @@ class UserCtrl(bs.models.Users):
             return False
 
     def _get_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session.is_logged_in:
@@ -416,8 +406,7 @@ class UserCtrl(bs.models.Users):
             return False
 
     def _remove_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session.is_logged_in:
@@ -427,8 +416,7 @@ class UserCtrl(bs.models.Users):
     # /OVERLOADS
 
     def _validate_credentials(self, parent, username, password):
-        """
-        *
+        """ *
         Verifies `username`, `password` for correctness and returns boolean.
         This method can only be called from `parent=isinstance(SessionCtrl)`
         """
@@ -463,9 +451,7 @@ class UserCtrl(bs.models.Users):
 
 
 class BackupSourceCtrl(bs.models.Sources):
-    """
-    *
-    """
+    """ * """
     _session = None
     _source_id = None
     _source_name = None
@@ -485,9 +471,6 @@ class BackupSourceCtrl(bs.models.Sources):
             self._source_id = res.lastrowid
 
     def __repr__(self):
-        """
-        *
-        """
         return "Source #%d <%s>" % (self._source_id, self.__class__.__name__, )
 
     @property
@@ -542,9 +525,7 @@ class BackupSourceCtrl(bs.models.Sources):
 
 
 class BackupSourcesCtrl(bs.models.Sources):
-    """
-    *
-    """
+    """ * """
     _session = None
     _sources = None
 
@@ -562,8 +543,7 @@ class BackupSourcesCtrl(bs.models.Sources):
 
     @property
     def sources(self):
-        """
-        *
+        """ *
         Returns all source objects referenced in self._sources.
         """
         # sources list is empty, load from db
@@ -580,10 +560,6 @@ class BackupSourcesCtrl(bs.models.Sources):
                                                   source_path)
                 self._sources.append(new_source_obj)
         return self._sources
-
-    @sources.setter
-    def sources(self, arg):
-        return False
 
     # OVERLOADS
     @property
@@ -621,8 +597,7 @@ class BackupSourcesCtrl(bs.models.Sources):
     # /OVERLOADS
 
     def add(self, source_name, source_path):
-        """
-        *
+        """ *
         Adds a new source.
         """
         # VALIDATE DATA
@@ -661,8 +636,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         return True
 
     def remove(self, source_obj):
-        """
-        *
+        """ *
         Removes an existing source.
         """
         # VALIDATE DATA
@@ -683,9 +657,7 @@ class BackupSourcesCtrl(bs.models.Sources):
 
 
 class BackupTargetCtrl(bs.models.Targets):
-    """
-    *
-    """
+    """ * """
     _session = None
     _target_id = None
     _target_name = None
@@ -705,23 +677,15 @@ class BackupTargetCtrl(bs.models.Targets):
             self._target_id = res.lastrowid
 
     def __repr__(self):
-        """
-        *
-        """
         return "Target #%d <%s>" % (self._target_id, self.__class__.__name__, )
 
     @property
     def target_name(self):
-        """
-        *
-        """
         return self._target_name
 
     @target_name.setter
     def target_name(self, target_name):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # target_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, target_name):
@@ -742,8 +706,7 @@ class BackupTargetCtrl(bs.models.Targets):
 
     @property
     def target_path(self):
-        """
-        *
+        """ *
         Gets physical path that currently points to target.
         Scans all connected drives and looks for a backup folder with a
         metadata file with target's target_device_id.
@@ -776,16 +739,11 @@ class BackupTargetCtrl(bs.models.Targets):
 
 
 class BackupTargetsCtrl(bs.models.Targets):
-    """
-    *
-    """
+    """ * """
     _session = None
     _targets = None
 
     def __init__(self, session_gui):
-        """
-        *
-        """
         super(BackupTargetsCtrl, self).__init__()
         self._session = session_gui
 
@@ -796,8 +754,7 @@ class BackupTargetsCtrl(bs.models.Targets):
 
     @property
     def targets(self):
-        """
-        *
+        """ *
         Returns all targets objects saved in self._targets.
         """
         # targets list is empty, load from db
@@ -815,15 +772,10 @@ class BackupTargetsCtrl(bs.models.Targets):
                 self._targets.append(new_target_obj)
         return self._targets
 
-    @targets.setter
-    def targets(self):
-        return False
-
     # OVERLOADS
     @property
     def _add_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -833,8 +785,7 @@ class BackupTargetsCtrl(bs.models.Targets):
 
     @property
     def _get_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -844,8 +795,7 @@ class BackupTargetsCtrl(bs.models.Targets):
 
     @property
     def _remove_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -855,8 +805,7 @@ class BackupTargetsCtrl(bs.models.Targets):
     # /OVERLOADS
 
     def add(self, target_name, target_path):
-        """
-        *
+        """ *
         Adds a new target.
         Returns the target_device_id.
         """
@@ -914,8 +863,7 @@ class BackupTargetsCtrl(bs.models.Targets):
             return False
 
     def remove(self, target_obj):
-        """
-        *
+        """ *
         Removes an existing target.
         Does *not* delete any file-system data.
         """
@@ -939,9 +887,7 @@ class BackupTargetsCtrl(bs.models.Targets):
 
 
 class BackupFilterCtrl(bs.models.Filters):
-    """
-    *
-    """
+    """ * """
     _session = None
     _filter_id = None
     _filter_pattern = None
@@ -958,23 +904,15 @@ class BackupFilterCtrl(bs.models.Filters):
             self._filter_id = res.lastrowid
 
     def __repr__(self):
-        """
-        *
-        """
         return "Filter #%d <%s>" % (self._filter_id, self.__class__.__name__, )
 
     @property
     def filter_pattern(self):
-        """
-        *
-        """
         return self._filter_pattern
 
     @filter_pattern.setter
     def filter_pattern(self, filter_pattern):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # filter_pattern
         if not re.match("$.*^", filter_pattern):
@@ -994,16 +932,12 @@ class BackupFilterCtrl(bs.models.Filters):
         return True
 
 class BackupFiltersCtrl(bs.models.Filters):
-    """
-    *
-    """
+    """ * """
     _session = None
     _filters = None
 
     def __init__(self, session_gui):
-        """
-        *
-        """
+        """ * """
         super(BackupFiltersCtrl, self).__init__()
         self._session = session_gui
 
@@ -1014,8 +948,7 @@ class BackupFiltersCtrl(bs.models.Filters):
 
     @property
     def filters(self):
-        """
-        *
+        """ *
         Returns all filter objects saved in self._filters.
         """
         # filter list is empty, load from db
@@ -1031,14 +964,9 @@ class BackupFiltersCtrl(bs.models.Filters):
                 self._filters.append(new_filter_obj)
         return self._filters
 
-    @filters.setter
-    def filters(self):
-        return False
-
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1047,8 +975,7 @@ class BackupFiltersCtrl(bs.models.Filters):
             return False
 
     def _get_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1057,8 +984,7 @@ class BackupFiltersCtrl(bs.models.Filters):
             return False
 
     def _remove_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1068,8 +994,7 @@ class BackupFiltersCtrl(bs.models.Filters):
     # /OVERLOADS
 
     def add(self, filter_pattern):
-        """
-        *
+        """ *
         Adds a new filter.
         """
         # VALIDATE DATA
@@ -1092,8 +1017,7 @@ class BackupFiltersCtrl(bs.models.Filters):
         return True
 
     def remove(self, filter_obj):
-        """
-        *
+        """ *
         Removes an existing filter.
         """
         # VALIDATE DATA
@@ -1111,9 +1035,7 @@ class BackupFiltersCtrl(bs.models.Filters):
 
 
 class BackupSetCtrl(bs.models.Sets):
-    """
-    *
-    """
+    """ * """
     _session = None
     _set_id = None
     _set_uid = None
@@ -1126,9 +1048,6 @@ class BackupSetCtrl(bs.models.Sets):
 
     def __init__(self, session, set_id, set_uid, set_name, key_hash_64, \
                  set_db_path, source_objs, filter_objs, target_objs):
-        """
-        *
-        """
         self._session = session
         self._set_id = set_id
         self._set_uid = set_uid
@@ -1171,9 +1090,6 @@ class BackupSetCtrl(bs.models.Sets):
             conn.close()
 
     def __repr__(self):
-        """
-        *
-        """
         return "Sets #%d id(%d) <%s>" % (self._set_id,
                                         id(self),
                                         self.__class__.__name__, )
@@ -1182,30 +1098,17 @@ class BackupSetCtrl(bs.models.Sets):
     def set_id(self):
         return self._set_id
 
-    @set_id.setter
-    def set_id(self):
-        return False
-
     @property
     def set_uid(self):
         return self._set_uid
 
-    @set_uid.setter
-    def set_uid(self):
-        return False
-
     @property
     def set_name(self):
-        """
-        *
-        """
         return self._set_name
 
     @set_name.setter
     def set_name(self, set_name):
-        """
-        *
-        """
+        """ * """
         # VERIFY DATA
         # set name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
@@ -1225,10 +1128,6 @@ class BackupSetCtrl(bs.models.Sets):
     @property
     def key_hash_64(self):
         return self._key_hash_64
-
-    @key_hash_64.setter
-    def key_hash_64(self):
-        return False
 
     @property
     def set_db_path(self):
@@ -1256,16 +1155,11 @@ class BackupSetCtrl(bs.models.Sets):
 
     @property
     def sources(self):
-        """
-        *
-        """
         return self._sources
 
     @sources.setter
     def sources(self, source_objs):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # set_objs
         check = False
@@ -1289,16 +1183,11 @@ class BackupSetCtrl(bs.models.Sets):
 
     @property
     def filters(self):
-        """
-        *
-        """
         return self._filters
 
     @filters.setter
     def filters(self, filter_objs):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # set_objs
         check = False
@@ -1322,16 +1211,11 @@ class BackupSetCtrl(bs.models.Sets):
 
     @property
     def targets(self):
-        """
-        *
-        """
         return self._targets
 
     @targets.setter
     def targets(self, target_objs):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # set_objs
         check = False
@@ -1355,16 +1239,11 @@ class BackupSetCtrl(bs.models.Sets):
 
 
 class BackupSetsCtrl(bs.models.Sets):
-    """
-    *
-    """
+    """ * """
     _session = None
     _sets = None
 
     def __init__(self, session):
-        """
-        *
-        """
         super(BackupSetsCtrl, self).__init__()
         self._session = session
 
@@ -1375,9 +1254,7 @@ class BackupSetsCtrl(bs.models.Sets):
 
     @property
     def sets(self):
-        """
-        *
-        """
+        """ * """
         # sets list is empty, load from db
         if len(self._sets) == 0:
             res = self._get("id, set_uid, set_name, key_hash_64, set_db_path, sources, filters, targets",
@@ -1413,14 +1290,9 @@ class BackupSetsCtrl(bs.models.Sets):
                 self._sets.append(new_set_obj)
         return self._sets
 
-    @sets.setter
-    def sets(self):
-        return False
-
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1429,8 +1301,7 @@ class BackupSetsCtrl(bs.models.Sets):
             return False
 
     def _get_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1439,8 +1310,7 @@ class BackupSetsCtrl(bs.models.Sets):
             return False
 
     def _remove_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """ *
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1450,8 +1320,7 @@ class BackupSetsCtrl(bs.models.Sets):
     # /OVERLOADS
 
     def add(self, set_name, key_raw, set_db_path, source_objs, filter_objs, target_objs):
-        """
-        *
+        """ *
         """
         # VALIDATE DATA
         # set_name
@@ -1547,9 +1416,7 @@ class BackupSetsCtrl(bs.models.Sets):
         return True
 
     def remove(self, set_id):
-        """
-        *
-        """
+        """ * """
         # VALIDATE DATA
         # set_id
         if not type(set_id) is int:

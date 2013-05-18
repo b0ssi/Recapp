@@ -129,11 +129,12 @@
 [ ]		clean-up current code:
 		[ ]	update representations
 		[ ] any code-warnings/errors
+		[ ]	sort methods, variables alphabetically
 ................................
 ................................
-[ ]		NEXT MILESTONE: 0003
+[.]		NEXT MILESTONE: 0003
 		........................
-[ ]		views:
+[.]		views:
 		[X]	basic main-window
 		[X]	basic login-view
 		[.]	basic set-management view
@@ -151,8 +152,8 @@
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
 		[ ]	implement consistent scheme for passing object-references into classes
-[ ]		controllers:
-		[ ]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
+[.]		controllers:
+		[.]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
 		[ ]	
 ................................
 [ ]		Q/A

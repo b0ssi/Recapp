@@ -15,6 +15,8 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 from PySide import QtCore, QtGui
 import bs.config
 import bs.messages.general
@@ -23,6 +25,7 @@ import time
 
 
 class ViewSets(QtGui.QWidget):
+    """ * """
     _sesson_gui = None
 
     _layout = None
@@ -41,6 +44,7 @@ class ViewSets(QtGui.QWidget):
         return self._sets_details
 
     def _init_ui(self):
+        """ * """
         # layout
         self._layout = QtGui.QGridLayout()
         self._layout.setSpacing(0)
@@ -55,6 +59,7 @@ class ViewSets(QtGui.QWidget):
         self.refresh()
 
     def resizeEvent(self, e):
+        """ * """
         main_window_width = self._sesson_gui.main_window.width()
         main_window_height = self._sesson_gui.main_window.height()
         # ADJUST LAYOUT
@@ -67,9 +72,11 @@ class ViewSets(QtGui.QWidget):
         self._layout.setColumnStretch(0, 1)
         self._layout.setColumnStretch(1, 99)
         # sources
-        self._sets_details.sources_widget.refresh_pos()
+        if self._sets_details.sources_widget:
+            self._sets_details.sources_widget.refresh_pos()
 
     def refresh(self):
+        """ * """
         # list
         self._sets_list.refresh()
         # details
@@ -78,6 +85,7 @@ class ViewSets(QtGui.QWidget):
 
 
 class ViewSetsSetsList(QtGui.QListWidget):
+    """ * """
     _session_gui = None
     _view_sets = None
 
@@ -92,6 +100,7 @@ class ViewSetsSetsList(QtGui.QListWidget):
         self._init_ui()
 
     def _init_ui(self):
+        """ * """
         self.itemChanged.connect(self.rename_item)
         self.setSortingEnabled(True)
 
@@ -113,13 +122,14 @@ class ViewSetsSetsList(QtGui.QListWidget):
         return True
 
     def mousePressEvent(self, e):
+        """ * """
         item_clicked = self.itemAt(e.x(), e.y())
         # right-click
         if e.button() & QtCore.Qt.RightButton:
             # show context menu
             if item_clicked:
                 self.setCurrentItem(item_clicked)
-                item_clicked._context_menu.popup(e.globalPos())
+                item_clicked.context_menu.popup(e.globalPos())
         else:
             if not item_clicked:
                 if self.currentItem():
@@ -129,6 +139,7 @@ class ViewSetsSetsList(QtGui.QListWidget):
                 super(ViewSetsSetsList, self).mousePressEvent(e)
 
     def refresh(self):
+        """ * """
         self.clear()
         for backup_set in self._session_gui.session.backup_sets.sets:
             self.addItem(ViewSetsSetsListItem(self._session_gui,
@@ -137,6 +148,7 @@ class ViewSetsSetsList(QtGui.QListWidget):
 
 
 class ViewSetsSetsListItem(QtGui.QListWidgetItem):
+    """ * """
     _session_gui = None
     _backup_set = None
     _list_widget = None
@@ -153,6 +165,7 @@ class ViewSetsSetsListItem(QtGui.QListWidgetItem):
         self._init_ui()
 
     def _init_ui(self):
+        """ * """
         self.setText(self._backup_set.set_name)
         self.setFlags(QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
         # context menu
@@ -162,10 +175,16 @@ class ViewSetsSetsListItem(QtGui.QListWidgetItem):
 
     @property
     def backup_set(self):
+        """ * """
         return self._backup_set
+
+    @property
+    def context_menu(self):
+        return self._context_menu
 
 
 class ViewSetsSetsListItemCMenu(QtGui.QMenu):
+    """ * """
     _session_gui = None
     _list_widget = None
     _list_widget_item = None  # This is the QListWidgetItem that the menu was opened upon
@@ -173,6 +192,7 @@ class ViewSetsSetsListItemCMenu(QtGui.QMenu):
     _action_del = None
 
     def __init__(self, session_gui, list_widget, list_widget_item):
+        """ * """
         super(ViewSetsSetsListItemCMenu, self).__init__()
 
         self._session_gui = session_gui
@@ -207,6 +227,7 @@ class ViewSetsSetsListItemCMenu(QtGui.QMenu):
 
 
 class ViewSetsDetails(QtGui.QWidget):
+    """ * """
     _session_gui = None
 
     _sources_widget = None
@@ -228,9 +249,11 @@ class ViewSetsDetails(QtGui.QWidget):
         return self._list_widget_item
 
     def _init_ui(self):
+        """ * """
         pass
 
     def refresh(self, list_widget_item=None):
+        """ * """
         # get active QListWidgetItem
         self._list_widget_item = list_widget_item
         # rebuild widgets
@@ -242,6 +265,7 @@ class ViewSetsDetails(QtGui.QWidget):
 
 
 class ViewSetsDetailsSources(QtGui.QFrame):
+    """ * """
     _session_gui = None
     _view_sets_details = None
     _list_widget_item = None
@@ -261,6 +285,7 @@ class ViewSetsDetailsSources(QtGui.QFrame):
         self.show()
 
     def _init_ui(self):
+        """ * """
         self.setStyleSheet(".ViewSetsDetailsSources {background: #c7c7ff; border-radius: 2px}")
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(5, 5, 5, 5)
@@ -291,6 +316,7 @@ class ViewSetsDetailsSources(QtGui.QFrame):
         self.setGeometry(5, 5, 200, new_height)
 
     def refresh_pos(self):
+        """ * """
         self.setGeometry(self.x(),
                          self._view_sets_details.height() / 2 - self.height() / 2,
                          self.width(),
@@ -298,6 +324,7 @@ class ViewSetsDetailsSources(QtGui.QFrame):
 
 
 class ViewSetsDetailsSource(QtGui.QFrame):
+    """ * """
     _parent = None
     _backup_source = None
 
@@ -318,6 +345,7 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         return self._context_menu
 
     def _init_ui(self):
+        """ * """
         self._layout = QtGui.QGridLayout(self)
 
         # title
@@ -343,6 +371,7 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         self._context_menu.triggered.connect(self.remove)
 
     def mousePressEvent(self, e):
+        """ * """
         if e.button() & QtCore.Qt.RightButton:
             # show context menu
             self.context_menu.popup(e.globalPos())
@@ -368,6 +397,7 @@ class ViewSetsDetailsSource(QtGui.QFrame):
 
 
 class ViewSetsDetailsSourceCMenu(QtGui.QMenu):
+    """ * """
 
     _action_rem = None
 
@@ -377,5 +407,6 @@ class ViewSetsDetailsSourceCMenu(QtGui.QMenu):
         self._init_ui()
 
     def _init_ui(self):
+        """ * """
         self._action_rem = QtGui.QAction("Remove", self)
         self.addAction(self._action_rem)

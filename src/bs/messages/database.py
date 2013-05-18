@@ -15,8 +15,11 @@
 ##                                                                           ##
 ###############################################################################
 
+""" * """
+
 
 def general_error(path, e):
+    """ * """
     exception_msg = "A general database-error occurred: %s. "\
                     "Database-location: %s" % (e, path, )
     exit_msg = "EXIT: Operation on the database could not be successfully "\
@@ -27,6 +30,7 @@ def general_error(path, e):
 
 
 def access_denied(path, e):
+    """ * """
     exception_msg = "Database file does exist at location '%s' but is either "\
                     "an invalid Backupshizzle database, currently accessed "\
                     "by a different process or inaccessible (\"%s\").\r"\
