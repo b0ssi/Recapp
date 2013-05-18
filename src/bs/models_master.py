@@ -114,7 +114,7 @@ class BSModel(object):
                              "tuples of datasets."
                              % (self.__class__.__name__, ))
             raise SystemExit()
-        logging.info("%s: Saving data to database..."
+        logging.debug("%s: Saving data to database..."
                      % (self.__class__.__name__))
         # WRITE DATA TO DATABASE
         try:
@@ -136,7 +136,7 @@ class BSModel(object):
                                  datasets)
             conn.commit()
             conn.close()
-            logging.info("%s: Data successfully saved to database."
+            logging.debug("%s: Data successfully saved to database."
                          % (self.__class__.__name__))
             return res
         except Exception as e:
@@ -198,7 +198,7 @@ class BSModel(object):
         # conditions
         self._validate_conditions(conditions)
 
-        logging.info("%s: Loading data from columns '%s'..."
+        logging.debug("%s: Loading data from columns '%s'..."
                      % (self.__class__.__name__, columns, ))
         # build conditions
         conditions_sql = ""
@@ -221,7 +221,7 @@ class BSModel(object):
                                   conditions_sql, ),
                                tuple(conditions_parameters)).fetchall()
             conn.close()
-            logging.info("%s: Data from columns '%s' successfully loaded "\
+            logging.debug("%s: Data from columns '%s' successfully loaded "\
                          "from database."
                          % (self.__class__.__name__, columns, ))
             return res
@@ -268,7 +268,7 @@ class BSModel(object):
         # VALIDATE DATA
         self._validate_conditions(conditions)
 
-        logging.info("%s: Removing data..."
+        logging.debug("%s: Removing data..."
                      % (self.__class__.__name__, ))
         # build conditions
         conditions_sql = ""
@@ -290,7 +290,7 @@ class BSModel(object):
             conn.commit()
             conn.commit()
             conn.close()
-            logging.info("%s: Data successfully deleted from database."
+            logging.debug("%s: Data successfully deleted from database."
                          % (self.__class__.__name__, ))
             return True
         except Exception as e:
@@ -347,7 +347,7 @@ class BSModel(object):
                             "(<column_name string>, <new_value string, int, float, ...>)"
                             % (self.__class__.__name__, ))
             return False
-        logging.info("%s: Updating data..."
+        logging.debug("%s: Updating data..."
                      % (self.__class__.__name__, ))
         # build column_assignments
         sql_parameters = []
@@ -379,7 +379,7 @@ class BSModel(object):
             conn.commit()
             conn.commit()
             conn.close()
-            logging.info("%s: Data successfully updated in database."
+            logging.debug("%s: Data successfully updated in database."
                          % (self.__class__.__name__, ))
             return True
         except Exception as e:

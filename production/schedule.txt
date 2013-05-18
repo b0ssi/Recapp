@@ -133,9 +133,27 @@
 ................................
 [ ]		NEXT MILESTONE: 0003
 		........................
-[ ]		Start with GUI dev
-		[ ]	...
-		[ ]	...
+[ ]		views:
+		[X]	basic main-window
+		[X]	basic login-view
+		[.]	basic set-management view
+			[.]	list widget for sets
+				[ ]	ability to create a new set
+				[X]	ability to delete an existing set
+				[ ]	edit an existing set
+			[.]	details widget to visualize/edit/execute etc. sets
+				[.]	sources
+					[ ]	ability to add a source
+					[.]	ability to remove a source
+					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+				[ ]	filters
+				[ ]	targets
+				[ ]	execution-panel...
+		[ ]	refactor object reference names, implement consistent scheme
+		[ ]	implement consistent scheme for passing object-references into classes
+[ ]		controllers:
+		[ ]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
+		[ ]	
 ................................
 [ ]		Q/A
 		........................

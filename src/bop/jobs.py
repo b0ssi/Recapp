@@ -17,9 +17,9 @@ class BOp_Jobs_CTR(QtCore.QObject):
     _jobs = []
     BOp_update = QtCore.pyqtSignal(int, int)
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Jobs_CTR, self).__init__()
         
@@ -88,8 +88,8 @@ class BOp_Jobs_CTR(QtCore.QObject):
 
 class BOp_Job_CTR(object):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Job_CTR, self).__init__()

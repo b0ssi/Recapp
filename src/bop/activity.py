@@ -16,9 +16,9 @@ from bop.report import BOp_Report_CTR
 
 class BOp_Activity_UI(QtGui.QWidget):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Activity_UI, self).__init__()
         
@@ -45,9 +45,9 @@ class BOp_Activity_UI(QtGui.QWidget):
         
 class BOp_Activity_CTR(BOp_Activity_UI):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Activity_CTR, self).__init__(self.parent)
         

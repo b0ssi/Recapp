@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from PyQt4 import QtCore
 import os
 
 ###############################################################################
@@ -20,7 +19,7 @@ import os
 PROJECT_NAME = "Backupshizzle"
 
 # create config dir
-CONFIG_PATH = os.path.normcase(os.path.join(str(QtCore.QDir.homePath()),
+CONFIG_PATH = os.path.normcase(os.path.join(os.path.expanduser('~'),
                                             ".backupshizzle"))
 
 LOGFILE_PATH = os.path.join(CONFIG_PATH, "log.log")
@@ -36,6 +35,6 @@ REGEX_PATTERN_COLUMN = "^[a-zA-Z][a-zA-Z0-9\_]{0,30}[a-zA-Z0-9]$"
 REGEX_PATTERN_COLUMNS = "^([a-zA-Z][a-zA-Z0-9\_]{0,30}[a-zA-Z0-9](\,[\ ]*)?)+$"
 REGEX_PATTERN_USERNAME = "^[a-zA-Z][a-zA-Z0-9\_]{2,30}[a-zA-Z0-9]$"
 # names for sources, targets, filters... etc.
-REGEX_PATTERN_NAME = "^[a-zA-Z][a-zA-Z0-9\_\-\ \#]{3,31}$"
+REGEX_PATTERN_NAME = "^[a-zA-Z][a-zA-Z0-9\_\-\ \#]{3,30}[a-zA-Z0-9\_\-\#]$"
 # password-keys
 REGEX_PATTERN_KEY = "^[a-zA-Z0-9]{8,64}$"

@@ -55,9 +55,9 @@ class BOp_Prep_UI(QtGui.QDialog):
 
 class BOp_Prep_CTR(BOp_Prep_UI):
     
-    def __init__(self, parent, setId):
+    def __init__(self, pwindow_main setId):
         
-        self.parent = parent
+        self.parent = pwindow_main
         self._setId = setId
         
         super(BOp_Prep_CTR, self).__init__()

@@ -550,7 +550,74 @@ import zlib
 #conn.close()
 
 ###############################################################################
+
+#class Sessions(object):
+#    _sessions = []
+#
+#    def add_session(self):
+#        new_session = Session()
+#        self._sessions.append(new_session)
+#        return new_session
+#
+#
+#class Session(object):
+#    _sets = []
+#
+#    def add_set(self):
+#        new_set = Set()
+#        self._sets.append(new_set)
+#
+#
+#class Set():
+#    def __repr__(self):
+#        return "id:%d <%s>" % (id(self), self.__class__.__name__, )
+#
+#sessions = Sessions()
+#
+#session_1 = sessions.add_session()
+#session_2 = sessions.add_session()
+#
+#print(sessions._sessions)
+#
+#session_1.add_set()
+#print(session_1._sets)
+#print(session_2._sets)
+
 ###############################################################################
+
+#class Sessions(object):
+#    _sessions = []
+#
+#    def add_session(self):
+#        new_set = Session()
+#        self._sessions.append(new_set)
+#        return new_set
+#
+#
+#class Session():
+#    _sets = []
+#
+#    def __init__(self):
+##        self._sets = []
+#        pass
+#
+#    def __repr__(self):
+#        return "id:%d <%s>" % (id(self), self.__class__.__name__, )
+#
+#
+#sessions = Sessions()
+#
+#session_1 = sessions.add_session()
+#session_2 = sessions.add_session()
+#
+#session_1._sets.append("doodledeedoo")
+#
+#print("session_1._sets: %s" % (session_1._sets, ))
+#print("session_2._sets: %s" % (session_2._sets, ))
+#
+#print(session_1)
+#print(session_2)
+
 ###############################################################################
 ###############################################################################
 ###############################################################################

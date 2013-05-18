@@ -13,11 +13,11 @@ from PyQt4 import QtGui
         
 class BOp_Execution_UI(QtGui.QFrame):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
         super(BOp_Execution_UI, self).__init__()
         
-        self.parent = parent
+        self.parent = session_gui
         
         self.initUI()
         
@@ -33,8 +33,8 @@ class BOp_Execution_UI(QtGui.QFrame):
     
 class BOp_Execution_CTR(BOp_Execution_UI):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Execution_CTR, self).__init__(self.parent)

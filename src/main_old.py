@@ -207,11 +207,11 @@ class MainWindow_CTR(MainWindow_UI):
 
 class Login_UI(QtGui.QWidget):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        super(Login_UI, self).__init__(parent)
+        super(Login_UI, self).__init__(session_gui)
         
-        self.parent = parent
+        self.parent = session_gui
         
         self.initUI()
         
@@ -255,11 +255,11 @@ class Login_UI(QtGui.QWidget):
             
 class Login_CTR(Login_UI):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        super(Login_CTR, self).__init__(parent)
+        super(Login_CTR, self).__init__(session_gui)
         
-        self.parent = parent
+        self.parent = session_gui
         
         # check if user account(s) exist and open Accounts_CTR if False
         if self.userAccountExists() == False:
@@ -357,11 +357,11 @@ class Accounts_CTR(Accounts_UI):
 
 class BBase_UI(QtGui.QWidget):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
         super(BBase_UI, self).__init__()
         
-        self.parent = parent
+        self.parent = session_gui
         
         self.initUI()
     
@@ -388,11 +388,11 @@ class BBase_UI(QtGui.QWidget):
         
 class BBase_CTR(BBase_UI):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        super(BBase_CTR, self).__init__(parent)
+        super(BBase_CTR, self).__init__(session_gui)
 
-        self.parent = parent
+        self.parent = session_gui
         
         # set-up menu
         self.parent.actionLogout.setDisabled(0)
@@ -625,11 +625,11 @@ class Sets_Manip_UI(QtGui.QDialog):
     _availFilters = []
     _availTargets = []
 
-    def __init__(self, parent, setId):
+    def __init__(self, session_gui, setId):
         
         super(Sets_Manip_UI, self).__init__()
         
-        self.parent = parent
+        self.parent = session_gui
         
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
         cursor = sqlite3.Cursor(conn)
@@ -1394,11 +1394,11 @@ class Targets_Manip_UI(QtGui.QDialog):
     
     _dbData = []
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
         super(Targets_Manip_UI, self).__init__()
         
-        self.parent = parent
+        self.parent = session_gui
         
         # get existing dbData
         conn = sqlite3.connect(bs.config.CONFIGDB_PATH)

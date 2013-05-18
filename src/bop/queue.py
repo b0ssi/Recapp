@@ -13,9 +13,9 @@ import time
 
 class BOp_Queue_UI(QtGui.QFrame):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Queue_UI, self).__init__(self.parent)
         
@@ -51,9 +51,9 @@ class BOp_Queue_UI(QtGui.QFrame):
 
 class BOp_Queue_CTR(BOp_Queue_UI):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Queue_CTR, self).__init__(self.parent)
         
@@ -61,9 +61,9 @@ class BOp_Queue_CTR(BOp_Queue_UI):
         
 class BOp_Queue_Slot_UI(QtGui.QWidget):
     
-    def __init__(self, parent):
+    def __init__(self, session_gui):
         
-        self.parent = parent
+        self.parent = session_gui
         
         super(BOp_Queue_Slot_UI, self).__init__(self.parent)
         
@@ -94,9 +94,9 @@ class BOp_Queue_Slot_CTR(BOp_Queue_Slot_UI):
     
     slotNo = -1
     
-    def __init__(self, parent, slotNo):
+    def __init__(self, session_gui, slotNo):
         
-        self.parent = parent
+        self.parent = session_gui
         self.slotNo = slotNo
         
         super(BOp_Queue_Slot_CTR, self).__init__(self.parent)
@@ -202,11 +202,11 @@ class BOp_Queue_Job_CTR(BOp_Queue_Job_UI):
 
 #class BOp_Queue_UI(QtGui.QFrame):
 #    
-#    def __init__(self, parent):
+#    def __init__(self, session_gui):
 #        
 #        super(BOp_Queue_UI, self).__init__()
 #        
-#        self.parent = parent
+#        self.session_gui = session_gui
 #        
 #        self.initUI()
 #        
@@ -283,11 +283,11 @@ class BOp_Queue_Job_CTR(BOp_Queue_Job_UI):
 #    
 #    whatKeysDown = -1
 #    
-#    def __init__(self, parent):
+#    def __init__(self, session_gui):
 #        
-#        self.parent = parent
+#        self.session_gui = session_gui
 #        
-#        super(BOp_Queue_CTR, self).__init__(self.parent)
+#        super(BOp_Queue_CTR, self).__init__(self.session_gui)
 #        
 ##        timer = QtCore.QTimer(self)
 ##        timer.timeout.connect(self.printWhatKeysDown)

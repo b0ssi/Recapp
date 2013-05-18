@@ -20,7 +20,10 @@ import bs.backup
 import bs.session
 import logging
 import os
+import re
+import sys
 import time
+
 
 
 # logging
@@ -30,23 +33,32 @@ logging.basicConfig(format="--------------- "\
                            "(%(funcName)s)\r"\
                            "%(levelname)s      \t"\
                            "%(message)s",
-                    level=logging.DEBUG)
-
-# PREP
-# sync db if necessary
-sync_db = bs._db.SyncDb("bs.models")
-sync_db.sync()
+                    level=logging.CRITICAL)
 
 
-my_sessions_1 = bs.session.SessionsCtrl()
-my_session_1 = my_sessions_1.current_session
-my_user_1 = my_session_1.user
-my_sources_1 = my_session_1.backup_sources
-my_filters_1 = my_session_1.backup_filters
-my_targets_1 = my_session_1.backup_targets
-my_sets_1 = my_session_1.backup_sets
+if __name__ == '__main__':
+    # extract sys.argv
+    gui_mode = False
 
-my_user_1.log_in("alpha", "1")
+    for arg in sys.argv:
+        if re.match("^gui\=True$", arg):
+            gui_mode = True
+    # sync db
+    sync_db = bs._db.SyncDb("bs.models")
+    sync_db.sync()
+    # init sessions
+    sessions = bs.session.SessionsCtrl(gui_mode)
+
+## PREP
+## sync db if necessary
+#sync_db = bs._db.SyncDb("bs.models")
+#sync_db.sync()
+#
+#my_sessions_1 = bs.session.SessionsCtrl()
+#my_session_1 = my_sessions_1.add_session("alpha", "1")
+#
+#my_session_2 = my_sessions_1.add_session("bravo", "2")
+
 
 #print(my_sets_1.sets[0].targets)
 #my_sets_1.sets[0].sources = [
@@ -71,8 +83,6 @@ my_user_1.log_in("alpha", "1")
 #my_targets_1.remove(my_targets_1.targets[0])
 #print(my_sets_1.sets[0].targets)
 
-time_start = time.time()
-
 #my_backup = bs.backup.Backup(
 #                             my_sets_1.sets[0]
 #                             )
@@ -83,5 +93,3 @@ time_start = time.time()
 #                                            "Z:\\test_restore",
 #                                            1367853693)
 #my_backup_restore.start()
-
-print("Time elapsed: %s" % (time.time() - time_start))

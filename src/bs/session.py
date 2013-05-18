@@ -15,7 +15,9 @@
 ##                                                                           ##
 ###############################################################################
 
+from PySide import QtGui
 import bs.config
+import bs.gui.window_main
 import bs.messages
 import bs.models
 import hashlib
@@ -29,59 +31,87 @@ import time
 import win32file
 
 
+
 class SessionsCtrl(object):
     """
-    Stores and manages sessions for all active users.
+    Stores and manages sessions for all is_unlocked users.
     """
-    _sessions = []
-    _current_session = None
+    _sessions = None  # holds currently is_unlocked sessions
+    # gui
+    _app = None
+    _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
+    _gui_mode = None
 
-    def __init__(self):
+    def __init__(self, gui_mode=False):
         super(SessionsCtrl, self).__init__()
-        # add initial session
-        self.add_session()
+        self._gui_mode = gui_mode
+
+        self._sessions = []
+        self._guis = []
+        # gui stuff
+        if self._gui_mode:
+            self._app = QtGui.QApplication("asdf")
+            self._app.setWindowIcon(QtGui.QIcon("img/favicon.png"))
+            self._gui_add()
+            self._app.exec_()
 
     def __repr__(self):
         return str(self._sessions)
 
     @property
-    def current_session(self):
-        """
-        Returns the currently active session.
-        """
-        return self._current_session
+    def sessions(self):
+        return self._sessions
 
-    @current_session.setter
-    def current_session(self, arg):
+    def add_session(self, username, password):
         """
-        Sets a session as the currently active session.
+        If attributed credentials are valid, return logged on, unlocked session
+        for user.
+        Returns existing session if one was previously created (used) for user.
+        Fails if session for requested user is already logged in and unlocked.
         """
-        if isinstance(arg, SessionCtrl):
-            self._current_session = arg
-            logging.info("%s: Session '%s' successfully set as active session."
-                         % (self.__class__.__name__, arg, ))
-            return True
+        logging.info("%s: Creating session for user %s..."
+                     % (self.__class__.__name__,
+                        username, ))
+        # check if session for user already exists
+        new_session = None
+        for session in self._sessions:
+            if session.user.username == username:
+                new_session = session
+                break
+        # if no existing sessionf or user was found
+        if not new_session:
+            # create new session
+            new_session = SessionCtrl()
+        # verify scenarios
+        if new_session.is_logged_in:
+            if not new_session.is_unlocked:
+                if new_session.log_in(username, password):
+                    # add new_session to self._sessions
+                    if new_session not in self._sessions:
+                        self._sessions.append(new_session)
+                    logging.info("%s: New session successfully unlocked."
+                                 % (self.__class__.__name__, ))
+                    return new_session
+                else:
+                    logging.warning("%s: No session created: Log-on failed."
+                                 % (self.__class__.__name__, ))
+                    return False
+            else:
+                logging.warning("%s: The session for this user is already active."
+                             % (self.__class__.__name__, ))
+                return -1
         else:
-            logging.warning("%s: Argument 1 needs to be an instance of "\
-                            "the 'SessionCtrl()' class."
-                            % (self.__class__.__name__))
-            return False
-
-    def add_session(self):
-        """
-        Adds a new session including an empty set for the user, sources,
-        targets, filters, sets, etc..
-        """
-        logging.info("%s: Adding session to sessions..."
-                     % (self.__class__.__name__, ))
-        # create new session
-        new_session = SessionCtrl()
-        # _add new session to self._sessions
-        self._sessions.append(new_session)
-        self.current_session = new_session
-        logging.info("%s: Session successfully added."
-                     % (self.__class__.__name__, ))
-        return new_session
+            if new_session.log_in(username, password):
+                # add new_session to self._sessions
+                if new_session not in self._sessions:
+                    self._sessions.append(new_session)
+                logging.info("%s: New session successfully logged in and unlocked."
+                             % (self.__class__.__name__, ))
+                return new_session
+            else:
+                logging.warning("%s: No session created: Log-on failed."
+                             % (self.__class__.__name__, ))
+                return False
 
     def remove_session(self, session):
         """
@@ -97,6 +127,51 @@ class SessionsCtrl(object):
             logging.warning("%s: The session does not exist: %s"
                             % (self.__class__.__name__, session, ))
 
+    def _gui_add(self):
+        """
+        *
+        Adds a new UI instance to host a separate is_unlocked session.
+        """
+        session_gui = SessionGuiCtrl(self)
+        self._guis.append(session_gui)
+        return session_gui
+
+
+class SessionGuiCtrl(object):
+    """
+    *
+    Container for a GUI session
+    """
+    _main_window = None
+    _sessions = None
+    _session = None
+
+    def __init__(self, sessions):
+        self._sessions = sessions
+        self._main_window = bs.gui.window_main.WindowMain(self._sessions, self)
+
+    @property
+    def main_window(self):
+        return self._main_window
+
+    @property
+    def sessions(self):
+        return self._sessions
+
+    @property
+    def session(self):
+        return self._session
+
+    @session.setter
+    def session(self, session):
+        if not isinstance(session, SessionCtrl):
+            logging.warning("%s: The first argument needs to be of type "\
+                            "`SessionCtrl`."
+                            % (self.__class__.__name__, ))
+            return False
+        self._session = session
+        return session
+
 
 class SessionCtrl(object):
     """
@@ -108,6 +183,8 @@ class SessionCtrl(object):
     _backup_targets = None
     _backup_filters = None
     _backup_sets = None
+    _is_unlocked = None
+    _is_logged_in = None
 
     def __init__(self):
         super(SessionCtrl, self).__init__()
@@ -117,6 +194,8 @@ class SessionCtrl(object):
         self._backup_targets = BackupTargetsCtrl(self)
         self._backup_filters = BackupFiltersCtrl(self)
         self._backup_sets = BackupSetsCtrl(self)
+        self._is_unlocked = False
+        self._is_logged_in = False
 
     def __repr__(self):
         return(str((self._user,
@@ -146,23 +225,151 @@ class SessionCtrl(object):
     def backup_sets(self):
         return self._backup_sets
 
+    @property
+    def is_unlocked(self):
+        return self._is_unlocked
+
+    @is_unlocked.setter
+    def is_unlocked(self, arg):
+        if not isinstance(arg, bool):
+            logging.warning("%s: The first argument needs to be of type "\
+                            "boolean."
+                            % (self.__class__.__name__, ))
+            return False
+        self._is_unlocked = arg
+        return True
+
+    @property
+    def is_logged_in(self):
+        return self._is_logged_in
+
+    @is_logged_in.setter
+    def is_logged_in(self, arg):
+        if not isinstance(arg, bool):
+            logging.warning("%s: Argument one needs to be of type boolean."
+                            % (self.__class__.__name__, ))
+            return False
+        self._is_logged_in = arg
+        return True
+
+    def log_in(self, username, password):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # username
+        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
+            logging.warning("%s: The username is invalid. A valid username "\
+                             "needs to start with an alphabetic, "\
+                             "contain alphanumeric plus '_' "\
+                             "and have a length between 4 and 32 characters."
+                             % (self.__class__.__name__, ))
+            return False
+        # CONTEXT CHECKS & SET-UP
+        if not self.is_logged_in or\
+            self.is_logged_in and not self._is_unlocked:
+            if self.user._validate_credentials(self, username, password):
+                self.is_unlocked = True
+                self.is_logged_in = True
+                logging.info("%s: Session successfully logged in."
+                             % (self.__class__.__name__, ))
+                return True
+            else:
+                logging.warning("%s: Session login failed: Invalid credentials."
+                                % (self.__class__.__name__, ))
+                return False
+        elif self.is_unlocked:
+            logging.warning("%s: Session already logged in."
+                            % (self.__class__.__name__, ))
+            return False
+
+    def log_out(self):
+        """
+        *
+        """
+        if self.is_logged_in:
+            self.is_unlocked = False
+            self.is_logged_in = False
+            logging.info("%s: Session successfully logged out."
+                         % (self.__class__.__name__, ))
+            return True
+        else:
+            logging.warning("%s: Session logout failed: Already logged out."
+                            % (self.__class__.__name__, ))
+            return False
+
+    def lock(self):
+        """
+        *
+        """
+        if self.is_logged_in:
+            if self.is_unlocked:
+                self.is_unlocked = False
+                logging.info("%s: Session successfully locked."
+                             % (self.__class__.__name__, ))
+                return True
+            else:
+                logging.warning("%s: Session lock failed: Already locked."
+                                % (self.__class__.__name__, ))
+                return False
+        else:
+            logging.warning("%s: Session lock failed: Not logged in."
+                            % (self.__class__.__name__, ))
+            return False
+
+    def unlock(self, username, password):
+        """
+        *
+        """
+        # VALIDATE DATA
+        # username
+        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
+            logging.warning("%s: The username is invalid. A valid username "\
+                             "needs to start with an alphabetic, "\
+                             "contain alphanumeric plus '_' "\
+                             "and have a length between 4 and 32 characters."
+                             % (self.__class__.__name__, ))
+            return False
+        if self.is_logged_in:
+            if not self.is_unlocked:
+                if self.user._validate_credentials(self, username, password):
+                    self.is_unlocked = True
+                    logging.info("%s: Session successfully unlocked."
+                                 % (self.__class__.__name__, ))
+                    return True
+                else:
+                    logging.warning("%s: Session unlock failed: Invalid "\
+                                    "credentials."
+                                    % (self.__class__.__name__, ))
+            else:
+                logging.warning("%s: Session unlock failed: Already "\
+                                "unlocked."
+                                % (self.__class__.__name__, ))
+                return False
+        else:
+            logging.warning("%s: Session unlock failed: Not logged in."
+                            % (self.__class__.__name__, ))
+            return False
+
 
 class UserCtrl(bs.models.Users):
     """
     *
-    Represents an active user.
+    Represents an is_unlocked user.
     """
-    _id = -1
-    _is_logged_in = False
-    _username = ""
+    _id = None
+    _username = None
     _session = None
 
-    def __init__(self, session):
+    def __init__(self, session_gui):
         """
         *
         """
         super(UserCtrl, self).__init__()
-        self._session = session
+        self._session = session_gui
+
+        self._id = -1
+        self._username = ""
         # create default user
         if len(self._get("*", no_auth_required=True)) == 0:
             self._add("username, password",
@@ -180,8 +387,12 @@ class UserCtrl(bs.models.Users):
         return self._id
 
     @property
-    def is_logged_in(self):
-        return self._is_logged_in
+    def username(self):
+        return self._username
+
+    @username.setter
+    def username(self):
+        return False
 
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
@@ -189,7 +400,7 @@ class UserCtrl(bs.models.Users):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session.is_logged_in:
             return True
         else:
             return False
@@ -199,7 +410,7 @@ class UserCtrl(bs.models.Users):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session.is_logged_in:
             return True
         else:
             return False
@@ -209,31 +420,19 @@ class UserCtrl(bs.models.Users):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session.is_logged_in:
             return True
         else:
             return False
     # /OVERLOADS
 
-    def log_in(self, username, password):
+    def _validate_credentials(self, parent, username, password):
         """
-        Loggs the user in.
+        *
+        Verifies `username`, `password` for correctness and returns boolean.
+        This method can only be called from `parent=isinstance(SessionCtrl)`
         """
-        # VALIDATE DATA
-        # username
-        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
-            logging.warning("%s: The username is invalid. A valid username "\
-                             "needs to start with an alphabetic, "\
-                             "contain alphanumeric plus '_' "\
-                             "and have a length between 4 and 32 characters."
-                             % (self.__class__.__name__, ))
-            return False
-
-        if self.is_logged_in:
-            logging.info("%s: User '%s' is already logged in."
-                         % (self.__class__.__name__, self._username, ))
-            return True
-        else:
+        if isinstance(parent, SessionCtrl):
             password_hash = hashlib.sha512(password.encode())
             res = self._get("id", (("username", "=", username),
                                   ("password", "=", password_hash.hexdigest(), ), ),
@@ -242,9 +441,8 @@ class UserCtrl(bs.models.Users):
             if len(res) == 1:
                 self._id = res[0][0]
                 self._username = username
-                logging.info("%s: User '%s' successfully logged in."
+                logging.debug("%s: Credentials valid for user: '%s'."
                              % (self.__class__.__name__, self._username, ))
-                self._is_logged_in = True
                 return True
             elif len(res) > 1:
                 logging.critical("%s: More than one user exist with the same "\
@@ -254,26 +452,14 @@ class UserCtrl(bs.models.Users):
                 raise SystemExit()
                 return False
             elif len(res) < 1:
-                logging.warning("%s: Username or password is invalid, please "\
-                                "try again."
-                                % (self.__class__.__name__, ))
+                logging.debug("%s: Credentials invalid for user: '%s'"
+                                % (self.__class__.__name__, self._username, ))
                 return False
-
-    def log_out(self):
-        """
-        Loggs the user out.
-        """
-        # if already logged out
-        if not self._is_logged_in:
-            logging.warning("%s: User '%s' is already logged out."
-                         % (self.__class__.__name__, self._username, ))
-            return False
-        # else, log-out
         else:
-            self._is_logged_in = False
-            logging.info("%s: User '%s' successfully logged out."
-                         % (self.__class__.__name__, self._username, ))
-            return True
+            logging.warning("%s: This method can only be called from certain"\
+                            "classes (SessionCtrl(, ...))"
+                            % (self.__class__.__name__, ))
+            return False
 
 
 class BackupSourceCtrl(bs.models.Sources):
@@ -285,8 +471,8 @@ class BackupSourceCtrl(bs.models.Sources):
     _source_name = None
     _source_path = None
 
-    def __init__(self, session, source_id, source_name, source_path):
-        self._session = session
+    def __init__(self, session_gui, source_id, source_name, source_path):
+        self._session = session_gui
         self._source_id = source_id
         self._source_name = source_name
         self._source_path = source_path
@@ -303,6 +489,10 @@ class BackupSourceCtrl(bs.models.Sources):
         *
         """
         return "Source #%d <%s>" % (self._source_id, self.__class__.__name__, )
+
+    @property
+    def source_id(self):
+        return self._source_id
 
     @property
     def source_name(self):
@@ -356,7 +546,7 @@ class BackupSourcesCtrl(bs.models.Sources):
     *
     """
     _session = None
-    _sources = []
+    _sources = None
 
     def __init__(self, session):
         """
@@ -365,6 +555,8 @@ class BackupSourcesCtrl(bs.models.Sources):
         super(BackupSourcesCtrl, self).__init__()
         self._session = session
 
+        self._sources = []
+
     def __repr__(self):
         return "Sources <%s>" % (self.__class__.__name__, )
 
@@ -372,10 +564,10 @@ class BackupSourcesCtrl(bs.models.Sources):
     def sources(self):
         """
         *
-        Returns all source objects saved in self._sources.
+        Returns all source objects referenced in self._sources.
         """
         # sources list is empty, load from db
-        if len(self._sources) == 0:
+        if not len(self._sources):
             res = self._get("id, source_name, source_path",
                             (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
@@ -390,7 +582,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         return self._sources
 
     @sources.setter
-    def sources(self):
+    def sources(self, arg):
         return False
 
     # OVERLOADS
@@ -400,7 +592,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -411,7 +603,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -422,7 +614,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -499,8 +691,8 @@ class BackupTargetCtrl(bs.models.Targets):
     _target_name = None
     _target_device_id = None
 
-    def __init__(self, session, target_id, target_name, target_device_id):
-        self._session = session
+    def __init__(self, session_gui, target_id, target_name, target_device_id):
+        self._session = session_gui
         self._target_id = target_id
         self._target_name = target_name
         self._target_device_id = target_device_id
@@ -588,14 +780,16 @@ class BackupTargetsCtrl(bs.models.Targets):
     *
     """
     _session = None
-    _targets = []
+    _targets = None
 
-    def __init__(self, session):
+    def __init__(self, session_gui):
         """
         *
         """
         super(BackupTargetsCtrl, self).__init__()
-        self._session = session
+        self._session = session_gui
+
+        self._targets = []
 
     def __repr__(self):
         return "Targets <%s>" % (self.__class__.__name__)
@@ -632,7 +826,7 @@ class BackupTargetsCtrl(bs.models.Targets):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -643,7 +837,7 @@ class BackupTargetsCtrl(bs.models.Targets):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -654,7 +848,7 @@ class BackupTargetsCtrl(bs.models.Targets):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -752,8 +946,8 @@ class BackupFilterCtrl(bs.models.Filters):
     _filter_id = None
     _filter_pattern = None
 
-    def __init__(self, session, filter_id, filter_pattern):
-        self._session = session
+    def __init__(self, session_gui, filter_id, filter_pattern):
+        self._session = session_gui
         self._filter_id = filter_id
         self._filter_pattern = filter_pattern
         # if flter_id == None, this is a new filter, add to database
@@ -804,14 +998,16 @@ class BackupFiltersCtrl(bs.models.Filters):
     *
     """
     _session = None
-    _filters = []
+    _filters = None
 
-    def __init__(self, session):
+    def __init__(self, session_gui):
         """
         *
         """
         super(BackupFiltersCtrl, self).__init__()
-        self._session = session
+        self._session = session_gui
+
+        self._filters = []
 
     def __repr__(self):
         return "Filters <%s>" % (self.__class__.__name__)
@@ -845,7 +1041,7 @@ class BackupFiltersCtrl(bs.models.Filters):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -855,7 +1051,7 @@ class BackupFiltersCtrl(bs.models.Filters):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -865,7 +1061,7 @@ class BackupFiltersCtrl(bs.models.Filters):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -978,7 +1174,25 @@ class BackupSetCtrl(bs.models.Sets):
         """
         *
         """
-        return "Sets #%d <%s>" % (self._set_id, self.__class__.__name__, )
+        return "Sets #%d id(%d) <%s>" % (self._set_id,
+                                        id(self),
+                                        self.__class__.__name__, )
+
+    @property
+    def set_id(self):
+        return self._set_id
+
+    @set_id.setter
+    def set_id(self):
+        return False
+
+    @property
+    def set_uid(self):
+        return self._set_uid
+
+    @set_uid.setter
+    def set_uid(self):
+        return False
 
     @property
     def set_name(self):
@@ -1007,6 +1221,14 @@ class BackupSetCtrl(bs.models.Sets):
                      (("set_name", set_name, ), ),
                      (("id", "=", self._set_id, ), )
                      )
+
+    @property
+    def key_hash_64(self):
+        return self._key_hash_64
+
+    @key_hash_64.setter
+    def key_hash_64(self):
+        return False
 
     @property
     def set_db_path(self):
@@ -1131,29 +1353,13 @@ class BackupSetCtrl(bs.models.Sets):
         self._update((("targets", json.dumps(target_ids_list)), ),
                      (("id", "=", self._set_id, ), ))
 
-    @property
-    def set_uid(self):
-        return self._set_uid
-
-    @set_uid.setter
-    def set_uid(self):
-        return False
-
-    @property
-    def key_hash_64(self):
-        return self._key_hash_64
-
-    @key_hash_64.setter
-    def key_hash_64(self):
-        return False
-
 
 class BackupSetsCtrl(bs.models.Sets):
     """
     *
     """
     _session = None
-    _sets = []
+    _sets = None
 
     def __init__(self, session):
         """
@@ -1161,6 +1367,8 @@ class BackupSetsCtrl(bs.models.Sets):
         """
         super(BackupSetsCtrl, self).__init__()
         self._session = session
+
+        self._sets = []
 
     def __repr__(self):
         return "Sets <%s>" % (self.__class__.__name__)
@@ -1193,16 +1401,16 @@ class BackupSetsCtrl(bs.models.Sets):
                     if target_obj._target_id in json.loads(data_set[7]):
                         target_objs.append(target_obj)
 
-                new_filter_obj = BackupSetCtrl(self._session,
-                                               set_id,
-                                               set_uid,
-                                               set_name,
-                                               key_hash_64,
-                                               set_db_path,
-                                               source_objs,
-                                               filter_objs,
-                                               target_objs)
-                self._sets.append(new_filter_obj)
+                new_set_obj = BackupSetCtrl(self._session,
+                                            set_id,
+                                            set_uid,
+                                            set_name,
+                                            key_hash_64,
+                                            set_db_path,
+                                            source_objs,
+                                            filter_objs,
+                                            target_objs)
+                self._sets.append(new_set_obj)
         return self._sets
 
     @sets.setter
@@ -1215,7 +1423,7 @@ class BackupSetsCtrl(bs.models.Sets):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -1225,7 +1433,7 @@ class BackupSetsCtrl(bs.models.Sets):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -1235,7 +1443,7 @@ class BackupSetsCtrl(bs.models.Sets):
         *
         Reimplemented from BSModel()
         """
-        if self._session.user._is_logged_in:
+        if self._session._is_logged_in:
             return True
         else:
             return False
@@ -1350,5 +1558,9 @@ class BackupSetsCtrl(bs.models.Sets):
             return False
         # delete from DB
         self._remove((("id", "=", set_id, ), ))
+        # remove corresponding object from self._sets
+        for set in self._sets:
+            if set.set_id == set_id:
+                self._sets.pop(self._sets.index(set))
         # out
         return True
