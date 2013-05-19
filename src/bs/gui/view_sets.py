@@ -40,6 +40,10 @@ class ViewSets(QtGui.QWidget):
         self._init_ui()
 
     @property
+    def sets_list(self):
+        return self._sets_list
+
+    @property
     def sets_details(self):
         return self._sets_details
 
@@ -54,7 +58,7 @@ class ViewSets(QtGui.QWidget):
         self._sets_list = ViewSetsSetsList(self._sesson_gui, self)
         self._layout.addWidget(self._sets_list, 0, 0, 1, 1)
         # details panel
-        self._sets_details = ViewSetsDetails(self._sesson_gui)
+        self._sets_details = ViewSetsDetails(self._sesson_gui, self)
         self._layout.addWidget(self._sets_details, 0, 1, 1, 3)
         self.refresh()
 
@@ -72,16 +76,15 @@ class ViewSets(QtGui.QWidget):
         self._layout.setColumnStretch(0, 1)
         self._layout.setColumnStretch(1, 99)
         # sources
-        if self._sets_details.sources_widget:
+        try:
             self._sets_details.sources_widget.refresh_pos()
+        except:
+            pass
 
     def refresh(self):
         """ * """
         # list
         self._sets_list.refresh()
-        # details
-        if self._sets_list.item(0):
-            self._sets_details.refresh(self._sets_list.item(0))
 
 
 class ViewSetsSetsList(QtGui.QListWidget):
@@ -98,6 +101,7 @@ class ViewSetsSetsList(QtGui.QListWidget):
         self._view_sets = view_sets
 
         self._init_ui()
+        self.setFocus()
 
     def _init_ui(self):
         """ * """
@@ -121,6 +125,13 @@ class ViewSetsSetsList(QtGui.QListWidget):
         item.backup_set.set_name = item.text()
         return True
 
+    def keyReleaseEvent(self, e):
+        if e.key() == QtCore.Qt.Key_Up or\
+            e.key() == QtCore.Qt.Key_Down:
+            current_item = self.currentItem()
+            self._view_sets.sets_details.refresh(current_item)
+        super(ViewSetsSetsList, self).keyReleaseEvent(e)
+
     def mousePressEvent(self, e):
         """ * """
         item_clicked = self.itemAt(e.x(), e.y())
@@ -130,13 +141,20 @@ class ViewSetsSetsList(QtGui.QListWidget):
             if item_clicked:
                 self.setCurrentItem(item_clicked)
                 item_clicked.context_menu.popup(e.globalPos())
+                self._view_sets.sets_details.refresh(item_clicked)
+            if not item_clicked:
+                if self.currentItem():
+                    self.currentItem().setSelected(False)
+                    self._view_sets.sets_details.refresh(None)
+        # left-click
         else:
             if not item_clicked:
                 if self.currentItem():
                     self.currentItem().setSelected(False)
+                self._view_sets.sets_details.refresh(None)
             else:
                 self._view_sets.sets_details.refresh(item_clicked)
-                super(ViewSetsSetsList, self).mousePressEvent(e)
+        super(ViewSetsSetsList, self).mousePressEvent(e)
 
     def refresh(self):
         """ * """
@@ -229,14 +247,16 @@ class ViewSetsSetsListItemCMenu(QtGui.QMenu):
 class ViewSetsDetails(QtGui.QWidget):
     """ * """
     _session_gui = None
+    _view_sets = None
 
     _sources_widget = None
     _list_widget_item = None
 
-    def __init__(self, sesson_gui):
+    def __init__(self, sesson_gui, view_sets):
         super(ViewSetsDetails, self).__init__()
 
         self._session_gui = sesson_gui
+        self._view_sets = view_sets
 
         self._init_ui()
 
@@ -257,32 +277,42 @@ class ViewSetsDetails(QtGui.QWidget):
         # get active QListWidgetItem
         self._list_widget_item = list_widget_item
         # rebuild widgets
-        if self._sources_widget:
+        try:
             self._sources_widget.deleteLater()
-        self._sources_widget = ViewSetsDetailsSources(self,
-                                                      self._session_gui,
-                                                      self._list_widget_item)
+        except:
+            pass
+        if self._list_widget_item:
+            self._sources_widget = ViewSetsDetailsSources(self,
+                                                          self._session_gui,
+                                                          self._view_sets,
+                                                          self._list_widget_item)
 
 
 class ViewSetsDetailsSources(QtGui.QFrame):
     """ * """
     _session_gui = None
+    _view_sets = None
     _view_sets_details = None
     _list_widget_item = None
 
     _layout = None
     _title = None
 
-    def __init__(self, owner, session_gui, list_widget_item):
+    def __init__(self, owner, session_gui, view_sets, list_widget_item):
         super(ViewSetsDetailsSources, self).__init__(owner)
 
         self._session_gui = session_gui
+        self._view_sets = view_sets
         self._view_sets_details = owner
         self._list_widget_item = list_widget_item
 
         self._init_ui()
         self.refresh_pos()
         self.show()
+
+    @property
+    def list_widget_item(self):
+        return self._list_widget_item
 
     def _init_ui(self):
         """ * """
@@ -300,7 +330,11 @@ class ViewSetsDetailsSources(QtGui.QFrame):
         i = 0
         new_height = 0
         for source in self._list_widget_item.backup_set.sources:
-            widget = ViewSetsDetailsSource(self, source, self._list_widget_item.backup_set)
+            widget = ViewSetsDetailsSource(self,
+                                           source,
+                                           self._list_widget_item.backup_set,
+                                           self._view_sets
+                                           )
             self._layout.setRowMinimumHeight(i + 1, widget.height())
             self._layout.setRowStretch(i + 1, 1)
             self._layout.addWidget(widget, i + 1, 0, 1, 1)
@@ -325,19 +359,24 @@ class ViewSetsDetailsSources(QtGui.QFrame):
 
 class ViewSetsDetailsSource(QtGui.QFrame):
     """ * """
-    _parent = None
+    _backup_set = None
     _backup_source = None
+    _view_sets_details_sources = None
+    _view_sets = None
+    _list_widget = None
 
     _layout = None
     _context_menu = None
 
-    def __init__(self, owner, backup_source, backup_set):
-        super(ViewSetsDetailsSource, self).__init__(owner)
+    def __init__(self, view_sets_details_sources, backup_source, backup_set, view_sets):
+        super(ViewSetsDetailsSource, self).__init__(view_sets_details_sources)
 
-        self._parent = owner
-        self._backup_source = backup_source
         self._backup_set = backup_set
+        self._backup_source = backup_source
+        self._view_sets_details_sources = view_sets_details_sources
+        self._view_sets = view_sets
 
+        self._list_widget = view_sets.sets_list
         self._init_ui()
 
     @property
@@ -363,7 +402,7 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         path_widget.setStyleSheet(".QLabel {border: 0px; color: #808080}")
         self._layout.addWidget(path_widget, 1, 0, 1, 1)
 
-        self.setGeometry(0, 0, self._parent.width(), 50)
+        self.setGeometry(0, 0, self._view_sets_details_sources.width(), 50)
         self.setStyleSheet(".ViewSetsDetailsSource {background: #f0f0f0; border: 1px solid #FFFFFF; border-radius: 2px} .ViewSetsDetailsSource:hover {background: #FFFFFF}")
 
         # context menu
@@ -380,11 +419,22 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         """ *
         Removes the backup_source from the backup-set.
         """
+        msg_detailed = "Are you sure you want to <b>remove</b> the following <i>backup-source</i> from this <i>backup-set</i>?"
+        msg_detailed += "<ul><li> &nbsp; %s</li>" % (self._backup_set.set_name, )
+        msg_detailed += "<ul>"
+        for backup_source in [x.source_name for x in self._backup_set.sources]:
+            if backup_source == self._backup_source.source_name:
+                msg_detailed += "<li> &nbsp; <span style='text-decoration: line-through; font-weight: bold'>%s</span></li>"\
+                                % (self._backup_source.source_name, )
+            else:
+                msg_detailed += "<li> &nbsp; %s</li>" % (backup_source, )
+        msg_detailed += "</ul>"
+        msg_detailed += "</ul>"
+        msg_detailed += "<br />"
+        msg_detailed += "This <i>source</i> itself will not be deleted."
         confirm_msg_box = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
                                             "Confirm Removal",
-                                            "Are you sure you want to remove the following backup-source from this backup-set (%s)?\n\n%s\n\nThis source itself will not be deleted."
-                                            % (self._backup_set.set_name,
-                                               self._backup_source.source_name, ))
+                                            msg_detailed)
         dialog_btn_cancel = confirm_msg_box.addButton(QtGui.QMessageBox.Cancel)
         dialog_btn_ok = confirm_msg_box.addButton(QtGui.QMessageBox.Ok)
         confirm_msg_box.exec_()
@@ -392,8 +442,8 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         if confirm_msg_box.clickedButton() is dialog_btn_ok:
             source_id = self._backup_source.source_id
             self._session_gui.session.backup_sets.remove(source_id)
-#        # refresh list
-#        self._list_widget.refresh()
+        # refresh list
+        self._list_widget.refresh()
 
 
 class ViewSetsDetailsSourceCMenu(QtGui.QMenu):

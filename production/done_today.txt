@@ -1,0 +1,6 @@
+################################
+## DONE TODAY ##################
+################################
+
+- isinstance(): converted all comparison class-paths to absolute paths (bs.session.~ vs. ~)
+- restructured source-files: created bs.ctrl, ~.model and sorted files accordingly

@@ -114,8 +114,8 @@
 ................................
 [.]		Q/A
 		........................
-[.]		clean-up old code
-[ ]		check module-structure
+[.]		clean-up old, obsolete code (commented out etc.)
+[OK]	check module-structure
 [ ]		maintain integrity:
 		[ ]	document code
 		[ ]	validate user-input
@@ -130,6 +130,7 @@
 		[ ]	update representations
 		[ ] any code-warnings/errors
 		[ ]	sort methods, variables alphabetically
+		[ ]	remove unused imports
 ................................
 ................................
 [.]		NEXT MILESTONE: 0003

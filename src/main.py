@@ -17,9 +17,9 @@
 
 """ * """
 
-import bs._db
-import bs.backup
-import bs.session
+import bs.ctrl._db
+import bs.ctrl.backup
+import bs.ctrl.session
 import logging
 import os
 import re
@@ -47,17 +47,17 @@ if __name__ == '__main__':
         if re.match("^gui\=True$", arg):
             gui_mode = True
     # sync db
-    sync_db = bs._db.SyncDb("bs.models")
+    sync_db = bs.ctrl._db.SyncDb("bs.model.models")
     sync_db.sync()
     # init sessions
-    sessions = bs.session.SessionsCtrl(gui_mode)
+    sessions = bs.ctrl.session.SessionsCtrl(gui_mode)
 
 ## PREP
 ## sync db if necessary
-#sync_db = bs._db.SyncDb("bs.models")
+#sync_db = bs.ctrl._db.SyncDb("bs.model.models")
 #sync_db.sync()
 #
-#my_sessions_1 = bs.session.SessionsCtrl()
+#my_sessions_1 = bs.ctrl.session.SessionsCtrl()
 #my_session_1 = my_sessions_1.add_session("alpha", "1")
 #
 #my_session_2 = my_sessions_1.add_session("bravo", "2")
@@ -86,12 +86,12 @@ if __name__ == '__main__':
 #my_targets_1.remove(my_targets_1.targets[0])
 #print(my_sets_1.sets[0].targets)
 
-#my_backup = bs.backup.Backup(
+#my_backup = bs.ctrl.backup.Backup(
 #                             my_sets_1.sets[0]
 #                             )
 #my_backup.backup_exec()
 
-#my_backup_restore = bs.backup.BackupRestore(my_sets_1.sets[0],
+#my_backup_restore = bs.ctrl.backup.BackupRestore(my_sets_1.sets[0],
 #                                            [10261],
 #                                            "Z:\\test_restore",
 #                                            1367853693)

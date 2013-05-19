@@ -21,7 +21,7 @@ from PySide import QtGui
 import bs.config
 import bs.gui.window_main
 import bs.messages
-import bs.models
+import bs.model.models
 import hashlib
 import json
 import logging
@@ -172,7 +172,7 @@ class SessionGuiCtrl(object):
     @session.setter
     def session(self, session):
         """ * """
-        if not isinstance(session, SessionCtrl):
+        if not isinstance(session, bs.ctrl.session.SessionCtrl):
             logging.warning("%s: The first argument needs to be of type "\
                             "`SessionCtrl`."
                             % (self.__class__.__name__, ))
@@ -352,7 +352,7 @@ class SessionCtrl(object):
             return False
 
 
-class UserCtrl(bs.models.Users):
+class UserCtrl(bs.model.models.Users):
     """ *
     Represents an is_unlocked user.
     """
@@ -420,7 +420,7 @@ class UserCtrl(bs.models.Users):
         Verifies `username`, `password` for correctness and returns boolean.
         This method can only be called from `parent=isinstance(SessionCtrl)`
         """
-        if isinstance(parent, SessionCtrl):
+        if isinstance(parent, bs.ctrl.session.SessionCtrl):
             password_hash = hashlib.sha512(password.encode())
             res = self._get("id", (("username", "=", username),
                                   ("password", "=", password_hash.hexdigest(), ), ),
@@ -450,7 +450,7 @@ class UserCtrl(bs.models.Users):
             return False
 
 
-class BackupSourceCtrl(bs.models.Sources):
+class BackupSourceCtrl(bs.model.models.Sources):
     """ * """
     _session = None
     _source_id = None
@@ -524,7 +524,7 @@ class BackupSourceCtrl(bs.models.Sources):
         return True
 
 
-class BackupSourcesCtrl(bs.models.Sources):
+class BackupSourcesCtrl(bs.model.models.Sources):
     """ * """
     _session = None
     _sources = None
@@ -641,7 +641,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         """
         # VALIDATE DATA
         # source_obj
-        if not isinstance(source_obj, BackupSourceCtrl):
+        if not isinstance(source_obj, bs.ctrl.session.BackupSourceCtrl):
             logging.warning("%s: The first argument needs to be a backup "\
                             "source object."
                             % (self.__class__.__name__, ))
@@ -656,7 +656,7 @@ class BackupSourcesCtrl(bs.models.Sources):
         return True
 
 
-class BackupTargetCtrl(bs.models.Targets):
+class BackupTargetCtrl(bs.model.models.Targets):
     """ * """
     _session = None
     _target_id = None
@@ -738,7 +738,7 @@ class BackupTargetCtrl(bs.models.Targets):
             return out[0]
 
 
-class BackupTargetsCtrl(bs.models.Targets):
+class BackupTargetsCtrl(bs.model.models.Targets):
     """ * """
     _session = None
     _targets = None
@@ -869,7 +869,7 @@ class BackupTargetsCtrl(bs.models.Targets):
         """
         # VALIDATE DATA
         # target_obj
-        if not isinstance(target_obj, BackupTargetCtrl):
+        if not isinstance(target_obj, bs.ctrl.session.BackupTargetCtrl):
             logging.warning("%s: The first argument needs to be a backup "\
                             "target object."
                             % (self.__class__.__name__, ))
@@ -886,7 +886,7 @@ class BackupTargetsCtrl(bs.models.Targets):
         return True
 
 
-class BackupFilterCtrl(bs.models.Filters):
+class BackupFilterCtrl(bs.model.models.Filters):
     """ * """
     _session = None
     _filter_id = None
@@ -931,7 +931,7 @@ class BackupFilterCtrl(bs.models.Filters):
         # out
         return True
 
-class BackupFiltersCtrl(bs.models.Filters):
+class BackupFiltersCtrl(bs.model.models.Filters):
     """ * """
     _session = None
     _filters = None
@@ -1022,7 +1022,7 @@ class BackupFiltersCtrl(bs.models.Filters):
         """
         # VALIDATE DATA
         # filter_id
-        if not isinstance(filter_obj, BackupFilterCtrl):
+        if not isinstance(filter_obj, bs.ctrl.session.BackupFilterCtrl):
             logging.warning("%s: The first argument needs to be of type integer."
                             % (self.__class__.__name__, ))
             return False
@@ -1034,7 +1034,7 @@ class BackupFiltersCtrl(bs.models.Filters):
         return True
 
 
-class BackupSetCtrl(bs.models.Sets):
+class BackupSetCtrl(bs.model.models.Sets):
     """ * """
     _session = None
     _set_id = None
@@ -1167,7 +1167,7 @@ class BackupSetCtrl(bs.models.Sets):
             check = True
         else:
             for source_obj in source_objs:
-                if not isinstance(source_obj, BackupSourceCtrl):
+                if not isinstance(source_obj, bs.ctrl.session.BackupSourceCtrl):
                     check = True
         if check:
             logging.warning("%s: The first argument needs to be a list or "\
@@ -1195,7 +1195,7 @@ class BackupSetCtrl(bs.models.Sets):
             check = True
         else:
             for filter_obj in filter_objs:
-                if not isinstance(filter_obj, BackupFilterCtrl):
+                if not isinstance(filter_obj, bs.ctrl.session.BackupFilterCtrl):
                     check = True
         if check:
             logging.warning("%s: The first argument needs to be a list or "\
@@ -1223,7 +1223,7 @@ class BackupSetCtrl(bs.models.Sets):
             check = True
         else:
             for target_obj in target_objs:
-                if not isinstance(target_obj, BackupTargetCtrl):
+                if not isinstance(target_obj, bs.ctrl.session.BackupTargetCtrl):
                     check = True
         if check:
             logging.warning("%s: The first argument needs to be a list or "\
@@ -1238,7 +1238,7 @@ class BackupSetCtrl(bs.models.Sets):
                      (("id", "=", self._set_id, ), ))
 
 
-class BackupSetsCtrl(bs.models.Sets):
+class BackupSetsCtrl(bs.model.models.Sets):
     """ * """
     _session = None
     _sets = None
@@ -1359,21 +1359,21 @@ class BackupSetsCtrl(bs.models.Sets):
             check = True
         else:
             for source_obj in source_objs:
-                if not isinstance(source_obj, BackupSourceCtrl):
+                if not isinstance(source_obj, bs.ctrl.session.BackupSourceCtrl):
                     check = True
         # filter_objs
         if not isinstance(filter_objs, (list, tuple)):
             check = True
         else:
             for filter_obj in filter_objs:
-                if not isinstance(filter_obj, BackupFilterCtrl):
+                if not isinstance(filter_obj, bs.ctrl.session.BackupFilterCtrl):
                     check = True
         # target_objs
         if not isinstance(target_objs, (list, tuple)):
             check = True
         else:
             for target_obj in target_objs:
-                if not isinstance(target_obj, BackupTargetCtrl):
+                if not isinstance(target_obj, bs.ctrl.session.BackupTargetCtrl):
                     check = True
 
         if check:

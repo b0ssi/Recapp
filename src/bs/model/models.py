@@ -17,10 +17,10 @@
 
 """ * """
 
-import bs.models_master
+import bs.model.models_master
 
 
-class Users(bs.models_master.BSModel):
+class Users(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     username = ["TEXT", "UNIQUE"]
     password = ["TEXT"]
@@ -29,7 +29,7 @@ class Users(bs.models_master.BSModel):
         pass
 
 
-class Sources(bs.models_master.BSModel):
+class Sources(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     source_name = ["TEXT"]
@@ -39,7 +39,7 @@ class Sources(bs.models_master.BSModel):
         pass
 
 
-class Targets(bs.models_master.BSModel):
+class Targets(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     target_name = ["TEXT"]
@@ -49,7 +49,7 @@ class Targets(bs.models_master.BSModel):
         pass
 
 
-class Filters(bs.models_master.BSModel):
+class Filters(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     filter_pattern = ["TEXT"]
@@ -58,7 +58,7 @@ class Filters(bs.models_master.BSModel):
         pass
 
 
-class Sets(bs.models_master.BSModel):
+class Sets(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     set_uid = ["TEXT", "UNIQUE"]
     user_id = ["INTEGER"]

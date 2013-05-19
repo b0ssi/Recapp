@@ -15,7 +15,7 @@
 ##                                                                           ##
 ###############################################################################
 
-import bs._db
+import bs.ctrl._db
 import os
 import time
 import unittest
@@ -107,7 +107,7 @@ class TestSyncDb_verify_schema(unittest.TestCase):
 
         write_mock_class_empty(file_path)
 
-        sync_db = bs._db.SyncDb(module_path)
+        sync_db = bs.ctrl._db.SyncDb(module_path)
         self.assertTrue(sync_db._verify_schema())
 
         # clean-up mock-module
@@ -122,7 +122,7 @@ class TestSyncDb_verify_schema(unittest.TestCase):
         write_mock_class_only_invalid_class_name(file_path)
 
         with self.assertRaises(SystemExit):
-            sync_db = bs._db.SyncDb(module_path)
+            sync_db = bs.ctrl._db.SyncDb(module_path)
 
         # clean-up mock-module
         remove_mock_class(file_path)
@@ -176,7 +176,7 @@ class TestSyncDb_verify_schema(unittest.TestCase):
 
             write_mock_class_member(file_path, contents_combination)
 
-            sync_db = bs._db.SyncDb(module_path)
+            sync_db = bs.ctrl._db.SyncDb(module_path)
             with self.assertRaises(SystemExit):
                 sync_db._verify_schema()
 
@@ -198,7 +198,7 @@ class TestSyncDb_verify_schema(unittest.TestCase):
 
             write_mock_class_member(file_path, contents_combination)
 
-            sync_db = bs._db.SyncDb(module_path)
+            sync_db = bs.ctrl._db.SyncDb(module_path)
             self.assertTrue(sync_db._verify_schema())
 
             # clean-up mock-module
