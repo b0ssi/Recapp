@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-from PySide import QtCore, QtGui
-from bs.gui.window_about import WindowAbout
-import bs.config
-import bs.gui.view_login
-import bs.gui.view_sets
-import bs.gui.window_about
-import logging
-import time
 
 ###############################################################################
 ##    bs.ui.main_window                                                      ##
@@ -25,6 +17,14 @@ import time
 
 """ * """
 
+from PySide import QtCore, QtGui
+from bs.gui.window_about import WindowAbout
+import bs.config
+import bs.gui.view_login
+import bs.gui.view_sets
+import bs.gui.window_about
+import logging
+import time
 
 
 class WindowMain(QtGui.QMainWindow):
@@ -116,7 +116,7 @@ class WindowMain(QtGui.QMainWindow):
             widget = bs.gui.view_sets.ViewSets(self._session_gui)
             self._layout.addWidget(widget, 0, 0, 1, 1)
             widget.sets_list.setFocus()
-            
+
         # update menu
         self._menu_bar.update()
 
@@ -159,7 +159,7 @@ class WindowMain(QtGui.QMainWindow):
         if self._session_gui.session:
             self._session_gui.session.log_out()
         # remove reference from _guis list
-        self._sessions.guis.pop(self._sessions.guis.index(self._session_gui))
+        self._sessions.remove_session_gui(self._session_gui)
 
 
 class WindowMainMenu(QtGui.QMenuBar):
@@ -288,7 +288,7 @@ class WindowMainMenuFile(QtGui.QMenu):
         self.setTitle(self._title)
 
         self._action_new_window = QtGui.QAction("&New Window", self)
-        self._action_new_window.triggered.connect(self._sessions.add_gui)
+        self._action_new_window.triggered.connect(self._sessions.add_session_gui)
         self._action_new_window.setShortcut("Ctrl+N")
         self.addAction(self._action_new_window)
         self.addSeparator()

@@ -114,10 +114,10 @@
 ................................
 [.]		Q/A
 		........................
-[.]		clean-up old, obsolete code (commented out etc.)
-[OK]	check module-structure
-[ ]		maintain integrity:
-		[ ]	document code
+[X]		clean-up old, obsolete code (commented out etc.)
+[X]		check module-structure
+[.]		maintain integrity:
+		[.]	document code
 		[ ]	validate user-input
 		[ ]	write test/test
 		[ ]	manage conditional exception-handling
@@ -131,6 +131,7 @@
 		[ ] any code-warnings/errors
 		[ ]	sort methods, variables alphabetically
 		[ ]	remove unused imports
+		[ ]	Make sure all modified-flags (*) are reset
 ................................
 ................................
 [.]		NEXT MILESTONE: 0003
@@ -146,16 +147,15 @@
 			[.]	details widget to visualize/edit/execute etc. sets
 				[.]	sources
 					[ ]	ability to add a source
-					[.]	ability to remove a source
+					[X]	ability to remove a source
 					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 				[ ]	filters
 				[ ]	targets
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
 		[ ]	implement consistent scheme for passing object-references into classes
-[.]		controllers:
-		[.]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
-		[ ]	
+[X]		controllers:
+		[X]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
 ................................
 [ ]		Q/A
 		........................

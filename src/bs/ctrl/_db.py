@@ -161,9 +161,6 @@ class SyncDb(object):
             if inspect.isclass(member_object):
                 out_no_class_found = False
                 # validate class name
-                # allowed: a-zA-Z0-9_
-                # first character only: _a-zA-Z
-                # 4-32 characters
                 if not re.search(bs.config.REGEX_PATTERN_TABLE,
                                  member_name):
                     logging.critical("The model '%s' has an invalid name. It "\

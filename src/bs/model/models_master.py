@@ -168,9 +168,6 @@ class BSModel(object):
                 return []
         # VALIDATE PARAMETERS
         # columns
-        # allowed: a-z0-9_
-        # first character only: _a-z
-        # at least 4 characters
         if not isinstance(columns, str) or \
             not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns) and\
             not columns == "*":

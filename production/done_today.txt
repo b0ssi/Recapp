@@ -2,6 +2,16 @@
 ## DONE TODAY ##################
 ################################
 
+2013-05-20
+- [done] clean-up old, obsolete code (commented out etc.)
+- [done] refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
+- [done] ability to remove a source
+	- session: Added BackupSetCtrl.remove_backup_source()
+- implemented scroll area into view_sets_details
+- set-up the whole view_sets dynamic custom layout management
+- implemented a view_set_details_arrows arrow set (sources to filters for now)
+
+2013-05-19
 - isinstance(): converted all comparison class-paths to absolute paths (bs.session.~ vs. ~)
 - restructured source-files: created bs.ctrl, ~.model and sorted files accordingly
 - [done] fixed/expanded keyboard/mouse controls on ViewSetsSetsList

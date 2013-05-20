@@ -23,6 +23,7 @@ import threading
 import time
 import win32file
 
+
 class Event(object):
     """ * """
     def __init__(self):

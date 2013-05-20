@@ -246,14 +246,6 @@ class Backup(object):
                 # update path
                 # no need to update: path is primary representation of entity,
                 # thus would never change between snapshots for a singe
-                # entity_id
-#                try:
-#                    conn.execute("UPDATE path SET %s = ? WHERE id = ?"
-#                                 % (new_column_name, ),
-#                                 (file_path, entity_id, ))
-#                    logging.debug("%s: path updated: %s"
-#                                  % (self.__class__.__name__, entity_id, ))
-#                except: pass
                 # update size
                 try:
                     conn.execute("UPDATE size SET %s = ? WHERE id = ?"
@@ -723,7 +715,8 @@ class BackupFile(object):
         if self._current_backup_archive_name:
             return self._current_backup_archive_name
         else:
-            # ABSTRACT
+            ## ABSTRACT ####################
+            ################################
             # scan all targets, select latest archive name of all of them
             # construct path for latest backup archive, if found
             # if latest archive found and size below threshold, use this latest archive

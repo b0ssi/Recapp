@@ -33,7 +33,6 @@ import time
 import win32file
 
 
-
 class SessionsCtrl(object):
     """
     Stores and manages sessions for all is_unlocked users.
@@ -54,7 +53,7 @@ class SessionsCtrl(object):
         if self._gui_mode:
             self._app = QtGui.QApplication("asdf")
             self._app.setWindowIcon(QtGui.QIcon("img/favicon.png"))
-            self.add_gui()
+            self.add_session_gui()
             self._app.exec_()
 
     def __repr__(self):
@@ -129,20 +128,26 @@ class SessionsCtrl(object):
         """
         if session:
             self._sessions.pop(self._sessions.index(session))
-            self._current_session = self._sessions[-1]
             logging.info("%s: Session successfully removed: %s"
                          % (self.__class__.__name__, session, ))
         else:
             logging.warning("%s: The session does not exist: %s"
                             % (self.__class__.__name__, session, ))
 
-    def add_gui(self):
+    def add_session_gui(self):
         """ *
         Adds a new UI instance to host a separate is_unlocked session.
         """
         session_gui = SessionGuiCtrl(self)
         self._guis.append(session_gui)
         return session_gui
+
+    def remove_session_gui(self, session_gui):
+        """ *
+        Removes the session_gui instance from this Sessions.
+        """
+        self._guis.pop(self._guis.index(session_gui))
+        return True
 
 
 class SessionGuiCtrl(object):
@@ -172,7 +177,7 @@ class SessionGuiCtrl(object):
     @session.setter
     def session(self, session):
         """ * """
-        if not isinstance(session, bs.ctrl.session.SessionCtrl):
+        if not isinstance(session, SessionCtrl):
             logging.warning("%s: The first argument needs to be of type "\
                             "`SessionCtrl`."
                             % (self.__class__.__name__, ))
@@ -420,7 +425,7 @@ class UserCtrl(bs.model.models.Users):
         Verifies `username`, `password` for correctness and returns boolean.
         This method can only be called from `parent=isinstance(SessionCtrl)`
         """
-        if isinstance(parent, bs.ctrl.session.SessionCtrl):
+        if isinstance(parent, SessionCtrl):
             password_hash = hashlib.sha512(password.encode())
             res = self._get("id", (("username", "=", username),
                                   ("password", "=", password_hash.hexdigest(), ), ),
@@ -596,9 +601,9 @@ class BackupSourcesCtrl(bs.model.models.Sources):
             return False
     # /OVERLOADS
 
-    def add(self, source_name, source_path):
+    def create_backup_source(self, source_name, source_path):
         """ *
-        Adds a new source.
+        Creates a new backup-source.
         """
         # VALIDATE DATA
         # source_name
@@ -635,13 +640,13 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         # out
         return True
 
-    def remove(self, source_obj):
+    def delete_backup_source(self, source_obj):
         """ *
-        Removes an existing source.
+        Deletes an existing backup-source.
         """
         # VALIDATE DATA
         # source_obj
-        if not isinstance(source_obj, bs.ctrl.session.BackupSourceCtrl):
+        if not isinstance(source_obj, BackupSourceCtrl):
             logging.warning("%s: The first argument needs to be a backup "\
                             "source object."
                             % (self.__class__.__name__, ))
@@ -804,10 +809,9 @@ class BackupTargetsCtrl(bs.model.models.Targets):
             return False
     # /OVERLOADS
 
-    def add(self, target_name, target_path):
+    def create_backup_target(self, target_name, target_path):
         """ *
-        Adds a new target.
-        Returns the target_device_id.
+        Creates a new backup-target.
         """
         # VERIFY DATA
         # target_name
@@ -862,14 +866,14 @@ class BackupTargetsCtrl(bs.model.models.Targets):
                              % (self.__class__.__name__, target_path, ))
             return False
 
-    def remove(self, target_obj):
+    def delete_backup_target(self, target_obj):
         """ *
-        Removes an existing target.
+        Deletes an existing backup-target.
         Does *not* delete any file-system data.
         """
         # VALIDATE DATA
         # target_obj
-        if not isinstance(target_obj, bs.ctrl.session.BackupTargetCtrl):
+        if not isinstance(target_obj, BackupTargetCtrl):
             logging.warning("%s: The first argument needs to be a backup "\
                             "target object."
                             % (self.__class__.__name__, ))
@@ -930,6 +934,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
         self._filter_pattern = filter_pattern
         # out
         return True
+
 
 class BackupFiltersCtrl(bs.model.models.Filters):
     """ * """
@@ -993,9 +998,9 @@ class BackupFiltersCtrl(bs.model.models.Filters):
             return False
     # /OVERLOADS
 
-    def add(self, filter_pattern):
+    def create_backup_filter(self, filter_pattern):
         """ *
-        Adds a new filter.
+        Creates a new backup-filter.
         """
         # VALIDATE DATA
         # filter
@@ -1016,13 +1021,13 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         # out
         return True
 
-    def remove(self, filter_obj):
+    def delete_backup_filter(self, filter_obj):
         """ *
-        Removes an existing filter.
+        Deletes an existing backup-filter.
         """
         # VALIDATE DATA
         # filter_id
-        if not isinstance(filter_obj, bs.ctrl.session.BackupFilterCtrl):
+        if not isinstance(filter_obj, BackupFilterCtrl):
             logging.warning("%s: The first argument needs to be of type integer."
                             % (self.__class__.__name__, ))
             return False
@@ -1167,7 +1172,7 @@ class BackupSetCtrl(bs.model.models.Sets):
             check = True
         else:
             for source_obj in source_objs:
-                if not isinstance(source_obj, bs.ctrl.session.BackupSourceCtrl):
+                if not isinstance(source_obj, BackupSourceCtrl):
                     check = True
         if check:
             logging.warning("%s: The first argument needs to be a list or "\
@@ -1195,7 +1200,7 @@ class BackupSetCtrl(bs.model.models.Sets):
             check = True
         else:
             for filter_obj in filter_objs:
-                if not isinstance(filter_obj, bs.ctrl.session.BackupFilterCtrl):
+                if not isinstance(filter_obj, BackupFilterCtrl):
                     check = True
         if check:
             logging.warning("%s: The first argument needs to be a list or "\
@@ -1223,7 +1228,7 @@ class BackupSetCtrl(bs.model.models.Sets):
             check = True
         else:
             for target_obj in target_objs:
-                if not isinstance(target_obj, bs.ctrl.session.BackupTargetCtrl):
+                if not isinstance(target_obj, BackupTargetCtrl):
                     check = True
         if check:
             logging.warning("%s: The first argument needs to be a list or "\
@@ -1236,6 +1241,48 @@ class BackupSetCtrl(bs.model.models.Sets):
         target_ids_list = [x._target_id for x in target_objs]
         self._update((("targets", json.dumps(target_ids_list)), ),
                      (("id", "=", self._set_id, ), ))
+
+    def add_backup_source(self, backup_source):
+        """ *
+        Adds a backup-source to this backup-set.
+        """
+        ## NOT TESTED YET ##############
+        ################################
+        return False
+
+        # VALIDATE DATA
+        # backup-source
+        if not isinstance(backup_source, BackupSourceCtrl):
+            logging.warning("Argument one needs to be of type BackupSourceCtrl.")
+            return False
+        backup_source_id = backup_source.source_id
+        # if in this backup-set, remove
+        if backup_source in self.sources:
+            # remove from self.sources
+            self.sources.pop(self.sources.index(backup_source))
+            # remove from backup-set in db
+            res = self._get(("sources", ), (("id", "=", self.set_id, ), ))
+            print(res)
+        # if not in this backup-set
+        else:
+            logging.warning("The backup-source is not part of this "\
+                            "backup-set (%s): %s"
+                            % (self, backup_source, ))
+
+    def remove_backup_source(self, backup_source):
+        """ *
+        Removes a backup-source from this backup-set.
+        """
+        backup_source_id = backup_source.source_id
+        backup_sources_list_new = []
+        # remove object from self.sources
+        self._sources.pop(self._sources.index(backup_source))
+        # compile new list for db
+        for backup_source_in_current_set in [x.source_id for x in self._sources]:
+            if not backup_source_in_current_set == backup_source_id:
+                backup_sources_list_new.append(backup_source_in_current_set)
+        # update db
+        self._update((("sources", json.dumps(backup_sources_list_new), ), ), (("id", "=", self.set_id, ), ))
 
 
 class BackupSetsCtrl(bs.model.models.Sets):
@@ -1319,8 +1366,9 @@ class BackupSetsCtrl(bs.model.models.Sets):
             return False
     # /OVERLOADS
 
-    def add(self, set_name, key_raw, set_db_path, source_objs, filter_objs, target_objs):
+    def create_backup_set(self, set_name, key_raw, set_db_path, source_objs, filter_objs, target_objs):
         """ *
+        Creates a new (empty) backup-set.
         """
         # VALIDATE DATA
         # set_name
@@ -1359,21 +1407,21 @@ class BackupSetsCtrl(bs.model.models.Sets):
             check = True
         else:
             for source_obj in source_objs:
-                if not isinstance(source_obj, bs.ctrl.session.BackupSourceCtrl):
+                if not isinstance(source_obj, BackupSourceCtrl):
                     check = True
         # filter_objs
         if not isinstance(filter_objs, (list, tuple)):
             check = True
         else:
             for filter_obj in filter_objs:
-                if not isinstance(filter_obj, bs.ctrl.session.BackupFilterCtrl):
+                if not isinstance(filter_obj, BackupFilterCtrl):
                     check = True
         # target_objs
         if not isinstance(target_objs, (list, tuple)):
             check = True
         else:
             for target_obj in target_objs:
-                if not isinstance(target_obj, bs.ctrl.session.BackupTargetCtrl):
+                if not isinstance(target_obj, BackupTargetCtrl):
                     check = True
 
         if check:
@@ -1415,8 +1463,10 @@ class BackupSetsCtrl(bs.model.models.Sets):
         # out
         return True
 
-    def remove(self, set_id):
-        """ * """
+    def delete_backup_set(self, set_id):
+        """ *
+        Deletes an existing backup-set.
+        """
         # VALIDATE DATA
         # set_id
         if not type(set_id) is int:
