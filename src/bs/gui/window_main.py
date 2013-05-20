@@ -105,7 +105,7 @@ class WindowMain(QtGui.QMainWindow):
         """
         # clear layout
         for i in range(self._layout.count()):
-            self._layout.itemAt(i).widget().close()
+            self._layout.itemAt(i).widget().deleteLater()
         if view == "login":
             # ui: set
             widget = bs.gui.view_login.ViewLogin(self._sessions,
@@ -115,6 +115,8 @@ class WindowMain(QtGui.QMainWindow):
         elif view == "x":
             widget = bs.gui.view_sets.ViewSets(self._session_gui)
             self._layout.addWidget(widget, 0, 0, 1, 1)
+            widget.sets_list.setFocus()
+            
         # update menu
         self._menu_bar.update()
 
