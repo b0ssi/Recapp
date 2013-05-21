@@ -15,7 +15,9 @@
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+""" *
+Manages and maintains the database(s) (config database, backup-set databases).
+"""
 
 import bs.config
 import bs.messages.database
@@ -120,7 +122,10 @@ class SyncDb(object):
         return out
 
     def sync(self, execute=True):
-        """ Just add description """
+        """
+        Main class-function: Runs all methods in this class to syncronize
+        and clean-up the database.
+        """
         logging.info("## Synchronizing database-structure with Schema... #############")
         compact_db = False
         # verifying that schema-data is true...

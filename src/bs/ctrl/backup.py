@@ -15,7 +15,7 @@
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+""" Hosts all backup- and restore-logics and procedures. """
 
 import Crypto.Cipher.AES
 import Crypto.Random
@@ -34,7 +34,9 @@ import zlib
 
 
 class Backup(object):
-    """ * """
+    """ *
+    Manages and runs a backup-session.
+    """
     _backup_set = None
     _key_hash_32 = None
     _sources = None
@@ -49,7 +51,8 @@ class Backup(object):
 
     def _update_db(self, conn):
         """ *
-        Returns the name of the new (session-)column
+        (Re-)creates the structure of the database; adds/alters any new
+        elements that might have changed (in the datas schema e.g.).
         """
         # create tables
         conn.execute("CREATE TABLE IF NOT EXISTS atime (id INTEGER PRIMARY KEY)")
@@ -107,8 +110,9 @@ class Backup(object):
 
     def _update_data_in_db(self, conn, new_column_name, **kwargs):
         """ *
-        Depending on what values are passed in, updates according tables in
-        backup set database.
+        Updates a specific entity-dataset in database during backup procedure.
+        Depending on what values are passed in, updates corresponding tables in
+        backup-set database.
         `entity_id` is mandatory as the lookup always needs to be updated as
         well.
         """
@@ -280,7 +284,11 @@ class Backup(object):
             raise
 
     def backup_exec(self):
-        """ * """
+        """ *
+        Main backup-exec: Runs through a set of sources, applying filters,
+        determining the state of an entity, throwing warnings accordingly and
+        backing up those that change has been detected in.
+        """
         # check if set is encrypted and prompt for key_raw-input
         # a key_raw is set as indicated by 64-bit verification hash in db:
         if self._backup_set.key_hash_64:
@@ -640,7 +648,9 @@ class Backup(object):
 
 
 class BackupFile(object):
-    """ * """
+    """ *
+    Representation of a backup-file in its specific state.
+    """
     _backup_set = None
     _path = None
     _targets = None
@@ -659,7 +669,6 @@ class BackupFile(object):
     _current_backup_archive_name = None
 
     def __init__(self, backup_set, file_path, targets, tmp_dir, key_hash_32):
-        """ * """
         self._backup_set = backup_set
         self._path = os.path.realpath(file_path)
         self._targets = targets
@@ -674,7 +683,9 @@ class BackupFile(object):
         self._key_hash_32 = key_hash_32
 
     def __del__(self):
-        """ * """
+        """ *
+        Removes the associated temporary file when this object is deleted.
+        """
         self._remove_tmp_file()
 
     @property

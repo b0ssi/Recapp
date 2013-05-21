@@ -290,7 +290,7 @@ class ViewSetsDetails(QtGui.QWidget):
         return self._list_widget_item
 
     def _init_ui(self):
-        """ * """
+        pass
 
     def refresh(self, list_widget_item=None):
         """ * """
@@ -299,8 +299,10 @@ class ViewSetsDetails(QtGui.QWidget):
         # rebuild widgets
         try:
             self._sources_widget.deleteLater()
-            self._arrows_1.deleteLater()
             self._filters_widget.deleteLater()
+            self._targets_widget.deleteLater()
+            self._arrows_1.deleteLater()
+            self._arrows_2.deleteLater()
         except:
             pass
         if self._list_widget_item:
@@ -308,16 +310,29 @@ class ViewSetsDetails(QtGui.QWidget):
                                                           self._session_gui,
                                                           self._view_sets,
                                                           self._list_widget_item,
-                                                          self.backup_set)
+                                                          self.backup_set,
+                                                          "Sources")
             self._filters_widget = ViewSetsDetailsFilters(self,
-                                                          self._list_widget_item)
-            self._arrows_1 = ViewSetsDetailsArrow(self,
-                                                  self._sources_widget,
-                                                  self._filters_widget,
-                                                  self._backup_set)
+                                                          self._session_gui,
+                                                          self._view_sets,
+                                                          self._list_widget_item,
+                                                          self._backup_set,
+                                                          "Filters")
+            self._targets_widget = ViewSetsDetailsTargets(self,
+                                                          self._session_gui,
+                                                          self._view_sets,
+                                                          self._list_widget_item,
+                                                          self._backup_set,
+                                                          "Targets")
+            self._arrows_1 = ViewSetsDetailsArrow_1(self,
+                                                    self._backup_set)
+            self._arrows_2 = ViewSetsDetailsArrow_2(self,
+                                                    self._backup_set)
             self._sources_widget.show()
             self._filters_widget.show()
+            self._targets_widget.show()
             self._arrows_1.show()
+            self._arrows_2.show()
             # update composition
             self.refresh_geo()
 
@@ -334,17 +349,18 @@ class ViewSetsDetails(QtGui.QWidget):
                                              self._view_sets.height() / 2 - self._sources_widget.height() / 2,
                                              self._sources_widget.width(),
                                              self._sources_widget.height())
-#            self._arrows_1.setGeometry(self._sources_widget.x() + self._sources_widget.width() + 5,
-#                                       self._view_sets.height() / 2 - self._arrows_1.height() / 2,
-#                                       self._arrows_1.width(),
-#                                       self._arrows_1.height())
             # self._filters_widget
-            self._filters_widget.setGeometry(self._view_sets.scroll_area.width() - self._filters_widget.width() - 7,
+            self._filters_widget.setGeometry(self._view_sets.scroll_area.width() / 2 - self._filters_widget.width() / 2,
                                              self._view_sets.height() / 2 - self._filters_widget.height() / 2,
                                              self._filters_widget.width(),
                                              self._filters_widget.height())
+            # self._targets_widget
+            self._targets_widget.setGeometry(self._view_sets.scroll_area.width() - self._targets_widget.width() - 7,
+                                             self._view_sets.height() / 2 - self._targets_widget.height() / 2,
+                                             self._targets_widget.width(),
+                                             self._targets_widget.height())
             # self._arrows_1
-            source_widget = self._sources_widget._view_sets_details_source_widgets[0]  #._view_sets_details_source_widgets[0]
+            source_widget = self._sources_widget._nested_widgets[0]
             top_left = self._sources_widget.mapTo(self, source_widget.pos())
             top_left.setX(top_left.x() + source_widget.width() + 10)
             top_left.setY(top_left.y() + source_widget.height() / 2)
@@ -353,13 +369,24 @@ class ViewSetsDetails(QtGui.QWidget):
             bottom_right.setY(top_left.y() + ((bottom_right.y() + (self._filters_widget.height() / 2)) - top_left.y()) * 2)
             rect = QtCore.QRect(top_left, bottom_right)
             self._arrows_1.setGeometry(rect)
-#            self._arrows_1.refresh_geo()
+            # self._arrows_2
+            filter_widget = self._filters_widget._nested_widgets[0]
+            top_left = self._filters_widget.mapTo(self, filter_widget.pos())
+            top_left.setX(top_left.x() + filter_widget.width() + 10)
+            top_left.setY(top_left.y() + filter_widget.height() / 2)
+            bottom_right = self.mapToParent(self._targets_widget.pos())
+            bottom_right.setX(bottom_right.x() - 5)
+            bottom_right.setY(top_left.y() + ((bottom_right.y() + (self._targets_widget.height() / 2)) - top_left.y()) * 2)
+            rect = QtCore.QRect(top_left, bottom_right)
+            self._arrows_2.setGeometry(rect)
             # get max width and height
             min_width = 0
             min_height = 0
             for item in [self._sources_widget,
+                         self._filters_widget,
+                         self._targets_widget,
                          self._arrows_1,
-                         self._filters_widget]:
+                         self._arrows_2]:
                 x_max = item.x() + item.width()
                 y_max = item.y() + item.height()
                 if x_max > min_width:
@@ -372,28 +399,36 @@ class ViewSetsDetails(QtGui.QWidget):
                              min_height)
 
 
-class ViewSetsDetailsSources(QtGui.QFrame):
+class ViewSetsDetailsContainer(QtGui.QFrame):
     """ * """
     _view_sets_details = None
     _session_gui = None
     _view_sets = None
     _list_widget_item = None
     _backup_set = None
+    _title = None
 
     _layout = None
-    _title = None
-    _view_sets_details_source_widgets = None
+    _title_widget = None
+    _nested_widgets = None
 
-    def __init__(self, view_sets_details, session_gui, view_sets, list_widget_item, backup_set):
-        super(ViewSetsDetailsSources, self).__init__(view_sets_details)
+    def __init__(self,
+                 view_sets_details,
+                 session_gui,
+                 view_sets,
+                 list_widget_item,
+                 backup_set,
+                 title):
+        super(ViewSetsDetailsContainer, self).__init__(view_sets_details)
 
         self._view_sets_details = view_sets_details
         self._session_gui = session_gui
         self._view_sets = view_sets
         self._list_widget_item = list_widget_item
         self._backup_set = backup_set
+        self._title = title
 
-        self._view_sets_details_source_widgets = []
+        self._nested_widgets = []
 
         self._init_ui()
 
@@ -403,17 +438,36 @@ class ViewSetsDetailsSources(QtGui.QFrame):
 
     def _init_ui(self):
         """ * """
-        self.setStyleSheet(".ViewSetsDetailsSources {background: #c7c7ff; border-radius: 2px}")
+        self.setStyleSheet(".%s {background: #c7c7ff; border-radius: 2px}"
+                           % (self.__class__.__name__, ))
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(5, 5, 5, 5)
         self._layout.setSpacing(5)
         self._layout.setRowMinimumHeight(0, 13)
         self._layout.setRowStretch(0, 1)
         # title
-        self._title = QtGui.QLabel("Sources")
-        self._title.setStyleSheet("margin-left: 1px; font-weight: bold")
-        self._layout.addWidget(self._title, 0, 0, 1, 1)
+        self._title_widget = QtGui.QLabel(self._title)
+        self._title_widget.setStyleSheet("margin-left: 1px; font-weight: bold")
+        self._layout.addWidget(self._title_widget, 0, 0, 1, 1)
         # ADD SOURCE WIDGETS
+        self.populate()
+
+    def populate(self):
+        """ *
+        This method populates the widget with sub-widgets.
+        It is meant to be overridden in subclasses.
+        """
+
+
+class ViewSetsDetailsSources(ViewSetsDetailsContainer):
+    """ * """
+    def __init__(self, view_sets_details, session_gui, view_sets, list_widget_item, backup_set, title):
+        super(ViewSetsDetailsSources, self).__init__(view_sets_details, session_gui, view_sets, list_widget_item, backup_set, title)
+
+    def populate(self):
+        """ *
+        Overloaded from superclass.
+        """
         i = 0
         for backup_source in self._list_widget_item.backup_set.sources:
             widget = ViewSetsDetailsSource(self,
@@ -421,7 +475,7 @@ class ViewSetsDetailsSources(QtGui.QFrame):
                                            self._backup_set,
                                            self._view_sets
                                            )
-            self._view_sets_details_source_widgets.append(widget)
+            self._nested_widgets.append(widget)
             self._layout.setRowMinimumHeight(i + 1, widget.height())
             self._layout.setRowStretch(i + 1, 1)
             self._layout.addWidget(widget, i + 1, 0, 1, 1)
@@ -551,39 +605,31 @@ class ViewSetsDetailsSourceCMenu(QtGui.QMenu):
         self.addAction(self._action_rem)
 
 
-class ViewSetsDetailsFilters(QtGui.QFrame):
+class ViewSetsDetailsFilters(ViewSetsDetailsContainer):
     """ * """
-    _view_sets_details = None
-    _list_widget_item = None
+    def __init__(self, view_sets_details,
+                 session_gui,
+                 view_sets,
+                 list_widget_item,
+                 backup_set,
+                 title):
+        super(ViewSetsDetailsFilters, self).__init__(view_sets_details,
+                                                     session_gui,
+                                                     view_sets,
+                                                     list_widget_item,
+                                                     backup_set,
+                                                     title)
 
-    _layout = None
-    _title = None
-
-    def __init__(self, view_sets_details, list_widget_item):
-        super(ViewSetsDetailsFilters, self).__init__(view_sets_details)
-
-        self._view_sets_details = view_sets_details
-        self._list_widget_item = list_widget_item
-
-        self._init_ui()
-
-    def _init_ui(self):
-        """ * """
-        self.setStyleSheet(".ViewSetsDetailsFilters {background: #c7c7ff; border-radius: 2px}")
-        self._layout = QtGui.QGridLayout(self)
-        self._layout.setContentsMargins(5, 5, 5, 5)
-        self._layout.setSpacing(5)
-        self._layout.setRowMinimumHeight(0, 13)
-        self._layout.setRowStretch(0, 1)
-        # title
-        self._title = QtGui.QLabel("Filters")
-        self._title.setStyleSheet("margin-left: 1px; font-weight: bold")
-        self._layout.addWidget(self._title, 0, 0, 1, 1)
+    def populate(self):
+        """ *
+        Override from superclass.
+        """
         # ADD FILTER WIDGETS
         i = 0
         for backup_filter in self._list_widget_item.backup_set.filters:
             widget = ViewSetsDetailsFilter(self,
                                            backup_filter)
+            self._nested_widgets.append(widget)
             self._layout.setRowMinimumHeight(i + 1, widget.height())
             self._layout.setRowStretch(i + 1, 1)
             self._layout.addWidget(widget, i + 1, 0, 1, 1)
@@ -630,22 +676,95 @@ class ViewSetsDetailsFilter(QtGui.QFrame):
         self.setMinimumHeight(52)
 
 
+class ViewSetsDetailsTargets(ViewSetsDetailsContainer):
+    """ *
+    """
+    def __init__(self,
+                 view_sets_details,
+                 session_gui,
+                 view_sets,
+                 list_widget_item,
+                 backup_set,
+                 title):
+        super(ViewSetsDetailsTargets, self).__init__(view_sets_details,
+                                                     session_gui,
+                                                     view_sets,
+                                                     list_widget_item,
+                                                     backup_set,
+                                                     title)
+
+    def populate(self):
+        """ *
+        Override from superclass.
+        """
+        # ADD TARGET WIDGETS
+        i = 0
+        for backup_target in self._list_widget_item.backup_set.targets:
+            widget = ViewSetsDetailsTarget(self,
+                                           backup_target)
+            self._nested_widgets.append(widget)
+            self._layout.setRowMinimumHeight(i + 1, widget.height())
+            self._layout.setRowStretch(i + 1, 1)
+            self._layout.addWidget(widget, i + 1, 0, 1, 1)
+            i += 1
+
+        # resize
+        last_widget = QtGui.QFrame()
+        last_widget.setMinimumHeight(15)
+        self._layout.addWidget(last_widget, i + 1, 0, 1, 1)
+        self._layout.setRowStretch(i + 1, 100)
+        new_height = self._layout.contentsMargins().top() + self._layout.contentsMargins().bottom()
+        new_height += self._layout.spacing() * (i + 1)
+        new_height += self._layout.rowMinimumHeight(0) * 2
+        new_height += (widget.height() + 2) * i
+        self.setMinimumHeight(new_height)
+
+
+class ViewSetsDetailsTarget(QtGui.QFrame):
+    """ * """
+    _view_sets_details_targets = None
+    _backup_target = None
+
+    _layout = None
+
+    def __init__(self, view_sets_details_targets, backup_target):
+        super(ViewSetsDetailsTarget, self).__init__(view_sets_details_targets)
+
+        self._view_sets_details_targets = view_sets_details_targets
+        self._backup_target = backup_target
+
+        self._init_ui()
+
+    def _init_ui(self):
+        """ * """
+        self._layout = QtGui.QGridLayout(self)
+
+        # title
+        backup_target_name = self._backup_target.target_name
+        title_widget = QtGui.QLabel(backup_target_name, self)
+        title_widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self._layout.addWidget(title_widget, 0, 0, 1, 1)
+
+        self.setStyleSheet(".ViewSetsDetailsTarget {background: #f0f0f0; border: 1px solid #FFFFFF; border-radius: 2px} .ViewSetsDetailsTarget:hover {background: #FFFFFF}")
+        self.setMinimumHeight(52)
+
+
 class ViewSetsDetailsArrow(QtGui.QWidget):
     """ * """
     _view_sets_details = None
-    _sources_widget = None
-    _filters_widget = None
     _backup_set = None
 
-    def __init__(self, view_sets_details, sources_widget, filters_widget, backup_set):
-        """ * """
+    _stroke_width = None
 
+    def __init__(self,
+                 view_sets_details,
+                 backup_set):
         super(ViewSetsDetailsArrow, self).__init__(view_sets_details)
 
         self._view_sets_details = view_sets_details
-        self._sources_widget = sources_widget
-        self._filters_widget = filters_widget
         self._backup_set = backup_set
+
+        self._stroke_width = 3
 
         self._init_ui()
 
@@ -654,20 +773,20 @@ class ViewSetsDetailsArrow(QtGui.QWidget):
 
     def paintEvent(self, e=None):
         """ * """
-        stroke_width = 3
         path = QtGui.QPainterPath()
         n = len(self._backup_set.sources)
         for i in range(n):
-            p_1_x = stroke_width
+            print(self._stroke_width)
+            p_1_x = self._stroke_width
             try:
-                p_1_y = (self.height() - stroke_width * 2) / (n - 1) * i + stroke_width
+                p_1_y = (self.height() - self._stroke_width * 2) / (n - 1) * i + self._stroke_width
             except:
-                p_1_y = self.height() / 2
+                p_1_y = self.height() / 2 + 20
             p_2_x = self.width() / 2
             p_2_y = p_1_y
             p_3_x = p_2_x
             p_3_y = self.height() / 2
-            p_4_x = self.width() - stroke_width
+            p_4_x = self.width() - self._stroke_width
             p_4_y = p_3_y
             path.moveTo(p_1_x, p_1_y)
             path.cubicTo(p_2_x, p_2_y,
@@ -676,29 +795,34 @@ class ViewSetsDetailsArrow(QtGui.QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHints(QtGui.QPainter.Antialiasing)
         pen = QtGui.QPen(QtGui.QColor(199, 199, 255),
-                                      stroke_width,
+                                      self._stroke_width,
                                       QtCore.Qt.SolidLine,
                                       QtCore.Qt.RoundCap,
                                       QtCore.Qt.MiterJoin)
+        painter.setBrush(QtCore.Qt.SolidPattern)
         painter.setPen(pen)
-#        painter.setBrush(QtGui.QColor(122, 163, 39))
+        painter.drawRect(0, 0, self.width(), self.height())
         painter.drawPath(path)
-#        painter = QtGui.QPainter(self)
-#        painter.setPen(QtCore.Qt.blue)
-#        painter.setFont(QtGui.QFont("Tahoma", 30))
-#        painter.drawText(self.rect(), QtCore.Qt.AlignCenter, "Sources")
         super(ViewSetsDetailsArrow, self).paintEvent(e)
 
-    def refresh_geo(self):
-        """ *
-        Updates the geo according to its context and calls self.paintEvent
-        to repaint the graphics.
-        """
-        source_widget = self._sources_widget._view_sets_details_source_widgets[0]
-        self.setGeometry(self.x(),
-                         self.y(),
-                         self._filters_widget.x() - 5 - self.x(),
-                         self._sources_widget.height()
-                         )
-        self.setMinimumWidth(self.width())
-        self.setMinimumHeight(self.height())
+
+class ViewSetsDetailsArrow_1(ViewSetsDetailsArrow):
+    """ * """
+
+    def __init__(self,
+                 view_sets_details,
+                 backup_set):
+        super(ViewSetsDetailsArrow_1, self).__init__(view_sets_details,
+                                                     backup_set)
+
+        self._stroke_width = 1
+
+
+class ViewSetsDetailsArrow_2(ViewSetsDetailsArrow):
+    """ * """
+
+    def __init__(self,
+                 view_sets_details,
+                 backup_set):
+        super(ViewSetsDetailsArrow_2, self).__init__(view_sets_details,
+                                                     backup_set)

@@ -118,6 +118,7 @@
 [X]		check module-structure
 [.]		maintain integrity:
 		[.]	document code
+			> up to backup.py, l724
 		[ ]	validate user-input
 		[ ]	write test/test
 		[ ]	manage conditional exception-handling
@@ -149,8 +150,13 @@
 					[ ]	ability to add a source
 					[X]	ability to remove a source
 					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
-				[ ]	filters
-				[ ]	targets
+				[.]	filters
+					[ ]	ability to add a filter
+					[ ]	ability to remove a filter
+				[.]	targets
+					[ ]	ability to add a target
+					[ ]	ability to remove a target
+					[ ]	think about: ?ability to measure/visualize the space left on the target?
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
 		[ ]	implement consistent scheme for passing object-references into classes
