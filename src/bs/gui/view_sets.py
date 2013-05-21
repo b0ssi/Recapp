@@ -328,11 +328,6 @@ class ViewSetsDetails(QtGui.QWidget):
                                                     self._backup_set)
             self._arrows_2 = ViewSetsDetailsArrow_2(self,
                                                     self._backup_set)
-            self._sources_widget.show()
-            self._filters_widget.show()
-            self._targets_widget.show()
-            self._arrows_1.show()
-            self._arrows_2.show()
             # update composition
             self.refresh_geo()
 
@@ -360,23 +355,23 @@ class ViewSetsDetails(QtGui.QWidget):
                                              self._targets_widget.width(),
                                              self._targets_widget.height())
             # self._arrows_1
-            source_widget = self._sources_widget._nested_widgets[0]
-            top_left = self._sources_widget.mapTo(self, source_widget.pos())
-            top_left.setX(top_left.x() + source_widget.width() + 10)
-            top_left.setY(top_left.y() + source_widget.height() / 2)
-            bottom_right = self.mapToParent(self._filters_widget.pos())
-            bottom_right.setX(bottom_right.x() - 5)
-            bottom_right.setY(top_left.y() + ((bottom_right.y() + (self._filters_widget.height() / 2)) - top_left.y()) * 2)
+            source_widget_first = self._sources_widget._nested_widgets[0]
+            source_widget_last = self._sources_widget._nested_widgets[-1]
+            top_left = self._sources_widget.mapTo(self, source_widget_first.pos())
+            top_left.setX(top_left.x() + source_widget_first.width() + 10)
+            bottom_right = self._sources_widget.mapTo(self, source_widget_last.pos())
+            bottom_right.setX(self._filters_widget.x() - 5)
+            bottom_right.setY(self._sources_widget.mapTo(self, source_widget_last.pos()).y() + source_widget_last.height())
             rect = QtCore.QRect(top_left, bottom_right)
             self._arrows_1.setGeometry(rect)
             # self._arrows_2
-            filter_widget = self._filters_widget._nested_widgets[0]
-            top_left = self._filters_widget.mapTo(self, filter_widget.pos())
-            top_left.setX(top_left.x() + filter_widget.width() + 10)
-            top_left.setY(top_left.y() + filter_widget.height() / 2)
-            bottom_right = self.mapToParent(self._targets_widget.pos())
-            bottom_right.setX(bottom_right.x() - 5)
-            bottom_right.setY(top_left.y() + ((bottom_right.y() + (self._targets_widget.height() / 2)) - top_left.y()) * 2)
+            target_widget_first = self._targets_widget._nested_widgets[0]
+            target_widget_last = self._targets_widget._nested_widgets[-1]
+            top_left = self._targets_widget.mapTo(self, target_widget_first.pos())
+            top_left.setX(self._filters_widget.x() + self._filters_widget.width() + 5)
+            bottom_right = self.mapToParent(self._targets_widget.mapTo(self, target_widget_last.pos()))
+            bottom_right.setX(bottom_right.x() - 10)
+            bottom_right.setY(bottom_right.y() + target_widget_last.height())
             rect = QtCore.QRect(top_left, bottom_right)
             self._arrows_2.setGeometry(rect)
             # get max width and height
@@ -411,6 +406,9 @@ class ViewSetsDetailsContainer(QtGui.QFrame):
     _layout = None
     _title_widget = None
     _nested_widgets = None
+    _x_default = None
+    _width_default = 120
+    _width_relaxed = None  # This records the relaxed width after shown and lain out
 
     def __init__(self,
                  view_sets_details,
@@ -438,8 +436,9 @@ class ViewSetsDetailsContainer(QtGui.QFrame):
 
     def _init_ui(self):
         """ * """
-        self.setStyleSheet(".%s {background: #c7c7ff; border-radius: 2px}"
-                           % (self.__class__.__name__, ))
+        self.setStyleSheet(".%s {background: #c7c7ff; border-radius: 2px; border: 1px solid #b2b2e4} .%s:hover {}"
+                           % (self.__class__.__name__,
+                              self.__class__.__name__))
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(5, 5, 5, 5)
         self._layout.setSpacing(5)
@@ -451,6 +450,23 @@ class ViewSetsDetailsContainer(QtGui.QFrame):
         self._layout.addWidget(self._title_widget, 0, 0, 1, 1)
         # ADD SOURCE WIDGETS
         self.populate()
+        self.show()
+        self._width_relaxed = self.width()
+        self.setGeometry(self.x(), self.y(), self._width_default, self.height())
+        self.setMouseTracking(True)
+
+    def enterEvent(self, e):
+        self._x_default = self.x()
+        # determin where it sits on its parent
+        pos_x_f = (self.x() - 5) / (self._view_sets_details.width() - self._width_default - 5)
+        # transpose widget
+        if self.width() < self._width_relaxed:
+            self.raise_()
+            x = int(self._x_default - (self._width_relaxed - self._width_default) * pos_x_f)
+            self.setGeometry(x, self.y(), self._width_relaxed, self.height())
+
+    def leaveEvent(self, e):
+        self.setGeometry(self._x_default, self.y(), self._width_default, self.height())
 
     def populate(self):
         """ *
@@ -569,7 +585,7 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         self.setStyleSheet(".ViewSetsDetailsSource {background: #f0f0f0; border: 1px solid #FFFFFF; border-radius: 2px} .ViewSetsDetailsSource:hover {background: #FFFFFF}")
         # context menu
         self._context_menu = ViewSetsDetailsSourceCMenu(self)
-        self._context_menu.triggered.connect(self.remove)
+        self._context_menu._action_rem.triggered.connect(self.remove)
         # set geo
         self.setMinimumHeight(52)
 
@@ -584,6 +600,7 @@ class ViewSetsDetailsSource(QtGui.QFrame):
         if e.button() & QtCore.Qt.RightButton:
             # show context menu
             self.context_menu.popup(e.globalPos())
+        super(ViewSetsDetailsSource, self).mousePressEvent(e)
 
 
 class ViewSetsDetailsSourceCMenu(QtGui.QMenu):
@@ -593,7 +610,7 @@ class ViewSetsDetailsSourceCMenu(QtGui.QMenu):
     _action_rem = None
 
     def __init__(self, view_sets_details_source):
-        super(ViewSetsDetailsSourceCMenu, self).__init__("sdf")
+        super(ViewSetsDetailsSourceCMenu, self).__init__()
 
         self._view_sets_details_source = view_sets_details_source
 
@@ -755,6 +772,8 @@ class ViewSetsDetailsArrow(QtGui.QWidget):
     _backup_set = None
 
     _stroke_width = None
+    _render_mode = None
+    _n = None
 
     def __init__(self,
                  view_sets_details,
@@ -765,33 +784,41 @@ class ViewSetsDetailsArrow(QtGui.QWidget):
         self._backup_set = backup_set
 
         self._stroke_width = 3
+        self._render_mode = "m_s"
+        self._n = 1
 
         self._init_ui()
 
     def _init_ui(self):
         """ * """
+        self.show()
 
     def paintEvent(self, e=None):
         """ * """
         path = QtGui.QPainterPath()
-        n = len(self._backup_set.sources)
-        for i in range(n):
-            print(self._stroke_width)
-            p_1_x = self._stroke_width
+        for i in range(self._n):
+            x_1 = self._stroke_width
+            x_2 = self.width() / 2
+            x_3 = self.width() - self._stroke_width
+            y_1 = self.height() / 2
             try:
-                p_1_y = (self.height() - self._stroke_width * 2) / (n - 1) * i + self._stroke_width
+                y_2 = (2 * self.height() * i + self.height()) / (2 * self._n)
             except:
-                p_1_y = self.height() / 2 + 20
-            p_2_x = self.width() / 2
-            p_2_y = p_1_y
-            p_3_x = p_2_x
-            p_3_y = self.height() / 2
-            p_4_x = self.width() - self._stroke_width
-            p_4_y = p_3_y
-            path.moveTo(p_1_x, p_1_y)
-            path.cubicTo(p_2_x, p_2_y,
-                         p_3_x, p_3_y,
-                         p_4_x, p_4_y)
+                y_2 = y_1
+
+            if self._render_mode == "m_s":
+                path.moveTo(x_1, y_2)
+                path.cubicTo(x_2, y_2,
+                             x_2, y_1,
+                             x_3, y_1)
+                path = self._draw_arrow_head(path, x_3, y_1)
+            elif self._render_mode == "s_m":
+                path.moveTo(x_1, y_1)
+                path.cubicTo(x_2, y_1,
+                             x_2, y_2,
+                             x_3, y_2)
+                path = self._draw_arrow_head(path, x_3, y_2)
+
         painter = QtGui.QPainter(self)
         painter.setRenderHints(QtGui.QPainter.Antialiasing)
         pen = QtGui.QPen(QtGui.QColor(199, 199, 255),
@@ -799,11 +826,17 @@ class ViewSetsDetailsArrow(QtGui.QWidget):
                                       QtCore.Qt.SolidLine,
                                       QtCore.Qt.RoundCap,
                                       QtCore.Qt.MiterJoin)
-        painter.setBrush(QtCore.Qt.SolidPattern)
         painter.setPen(pen)
-        painter.drawRect(0, 0, self.width(), self.height())
         painter.drawPath(path)
         super(ViewSetsDetailsArrow, self).paintEvent(e)
+
+    def _draw_arrow_head(self, path, current_x, current_y):
+        wing_length = 5
+        path.moveTo(current_x - 1, current_y - 1)
+        path.lineTo(current_x - wing_length, current_y - wing_length)
+        path.moveTo(current_x - 1, current_y + 1)
+        path.lineTo(current_x - wing_length, current_y + wing_length)
+        return path
 
 
 class ViewSetsDetailsArrow_1(ViewSetsDetailsArrow):
@@ -815,7 +848,8 @@ class ViewSetsDetailsArrow_1(ViewSetsDetailsArrow):
         super(ViewSetsDetailsArrow_1, self).__init__(view_sets_details,
                                                      backup_set)
 
-        self._stroke_width = 1
+        self._render_mode = "m_s"
+        self._n = len(self._backup_set.sources)
 
 
 class ViewSetsDetailsArrow_2(ViewSetsDetailsArrow):
@@ -826,3 +860,6 @@ class ViewSetsDetailsArrow_2(ViewSetsDetailsArrow):
                  backup_set):
         super(ViewSetsDetailsArrow_2, self).__init__(view_sets_details,
                                                      backup_set)
+
+        self._render_mode = "s_m"
+        self._n = len(self._backup_set.targets)

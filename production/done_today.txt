@@ -6,6 +6,11 @@
 - [in progress] previous Q/A: document code
 - ViewSetsDetailsSources/Filters/Targets superclassed into ViewSetsDetailsContainer
 - ViewSetsDetailsArrow superclassed into same class name (and subclassed separate arrows)
+- ViewSets:
+	- arrows have arrowheads now
+	- added targets
+	- added arrows between filters and targets
+	- added uniform, default width for sources, filters, targets and expansion to relaxed width on hover
 
 2013-05-20
 - [done] clean-up old, obsolete code (commented out etc.)
