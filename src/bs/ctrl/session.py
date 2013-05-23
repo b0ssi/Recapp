@@ -54,6 +54,10 @@ class SessionsCtrl(object):
             self._app = QtGui.QApplication("asdf")
             self._app.setWindowIcon(QtGui.QIcon("img/favicon.png"))
             self.add_session_gui()
+            # session-wide setup
+            font = QtGui.QFont()
+            font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+            self._app.setFont(font)
             self._app.exec_()
 
     def __repr__(self):

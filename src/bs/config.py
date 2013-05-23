@@ -41,3 +41,27 @@ REGEX_PATTERN_USERNAME = "^[a-zA-Z][a-zA-Z0-9\_]{2,30}[a-zA-Z0-9]$"
 REGEX_PATTERN_NAME = "^[a-zA-Z][a-zA-Z0-9\_\-\ \#]{3,30}[a-zA-Z0-9\_\-\#]$"
 # password-keys
 REGEX_PATTERN_KEY = "^[a-zA-Z0-9]{8,64}$"
+
+PALETTE = ["59554e",  # 0
+           "6a665d",  # 1
+           "c7c7ff",  # 2
+           "33312d",  # 3
+           "ffde02",  # 4
+           "767167",  # 5
+           "888277"]  # 6
+# CSS
+CSS = ""  # "QWidget {background: #c7c7ff; border-radius: 2px}"
+# background: #59554e
+CSS += "BSSetsCanvas {background: #59554e}"
+# background: #6a665d
+CSS += "nothing {background: #6a665d}"
+# background: #c7c7ff
+CSS += "BSFrame {background: #c7c7ff}"
+# background: #33312d
+CSS += "nothing {background: #33312d}"
+# border-radius: 2px
+#CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
+CSS += "BSMenuSetsItem, BSFrame {border-radius: 2px}"
+# color: #33312d
+CSS += "nothing {color: #33312d}"
+# color: #ffde02

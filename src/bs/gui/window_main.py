@@ -67,6 +67,7 @@ class WindowMain(QtGui.QMainWindow):
 
     def _init_ui(self):
         """ * """
+        self.setStyleSheet(bs.config.CSS)
         # set pos
         screen_prim_res = self._sessions.app.desktop().availableGeometry(screen=0)
         self.setGeometry(screen_prim_res.width() / 2 - self._default_width / 2,
@@ -92,12 +93,6 @@ class WindowMain(QtGui.QMainWindow):
         self.set_view('login')
         self.show()
 
-#    def paintEvent(self, pe):
-#        tile = QtGui.QPixmap("x.png")
-#        painter = QtGui.QPainter(self)
-#        painter.drawTiledPixmap(self.rect(), tile)
-#        super(WindowMain, self).paintEvent(pe)
-
     def set_view(self, view):
         """ *
         Sets the main view to `String view`.
@@ -113,10 +108,8 @@ class WindowMain(QtGui.QMainWindow):
             self._layout.addWidget(widget, 0, 0, 1, 1)
             widget.view_login_form.input_username.setFocus()
         elif view == "x":
-            widget = bs.gui.view_sets.ViewSets(self._session_gui)
+            widget = bs.gui.view_sets.BS(self._session_gui)
             self._layout.addWidget(widget, 0, 0, 1, 1)
-            widget.sets_list.setFocus()
-
         # update menu
         self._menu_bar.update()
 
