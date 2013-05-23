@@ -61,7 +61,7 @@ CSS += "BSFrame {background: #c7c7ff}"
 CSS += "nothing {background: #33312d}"
 # border-radius: 2px
 #CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
-CSS += "BSMenuSetsItem, BSFrame {border-radius: 2px}"
+CSS += "BSNodeItem, BSFrame {border-radius: 2px}"
 # color: #33312d
 CSS += "nothing {color: #33312d}"
 # color: #ffde02

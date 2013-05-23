@@ -19,198 +19,10 @@
 
 from PySide import QtCore, QtGui
 import bs.config
+import bs.gui.lib
 import bs.messages.general
 import re
 import time
-
-
-class BSDraggable(QtGui.QFrame):
-    """ * """
-
-    _pos_offset = None  # stores local pos offset for drag-ability
-
-    def __init__(self, parent):
-        super(BSDraggable, self).__init__(parent)
-
-    def mousePressEvent(self, e):
-        """ * """
-        self._pos_offset = e.pos()
-
-    def mouseMoveEvent(self, e):
-        """ * """
-        x = self.mapToParent(e.pos()).x() - self._pos_offset.x()
-        y = self.mapToParent(e.pos()).y() - self._pos_offset.y()
-        self.setGeometry(x,
-                         y,
-                         self.width(),
-                         self.height())
-
-
-class BSCanvas(BSDraggable):
-    """ * """
-    def __init__(self, parent):
-        super(BSCanvas, self).__init__(parent)
-
-        parent.resizeSignal.connect(self.resizeEvent)
-
-    def mouseMoveEvent(self, e):
-        """ * """
-        for child in self.children():
-            child.setGeometry(child.x() - (self._pos_offset.x() - e.x()),
-                              child.y() - (self._pos_offset.y() - e.y()),
-                              child.width(),
-                              child.height()
-                              )
-        self._pos_offset = e.pos()
-        self.setGeometry(0, 0, self.width(), self.height())
-        super(BSCanvas, self).mouseMoveEvent(e)
-
-    def mouseReleaseEvent(self, e):
-        """ * """
-        self.setGeometry(0, 0, self.width(), self.height())
-        super(BSCanvas, self).mouseReleaseEvent(e)
-
-    def resizeEvent(self, e):
-        """ * """
-        self.setGeometry(0,
-                         0,
-                         self.parent().width(),
-                         self.parent().height())
-        super(BSCanvas, self).resizeEvent(e)
-
-
-class BSArrow(QtGui.QWidget):
-    """ * """
-    _source = None
-    _target = None
-
-    _stroke_width = None
-    _line_cap = None
-    _join_style = None
-
-    def __init__(self, source, target):
-        super(BSArrow, self).__init__(source.parentWidget())
-
-        self._source = source
-        self._target = target
-        self._source.assign_to_arrow(self)
-        self._target.assign_to_arrow(self)
-
-        self._stroke_width = 3
-        self._stroke_style = QtCore.Qt.SolidLine
-        self._line_cap = QtCore.Qt.RoundCap
-        self._join_style = QtCore.Qt.MiterJoin
-        # INIT UI
-        self.lower()
-
-    @property
-    def target(self):
-        return self._target
-
-    def paintEvent(self, e=None):
-        """ * """
-        path = QtGui.QPainterPath()
-        # p1a
-        p1a = self._source.parentWidget().mapToGlobal(self._source.geometry().center())
-        p1a.setX(p1a.x() + self._source.width() / 2 + 10)
-        p1a = self.mapFromGlobal(p1a)
-        # p2a
-        p2a = self._target.parentWidget().mapToGlobal(self._target.geometry().center())
-        p2a.setX(p2a.x() - self._target.width() / 2 - 10)
-        p2a = self.mapFromGlobal(p2a)
-        # calc distance
-        vec1 = QtGui.QVector2D(p1a)
-        vec2 = QtGui.QVector2D(p2a)
-        point_distance = int((vec2 - vec1).length())
-        if point_distance > 500:
-            point_distance = 500
-        # p1b
-        p1b = QtCore.QPoint(p1a.x(), p1a.y())
-        p1b.setX(p1b.x() + point_distance / 2)
-        # p2b
-        p2b = QtCore.QPoint(p2a.x(), p2a.y())
-        p2b.setX(p2b.x() - point_distance / 2)
-        # draw path
-        path.moveTo(p1a.x(),
-                    p1a.y()
-                    )
-        path.cubicTo(p1b.x(), p1b.y(),
-                   p2b.x(), p2b.y(),
-                   p2a.x(), p2a.y())
-        path = self._draw_arrow_head(path, p2a.x(), p2a.y())
-        painter = QtGui.QPainter(self)
-        painter.setRenderHints(QtGui.QPainter.Antialiasing)
-        pen = QtGui.QPen(QtGui.QColor(199, 199, 255),
-                         self._stroke_width,
-                         self._stroke_style,
-                         self._line_cap,
-                         self._join_style)
-        painter.setPen(pen)
-        painter.drawPath(path)
-
-        super(BSArrow, self).paintEvent(e)
-
-    def _draw_arrow_head(self, path, current_x, current_y):
-        """ * """
-        wing_length = 5
-        path.moveTo(current_x - 1, current_y - 1)
-        path.lineTo(current_x - wing_length, current_y - wing_length)
-        path.moveTo(current_x - 1, current_y + 1)
-        path.lineTo(current_x - wing_length, current_y + wing_length)
-        return path
-
-    def refresh(self):
-        """ * """
-        margin = 100
-        self.setGeometry(self._target.geometry().united(self._source.geometry()).x() - margin,
-                         self._target.geometry().united(self._source.geometry()).y() - margin,
-                         self._target.geometry().united(self._source.geometry()).width() + margin * 2,
-                         self._target.geometry().united(self._source.geometry()).height() + margin * 2
-                         )
-
-
-class BSFrame(BSDraggable):
-    """ * """
-    _layout = None
-    _arrows = None
-
-    def __init__(self, parent):
-        super(BSFrame, self).__init__(parent)
-
-        self._arrows = []
-
-        # INIT UI
-        # layout
-        self._layout = QtGui.QGridLayout(self)
-        # CSS
-        self.setStyleSheet(bs.config.CSS)
-        # Drop shadow
-        gfx = QtGui.QGraphicsDropShadowEffect(self)
-        gfx.setOffset(0)
-        gfx.setColor(QtGui.QColor(20, 20, 20))
-        gfx.setBlurRadius(4)
-        self.setGraphicsEffect(gfx)
-
-    def assign_to_arrow(self, arrow):
-        """ * """
-        if not arrow in self._arrows:
-            self._arrows.append(arrow)
-
-    def draw_arrows(self):
-        """ * """
-        if not len(self._arrows) == 0:
-            for arrow in self._arrows:
-                arrow.refresh()
-
-    def mousePressEvent(self, e):
-        """ * """
-        self.raise_()
-        super(BSFrame, self).mousePressEvent(e)
-
-    def mouseMoveEvent(self, e):
-        """ * """
-        self.draw_arrows()
-        super(BSFrame, self).mouseMoveEvent(e)
 
 
 class BS(QtGui.QFrame):
@@ -220,7 +32,7 @@ class BS(QtGui.QFrame):
 
     resizeSignal = QtCore.Signal(QtGui.QResizeEvent)
     _menu_sets = None
-    _canvas = None
+    _bs_sets_canvas = None
 
     def __init__(self, session_gui):
         super(BS, self).__init__()
@@ -232,19 +44,23 @@ class BS(QtGui.QFrame):
 
     def _init_ui(self):
         """ * """
-        self._menu_sets = BSMenuSets(self, self._backup_sets)
-        self._canvas = BSSetsCanvas(self)
+        self._menu_sets = BSMenu(self, self._backup_sets)
+        self._bs_sets_canvas = BSSetsCanvas(self)
 
     def resizeEvent(self, e):
         """ * """
         self.resizeSignal.emit(e)
 
 
-class BSSetsCanvas(BSCanvas):
+class BSSetsCanvas(bs.gui.lib.BSCanvas):
     """ * """
+
+    _bs_sources_widgets = None
 
     def __init__(self, parent):
         super(BSSetsCanvas, self).__init__(parent)
+
+        self._bs_sources_widgets = []
 
         self._init_ui()
         self.lower()
@@ -253,63 +69,91 @@ class BSSetsCanvas(BSCanvas):
 #        self.setStyleSheet("background: red")
 
         self.setGeometry(0, 0, self.parent().width(), self.parent().height())
-        # add sources
-        self._bs_sources = BSSources(self)
-        self._bs_sources.show()
-        # add filters
-        self._bs_filters = BSFilters(self)
-        self._bs_filters.show()
-        # add targets
-        self._bs_targets = BSTargets(self)
-        self._bs_targets.show()
-        # connect widgets
-        self._arrow_1 = BSArrow(self._bs_sources, self._bs_filters)
-        self._arrow_2 = BSArrow(self._bs_filters, self._bs_targets)
-        # lay out widgets
-        menu_width = self.parent()._menu_sets.width()
-        self._bs_sources.setGeometry((self.width() - menu_width) * 0.25 + menu_width - self._bs_sources.width() / 2,
-                                     self.height() / 2 - self._bs_sources.height() / 2,
-                                     self._bs_sources.width(),
-                                     self._bs_sources.height())
-        self._bs_filters.setGeometry((self.width() - menu_width) * 0.5 + menu_width - self._bs_filters.width() / 2,
-                                     self.height() / 2 - self._bs_filters.height() / 2,
-                                     self._bs_filters.width(),
-                                     self._bs_filters.height())
-        self._bs_targets.setGeometry((self.width() - menu_width) * 0.75 + menu_width - self._bs_targets.width() / 2,
-                                     self.height() / 2 - self._bs_targets.height() / 2,
-                                     self._bs_targets.width(),
-                                     self._bs_targets.height())
-        self._bs_sources.draw_arrows()
-        self._bs_filters.draw_arrows()
-        self._bs_targets.draw_arrows()
+#        # add sources
+#        self._bs_sources = BSSource(self)
+#        self._bs_sources.show()
+#        # add filters
+#        self._bs_filters = BSFilters(self)
+#        self._bs_filters.show()
+#        # add targets
+#        self._bs_targets = BSTargets(self)
+#        self._bs_targets.show()
+#        # connect widgets
+#        self._arrow_1 = BSArrow(self._bs_sources, self._bs_filters)
+#        self._arrow_2 = BSArrow(self._bs_filters, self._bs_targets)
+#        # lay out widgets
+#        menu_width = self.parent()._menu_sets.width()
+#        self._bs_sources.setGeometry((self.width() - menu_width) * 0.25 + menu_width - self._bs_sources.width() / 2,
+#                                     self.height() / 2 - self._bs_sources.height() / 2,
+#                                     self._bs_sources.width(),
+#                                     self._bs_sources.height())
+#        self._bs_filters.setGeometry((self.width() - menu_width) * 0.5 + menu_width - self._bs_filters.width() / 2,
+#                                     self.height() / 2 - self._bs_filters.height() / 2,
+#                                     self._bs_filters.width(),
+#                                     self._bs_filters.height())
+#        self._bs_targets.setGeometry((self.width() - menu_width) * 0.75 + menu_width - self._bs_targets.width() / 2,
+#                                     self.height() / 2 - self._bs_targets.height() / 2,
+#                                     self._bs_targets.width(),
+#                                     self._bs_targets.height())
+#        self._bs_sources.draw_arrows()
+#        self._bs_filters.draw_arrows()
+#        self._bs_targets.draw_arrows()
+
+    def load_set(self, backup_set):
+        """ *
+        Loads a backup-set onto the canvas.
+        """
+        # clean canvas, delete old widgets
+        for bs_sources_widget in self._bs_sources_widgets:
+            bs_sources_widget.deleteLater()
+        self._bs_sources_widgets = []
+        # Load backup-sources
+        for backup_source in backup_set.sources:
+            widget = BSSource(self, backup_source)
+            self._bs_sources_widgets.append(widget)
+        # load filters
+        # loat target set
+        # connect nodes
+        # LAY-OUT NODES
+        # sources
+        n = len(self._bs_sources_widgets)
+        for bs_sources_widget in self._bs_sources_widgets:
+            i = self._bs_sources_widgets.index(bs_sources_widget)
+            x_c = self.width() * .25
+            y_c = self.height() / (n + 1) * (i + 1)
+            x = x_c - bs_sources_widget.width() / 2
+            y = y_c - bs_sources_widget.height() / 2
+            bs_sources_widget.setGeometry(x, y,
+                                          bs_sources_widget.width(),
+                                          bs_sources_widget.height())
+        self.update()
 
 
-class BSMenuSets(BSFrame):
+class BSMenu(bs.gui.lib.BSNode):
     """ * """
+    _bs = None
     _backup_sets = None
 
     _x_c = None
     _y_c = None
 
-    def __init__(self, parent, backup_sets):
-        super(BSMenuSets, self).__init__(parent)
+    def __init__(self, bs, backup_sets):
+        super(BSMenu, self).__init__(bs)
 
+        self._bs = bs
         self._backup_sets = backup_sets
 
+        self.parent().resizeSignal.connect(self.resizeEvent)
+
+        self._init_ui()
+
+    def _init_ui(self):
         # these MUST be floats!
         self._x_c = float(0.0)
         self._y_c = float(0.0)
-
-        self._init_ui()
-        self.parent().resizeSignal.connect(self.resizeEvent)
-
-    def _init_ui(self):
         # title
-        title = QtGui.QLabel("Sets")
-        title.setStyleSheet("margin-left: 1px; margin-top: 2px; margin-bottom: 10px; font-size: 18px; color: #59554e")
-        self._layout.addWidget(title, 0, 0, 1, 1)
-        self._layout.setSpacing(1)
-        self._layout.setContentsMargins(5, 5, 5, 41)
+        self.title_text = "Sets"
+        self.title_size = 18
         # populate with set buttons
         self.populate()
         # set pos
@@ -321,11 +165,19 @@ class BSMenuSets(BSFrame):
         self._x_c = self.x() + self.width() / 2
         self._y_c = self.y() + self.height() / 2
 
+    def populate(self):
+        """ *
+        Populates the menu with BSNodeItem
+        """
+        for backup_set in self._backup_sets.sets:
+            widget = BSMenuItem(self, backup_set, self._bs)
+            self.add_item(widget)
+
     def mouseMoveEvent(self, e):
         """ * """
         self._x_c = self.x() + self.width() / 2
         self._y_c = self.y() + self.height() / 2
-        super(BSMenuSets, self).mouseMoveEvent(e)
+        super(BSMenu, self).mouseMoveEvent(e)
 
     def resizeEvent(self, e):
         """ * """
@@ -353,135 +205,75 @@ class BSMenuSets(BSFrame):
                              self.height())
             self._x_c = x_new + self.width() / 2
             self._y_c = y_new + self.height() / 2
-
-    def populate(self):
-        """ *
-        Populates the menu with BSMenuSetsItem
-        """
-        i = 1
-        for backup_set in self._backup_sets.sets:
-            widget = BSMenuSetsItem(self, backup_set)
-            self._layout.addWidget(widget, i, 0, 1, 1)
-            i += 1
+        super(BSMenu, self).resizeEvent(e)
 
 
-class BSMenuSetsItem(QtGui.QFrame):
+class BSMenuItem(bs.gui.lib.BSNodeItem):
     """ * """
+
+    _bs_menu = None
     _backup_set = None
+    _bs = None
 
-    _layout = None
-    _title = None
-    _btn_del = None
+    def __init__(self, bs_menu, backup_set, bs):
+        super(BSMenuItem, self).__init__(bs_menu)
 
-    def __init__(self, parent, backup_set):
-        super(BSMenuSetsItem, self).__init__(parent)
-
+        self._bs_menu = bs_menu
         self._backup_set = backup_set
+        self._bs = bs
 
         self._init_ui()
 
     def _init_ui(self):
-        # layout
-        self._layout = QtGui.QGridLayout(self)
-        self._layout.setContentsMargins(11, 0, 6, 0)
-        self._layout.setColumnStretch(0, 100)
-        self._layout.setColumnStretch(1, 1)
-        self._layout.setColumnMinimumWidth(1, 28)
-        self._layout.setRowMinimumHeight(0, 28)
-        self._title = QtGui.QLabel(self._backup_set.set_name)
-        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[3], ))
-        self._layout.addWidget(self._title, 0, 0, 1, 1)
-        self._btn_del = BSMenuSetsItemButton(self, "DEL")
-        self._layout.addWidget(self._btn_del, 0, 1, 1, 1)
-        # CSS
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[1], ))
-
-    def enterEvent(self, e):
         """ * """
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[0]))
-        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[4], ))
+        self.title_text = self._backup_set.set_name
 
-    def leaveEvent(self, e):
+    def mousePressEvent(self, e):
         """ * """
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[1]))
-        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[3], ))
+        super(BSMenuItem, self).mousePressEvent(e)
 
-    def mouseMoveEvent(self, e):
-        """ * """
-        # override to do nothing
+        self._bs._bs_sets_canvas.load_set(self._backup_set)
 
 
-class BSMenuSetsItemButton(QtGui.QFrame):
+class BSSource(bs.gui.lib.BSNode):
     """ * """
-    _title = None
+    _backup_source = None
+    _bs_sets_canvas = None
 
-    _layout = None
+    def __init__(self, bs_sets_canvas, backup_source):
+        super(BSSource, self).__init__(bs_sets_canvas)
 
-    def __init__(self, parent, title):
-        super(BSMenuSetsItemButton, self).__init__(parent)
-
-        self._title = title
-
-        self._init_ui()
-
-    def _init_ui(self):
-        self._layout = QtGui.QGridLayout(self)
-        title = QtGui.QLabel(self._title)
-        self._layout.addWidget(title, 0, 0, 1, 1)
-        # CSS
-        self.setStyleSheet("color: #%s"
-                           % (bs.config.PALETTE[6], ))
-
-    def enterEvent(self, e):
-        """ * """
-        self.setStyleSheet("background: #%s; color: #%s"
-                           % (bs.config.PALETTE[1],
-                              bs.config.PALETTE[4], ))
-
-    def leaveEvent(self, e):
-        """ * """
-        self.setStyleSheet("background: None; color: #%s"
-                           % (bs.config.PALETTE[6], ))
-
-
-class BSSources(BSFrame):
-    """ * """
-    def __init__(self, parent):
-        super(BSSources, self).__init__(parent)
+        self._backup_source = backup_source
+        self._bs_sets_canvas = bs_sets_canvas
 
         self._init_ui()
 
     def _init_ui(self):
         # title
-        title = QtGui.QLabel("Sources")
-        self._layout.addWidget(title, 0, 0, 1, 1)
+        self.title_text = self._backup_source.source_name
+        self.title_size = 13
+        # populate with item
+        widget = BSSourceItem(self, self._backup_source)
+        self.add_item(widget)
+        self.show()
 
 
-class BSFilters(BSFrame):
+class BSSourceItem(bs.gui.lib.BSNodeItem):
     """ * """
-    def __init__(self, parent):
-        super(BSFilters, self).__init__(parent)
+    _bs_source = None
+    _backup_source = None
+
+    def __init__(self, bs_source, backup_source):
+        super(BSSourceItem, self).__init__(bs_source)
+
+        self._bs_source = bs_source
+        self._backup_source = backup_source
 
         self._init_ui()
 
     def _init_ui(self):
-        # title
-        title = QtGui.QLabel("Filters")
-        self._layout.addWidget(title, 0, 0, 1, 1)
-
-
-class BSTargets(BSFrame):
-    """ * """
-    def __init__(self, parent):
-        super(BSTargets, self).__init__(parent)
-
-        self._init_ui()
-
-    def _init_ui(self):
-        # title
-        title = QtGui.QLabel("Targets")
-        self._layout.addWidget(title, 0, 0, 1, 1)
-
+        """ * """
+        self.title_text = self._backup_source.source_name
 
 
 #class ViewSets(QtGui.QWidget):

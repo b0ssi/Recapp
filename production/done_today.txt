@@ -2,6 +2,14 @@
 ## DONE TODAY ##################
 ################################
 
+2013-05-24
+- restarted gui/ctrl implementation for sets with new concept
+	- all node-based now after all.
+	- sources are single nodes
+	- filters are (multiple) sets of nodes of different sub-types ("starts with", "contains", "matches", "regex", etc.)
+	- targets are always in a (semi-)fixed set. I'll reserve the option to implement functionality of mirroring data to an additional target and/or to remove a target permanently. All targets will still all be grouped into one logical unit (to visualize semi-static behaviour and since it'd probably less common to "frequently" alter the set of targets).
+- superclassed BSNode, BSNodeItem to derive menu as well as all nodes (sources, filters, targets...) from it
+
 2013-05-21
 - [in progress] previous Q/A: document code
 - ViewSetsDetailsSources/Filters/Targets superclassed into ViewSetsDetailsContainer
