@@ -466,6 +466,8 @@ class BackupSourceCtrl(bs.model.models.Sources):
     _source_name = None
     _source_path = None
 
+    _backup_source_ass = None
+
     def __init__(self, session_gui, source_id, source_name, source_path):
         self._session = session_gui
         self._source_id = source_id
@@ -531,6 +533,46 @@ class BackupSourceCtrl(bs.model.models.Sources):
         self._source_path = source_path
         # out
         return True
+
+    @property
+    def backup_source_ass(self):
+        """ *
+        Returns an associative array (dictionary) in the following format:
+        {<set>:<filter>} or
+        {<set>:<target>}
+        """
+        if not self._backup_source_ass:
+            backup_source_ass = {}
+            # Follows the "dumb" model: Sets don't know the associations, have to check the sets table here to get them
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            res = conn.execute("SELECT id, source_ass FROM sets WHERE user_id = ?", (self._session.user.id, )).fetchall()
+            # run through set-results
+            for dataset in res:
+                set_id = dataset[0]
+                source_ass_dict = json.loads(dataset[1])
+                # get set object
+                backup_set_obj = None
+                for backup_set_obj_iter in self._session.backup_sets.sets:
+                    if backup_set_obj_iter.set_id == set_id:
+                        backup_set_obj = backup_set_obj_iter
+                # run through associations in set
+                for source_id in source_ass_dict:
+                    if self.source_id == int(source_id):
+                        # this can be either -1 for the set's target set or a natural number as a filter id
+                        ass_id = source_ass_dict[source_id]
+                        # target set associated
+                        if ass_id == -1:
+                            backup_source_ass[backup_set_obj] = backup_set_obj.backup_targets
+                        # filter associated
+                        else:
+                            # get filter object with id that was found
+                            backup_filter_obj = None
+                            for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
+                                if backup_filter_obj_iter.filter_id == ass_id:
+                                    backup_filter_obj = backup_filter_obj_iter
+                            backup_source_ass[backup_set_obj] = backup_filter_obj
+            self._backup_source_ass = backup_source_ass
+        return self._backup_source_ass
 
 
 class BackupSourcesCtrl(bs.model.models.Sources):
@@ -898,33 +940,40 @@ class BackupFilterCtrl(bs.model.models.Filters):
     """ * """
     _session = None
     _filter_id = None
-    _filter_pattern = None
+    _backup_filter_pattern = None
 
-    def __init__(self, session_gui, filter_id, filter_pattern):
+    _backup_filter_ass = None
+
+    def __init__(self, session_gui, filter_id, backup_filter_pattern):
         self._session = session_gui
         self._filter_id = filter_id
-        self._filter_pattern = filter_pattern
+        self._backup_filter_pattern = backup_filter_pattern
         # if flter_id == None, this is a new filter, add to database
         if not self._filter_id:
             res = self._add("user_id, filter_pattern",
                             (self._session.user.id,
-                             self._filter_pattern))
+                             self._backup_filter_pattern))
             self._filter_id = res.lastrowid
 
     def __repr__(self):
         return "Filter #%d <%s>" % (self._filter_id, self.__class__.__name__, )
 
     @property
-    def filter_pattern(self):
-        return self._filter_pattern
+    def filter_id(self):
+        """ * """
+        return self._filter_id
 
-    @filter_pattern.setter
-    def filter_pattern(self, filter_pattern):
+    @property
+    def backup_filter_pattern(self):
+        return self._backup_filter_pattern
+
+    @backup_filter_pattern.setter
+    def backup_filter_pattern(self, backup_filter_pattern):
         """ * """
         # VALIDATE DATA
-        # filter_pattern
-        if not re.match("$.*^", filter_pattern):
-            logging.warning("%s: The filter_pattern contains invalid "\
+        # backup_filter_pattern
+        if not re.match("$.*^", backup_filter_pattern):
+            logging.warning("%s: The backup_filter_pattern contains invalid "\
                             "characters. It needs to start with an "\
                             "alphabetic and contain alphanumerical "\
                             "characters plus '\_\-\#' and space."
@@ -932,25 +981,65 @@ class BackupFilterCtrl(bs.model.models.Filters):
             return False
         # change data in db
         self._update(
-                     ("filter_pattern", filter_pattern, ),
+                     ("filter_pattern", backup_filter_pattern, ),
                      ("id", "=", self._filter_id, ),
                      )
-        self._filter_pattern = filter_pattern
+        self._backup_filter_pattern = backup_filter_pattern
         # out
         return True
+
+    @property
+    def backup_filter_ass(self):
+        """ *
+        Returns an associative array (dictionary) in the following format:
+        {<set>:<filter>} or
+        {<set>:<target>}
+        """
+        if not self._backup_filter_ass:
+            backup_filter_ass = {}
+            # Follows the "dumb" model: Sets don't know the associations, have to check the sets table here to get them
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            res = conn.execute("SELECT id, filter_ass FROM sets WHERE user_id = ?", (self._session.user.id, )).fetchall()
+            # run through set-results
+            for dataset in res:
+                set_id = dataset[0]
+                filter_ass_dict = json.loads(dataset[1])
+                # get set object
+                backup_set_obj = None
+                for backup_set_obj_iter in self._session.backup_sets.sets:
+                    if backup_set_obj_iter.set_id == set_id:
+                        backup_set_obj = backup_set_obj_iter
+                # run through associations in set
+                for filter_id in filter_ass_dict:
+                    if self.filter_id == int(filter_id):
+                        # this can be either -1 for the set's target set or a natural number as a filter id
+                        ass_id = filter_ass_dict[filter_id]
+                        # target set associated
+                        if ass_id == -1:
+                            backup_filter_ass[backup_set_obj] = backup_set_obj.backup_targets
+                        # filter associated
+                        else:
+                            # get filter object with id that was found
+                            backup_filter_obj = None
+                            for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
+                                if backup_filter_obj_iter.filter_id == ass_id:
+                                    backup_filter_obj = backup_filter_obj_iter
+                            backup_filter_ass[backup_set_obj] = backup_filter_obj
+            self._backup_filter_ass = backup_filter_ass
+        return self._backup_filter_ass
 
 
 class BackupFiltersCtrl(bs.model.models.Filters):
     """ * """
     _session = None
-    _filters = None
+    _backup_filters = None
 
     def __init__(self, session_gui):
         """ * """
         super(BackupFiltersCtrl, self).__init__()
         self._session = session_gui
 
-        self._filters = []
+        self._backup_filters = []
 
     def __repr__(self):
         return "Filters <%s>" % (self.__class__.__name__)
@@ -958,10 +1047,10 @@ class BackupFiltersCtrl(bs.model.models.Filters):
     @property
     def filters(self):
         """ *
-        Returns all filter objects saved in self._filters.
+        Returns all filter objects saved in self._backup_filters.
         """
         # filter list is empty, load from db
-        if len(self._filters) == 0:
+        if len(self._backup_filters) == 0:
             res = self._get("id, filter_pattern",
                             (("user_id", "=", self._session.user.id), ))
             for data_set in res:
@@ -970,8 +1059,8 @@ class BackupFiltersCtrl(bs.model.models.Filters):
                 new_filter_obj = BackupFilterCtrl(self._session,
                                                   filter_id,
                                                   filter_pattern)
-                self._filters.append(new_filter_obj)
-        return self._filters
+                self._backup_filters.append(new_filter_obj)
+        return self._backup_filters
 
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
@@ -1002,6 +1091,11 @@ class BackupFiltersCtrl(bs.model.models.Filters):
             return False
     # /OVERLOADS
 
+    @property
+    def backup_filters(self):
+        """ * """
+        return self._backup_filters
+
     def create_backup_filter(self, filter_pattern):
         """ *
         Creates a new backup-filter.
@@ -1021,7 +1115,7 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         new_filter_obj = BackupFilterCtrl(self._session,
                                           filter_id,
                                           filter_pattern)
-        self._filters.append(new_filter_obj)
+        self._backup_filters.append(new_filter_obj)
         # out
         return True
 
@@ -1038,7 +1132,7 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         # delete from DB
         self._remove((("id", "=", filter_obj._filter_id, ), ))
         # remove obj
-        self._filters.pop(self._filters.index(filter_obj))
+        self._backup_filters.pop(self._backup_filters.index(filter_obj))
         # out
         return True
 
@@ -1051,9 +1145,9 @@ class BackupSetCtrl(bs.model.models.Sets):
     _set_name = None
     _key_hash_64 = None
     _set_db_path = None
-    _sources = None
-    _filters = None
-    _targets = None
+    _backup_sources = None
+    _backup_filters = None
+    _backup_targets = None
 
     def __init__(self, session, set_id, set_uid, set_name, key_hash_64, \
                  set_db_path, source_objs, filter_objs, target_objs):
@@ -1063,20 +1157,12 @@ class BackupSetCtrl(bs.model.models.Sets):
         self._set_name = set_name
         self._key_hash_64 = key_hash_64
         self._set_db_path = set_db_path
-        self._sources = source_objs
-        self._filters = filter_objs
-        self._targets = target_objs
+        self._backup_sources = source_objs
+        self._backup_filters = filter_objs
+        self._backup_targets = target_objs
 
         # if set_id == None, this is a new set, add to database
         if not self._set_id:
-            source_ids = []
-            for source_obj in source_objs:
-                source_ids.append(source_obj._source_id)
-            source_ids_list = source_ids
-            filter_ids = []
-            for filter_obj in filter_objs:
-                filter_ids.append(filter_obj._filter_id)
-            filter_ids_list = filter_ids
             target_ids = []
             for target_obj in target_objs:
                 target_ids.append(target_obj._target_id)
@@ -1088,8 +1174,6 @@ class BackupSetCtrl(bs.model.models.Sets):
                        set_name,
                        key_hash_64,
                        set_db_path,
-                       json.dumps(source_ids_list),
-                       json.dumps(filter_ids_list),
                        json.dumps(target_ids_list)
                        )
                       )
@@ -1163,67 +1247,22 @@ class BackupSetCtrl(bs.model.models.Sets):
         return True
 
     @property
-    def sources(self):
-        return self._sources
-
-    @sources.setter
-    def sources(self, source_objs):
+    def backup_sources(self):
         """ * """
-        # VALIDATE DATA
-        # set_objs
-        check = False
-        if not isinstance(source_objs, (list, tuple, )):
-            check = True
-        else:
-            for source_obj in source_objs:
-                if not isinstance(source_obj, BackupSourceCtrl):
-                    check = True
-        if check:
-            logging.warning("%s: The first argument needs to be a list or "\
-                            "tuple of backup source objects."
-                            % (self.__class__.__name__, ))
-            return False
-        # set sources
-        self._sources = source_objs
-        # update db
-        source_ids_list = [x._source_id for x in source_objs]
-        self._update((("sources", json.dumps(source_ids_list)), ),
-                     (("id", "=", self._set_id, ), ))
+        return self._backup_sources
 
     @property
-    def filters(self):
-        return self._filters
-
-    @filters.setter
-    def filters(self, filter_objs):
+    def backup_filters(self):
         """ * """
-        # VALIDATE DATA
-        # set_objs
-        check = False
-        if not isinstance(filter_objs, (list, tuple, )):
-            check = True
-        else:
-            for filter_obj in filter_objs:
-                if not isinstance(filter_obj, BackupFilterCtrl):
-                    check = True
-        if check:
-            logging.warning("%s: The first argument needs to be a list or "\
-                            "tuple of backup filter objects."
-                            % (self.__class__.__name__, ))
-            return False
-        # set filters
-        self._filters = filter_objs
-        # update db
-        filter_ids_list = [x._filter_id for x in filter_objs]
-        self._update((("filters", json.dumps(filter_ids_list)), ),
-                     (("id", "=", self._set_id, ), ))
+        return self._backup_filters
 
     @property
-    def targets(self):
-        return self._targets
+    def backup_targets(self):
+        """ * """
+        return self._backup_targets
 
-    @targets.setter
-    def targets(self, target_objs):
+    @backup_targets.setter
+    def backup_targets(self, target_objs):
         """ * """
         # VALIDATE DATA
         # set_objs
@@ -1261,9 +1300,9 @@ class BackupSetCtrl(bs.model.models.Sets):
             return False
         backup_source_id = backup_source.source_id
         # if in this backup-set, remove
-        if backup_source in self.sources:
-            # remove from self.sources
-            self.sources.pop(self.sources.index(backup_source))
+        if backup_source in self.backup_sources:
+            # remove from self.backup_sources
+            self.backup_sources.pop(self.backup_sources.index(backup_source))
             # remove from backup-set in db
             res = self._get(("sources", ), (("id", "=", self.set_id, ), ))
             print(res)
@@ -1280,9 +1319,9 @@ class BackupSetCtrl(bs.model.models.Sets):
         backup_source_id = backup_source.source_id
         backup_sources_list_new = []
         # remove object from self.sources
-        self._sources.pop(self._sources.index(backup_source))
+        self._backup_sources.pop(self._backup_sources.index(backup_source))
         # compile new list for db
-        for backup_source_in_current_set in [x.source_id for x in self._sources]:
+        for backup_source_in_current_set in [x.source_id for x in self._backup_sources]:
             if not backup_source_in_current_set == backup_source_id:
                 backup_sources_list_new.append(backup_source_in_current_set)
         # update db
@@ -1308,7 +1347,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
         """ * """
         # sets list is empty, load from db
         if len(self._sets) == 0:
-            res = self._get("id, set_uid, set_name, key_hash_64, set_db_path, sources, filters, targets",
+            res = self._get("id, set_uid, set_name, key_hash_64, set_db_path, source_ass, filter_ass, targets",
                             (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
                 set_id = data_set[0]
@@ -1317,13 +1356,17 @@ class BackupSetsCtrl(bs.model.models.Sets):
                 key_hash_64 = data_set[3]
                 set_db_path = data_set[4]
                 source_objs = []
-                for source_obj in self._session.backup_sources.sources:
-                    if source_obj._source_id in json.loads(data_set[5]):
-                        source_objs.append(source_obj)
+                for source_id in json.loads(data_set[5]):
+                    source_id = int(source_id)
+                    for source_obj in self._session.backup_sources.sources:
+                        if source_obj.source_id == source_id:
+                            source_objs.append(source_obj)
                 filter_objs = []
-                for filter_obj in self._session.backup_filters.filters:
-                    if filter_obj._filter_id in json.loads(data_set[6]):
-                        filter_objs.append(filter_obj)
+                for filter_id in json.loads(data_set[6]):
+                    filter_id = int(filter_id)
+                    for filter_obj in self._session.backup_filters.filters:
+                        if filter_obj.filter_id == filter_id:
+                            filter_objs.append(filter_obj)
                 target_objs = []
                 for target_obj in self._session.backup_targets.targets:
                     if target_obj._target_id in json.loads(data_set[7]):

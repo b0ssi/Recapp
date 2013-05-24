@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+import bs.ctrl._db
+import bs.ctrl.backup
+import bs.ctrl.session
+import json
+import logging
+import os
+import re
+import sys
+import time
 
 ###############################################################################
 ##    main                                                                   ##
@@ -17,14 +26,6 @@
 
 """ * """
 
-import bs.ctrl._db
-import bs.ctrl.backup
-import bs.ctrl.session
-import logging
-import os
-import re
-import sys
-import time
 
 
 

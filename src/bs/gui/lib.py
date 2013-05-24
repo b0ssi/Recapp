@@ -133,6 +133,7 @@ class BSArrow(QtGui.QWidget):
         self._join_style = QtCore.Qt.MiterJoin
         # INIT UI
         self.lower()
+        self.show()
 
     @property
     def target(self):

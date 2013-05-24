@@ -54,13 +54,22 @@ class BS(QtGui.QFrame):
 
 class BSSetsCanvas(bs.gui.lib.BSCanvas):
     """ * """
+    _bs = None
 
-    _bs_sources_widgets = None
+    _bs_source_widgets = None
+    _bs_filter_widgets = None
+    _bs_target_widgets = None
+    _arrow_widgets = None
 
-    def __init__(self, parent):
-        super(BSSetsCanvas, self).__init__(parent)
+    def __init__(self, bs):
+        super(BSSetsCanvas, self).__init__(bs)
 
-        self._bs_sources_widgets = []
+        self._bs = bs
+
+        self._bs_source_widgets = []
+        self._bs_filter_widgets = []
+        self._bs_target_widgets = []
+        self._arrow_widgets = []
 
         self._init_ui()
         self.lower()
@@ -103,29 +112,100 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         """ *
         Loads a backup-set onto the canvas.
         """
+        self._backup_set = backup_set
+        # EMPTY CANVAS
         # clean canvas, delete old widgets
-        for bs_sources_widget in self._bs_sources_widgets:
-            bs_sources_widget.deleteLater()
-        self._bs_sources_widgets = []
+        for bs_source_widget in self._bs_source_widgets:
+            bs_source_widget.deleteLater()
+        self._bs_source_widgets = []
+        for bs_filters_widgets in self._bs_filter_widgets:
+            bs_filters_widgets.deleteLater()
+        self._bs_filter_widgets = []
+        for bs_target_widget in self._bs_target_widgets:
+            bs_target_widget.deleteLater()
+        self._bs_target_widgets = []
+        for arrow_widget in self._arrow_widgets:
+            arrow_widget.deleteLater()
+        self._arrow_widgets = []
+        # LOAD NODES
         # Load backup-sources
-        for backup_source in backup_set.sources:
-            widget = BSSource(self, backup_source)
-            self._bs_sources_widgets.append(widget)
-        # load filters
-        # loat target set
-        # connect nodes
+        for backup_source in backup_set.backup_sources:
+            widget = BSSource(self, backup_source, backup_set)
+            self._bs_source_widgets.append(widget)
+        # load backup-filters
+        for backup_filter in backup_set.backup_filters:
+            widget = BSFilter(self, backup_filter, backup_set)
+            self._bs_filter_widgets.append(widget)
+        # load target set
+        if backup_set.backup_targets:
+            widget = BSTarget(self)
+            self._bs_target_widgets.append(widget)
+        # CONNECT NODES
+        # sources - filters/targets
+        for bs_source_widget in self._bs_source_widgets:
+            backup_source = bs_source_widget.backup_source
+            backup_source_ass = backup_source.backup_source_ass
+            if backup_source_ass[self._backup_set] == backup_set.backup_targets:
+                widget = bs.gui.lib.BSArrow(bs_source_widget, self._bs_target_widgets[0])
+                self._arrow_widgets.append(widget)
+            else:
+                for bs_filter_widget in self._bs_filter_widgets:
+                    backup_filter = bs_filter_widget.backup_filter
+                    if backup_filter == backup_source_ass[self._backup_set]:
+                        # we have source and filter widget now. Connect!
+                        widget = bs.gui.lib.BSArrow(bs_source_widget, bs_filter_widget)
+                        self._arrow_widgets.append(widget)
+        # filters - filters/targets
+        for bs_filter_widget_a in self._bs_filter_widgets:
+            backup_filter_a = bs_filter_widget_a.backup_filter
+            backup_filter_a_ass = backup_filter_a.backup_filter_ass
+            if backup_filter_a_ass[self._backup_set] == backup_set.backup_targets:
+                widget = bs.gui.lib.BSArrow(bs_filter_widget_a, self._bs_target_widgets[0])
+                self._arrow_widgets.append(widget)
+            else:
+                for bs_filter_widget_b in self._bs_filter_widgets:
+                    backup_filter_b = bs_filter_widget_b.backup_filter
+                    if backup_filter_b == backup_filter_a_ass[self._backup_set] and\
+                        backup_filter_b != backup_filter_a:
+                        # we have both associated filters now. Connect!
+                        widget = bs.gui.lib.BSArrow(bs_filter_widget_a, bs_filter_widget_b)
+                        self._arrow_widgets.append(widget)
         # LAY-OUT NODES
         # sources
-        n = len(self._bs_sources_widgets)
-        for bs_sources_widget in self._bs_sources_widgets:
-            i = self._bs_sources_widgets.index(bs_sources_widget)
+        n = len(self._bs_source_widgets)
+        for bs_source_widget in self._bs_source_widgets:
+            i = self._bs_source_widgets.index(bs_source_widget)
             x_c = self.width() * .25
             y_c = self.height() / (n + 1) * (i + 1)
-            x = x_c - bs_sources_widget.width() / 2
-            y = y_c - bs_sources_widget.height() / 2
-            bs_sources_widget.setGeometry(x, y,
-                                          bs_sources_widget.width(),
-                                          bs_sources_widget.height())
+            x = x_c - bs_source_widget.width() / 2
+            y = y_c - bs_source_widget.height() / 2
+            bs_source_widget.setGeometry(x, y,
+                                         bs_source_widget.width(),
+                                         bs_source_widget.height())
+        # filters
+        n = len(self._bs_filter_widgets)
+        for bs_filter_widget in self._bs_filter_widgets:
+            i = self._bs_filter_widgets.index(bs_filter_widget)
+            x_c = self.width() * .50
+            y_c = self.height() / (n + 1) * (i + 1)
+            x = x_c - bs_filter_widget.width() / 2
+            y = y_c - bs_filter_widget.height() / 2
+            bs_filter_widget.setGeometry(x, y,
+                                         bs_filter_widget.width(),
+                                         bs_filter_widget.height())
+        # targets
+        bs_target_widget = self._bs_target_widgets[0]
+        x_c = self.width() * 0.75
+        y_c = self.height() / 2
+        x = x_c - bs_target_widget.width() / 2
+        y = y_c - bs_target_widget.height() / 2
+        bs_target_widget.setGeometry(x, y,
+                                     bs_target_widget.width(),
+                                     bs_target_widget.height())
+        # REDRAW ARROWS
+        for bs_filter_widget in self._bs_filter_widgets:
+            bs_filter_widget.draw_arrows()
+        bs_target_widget.draw_arrows()
         self.update()
 
 
@@ -239,21 +319,27 @@ class BSSource(bs.gui.lib.BSNode):
     """ * """
     _backup_source = None
     _bs_sets_canvas = None
+    _backup_set = None
 
-    def __init__(self, bs_sets_canvas, backup_source):
+    def __init__(self, bs_sets_canvas, backup_source, backup_set):
         super(BSSource, self).__init__(bs_sets_canvas)
 
         self._backup_source = backup_source
         self._bs_sets_canvas = bs_sets_canvas
+        self._backup_set = backup_set
 
         self._init_ui()
+
+    @property
+    def backup_source(self):
+        return self._backup_source
 
     def _init_ui(self):
         # title
         self.title_text = self._backup_source.source_name
         self.title_size = 13
         # populate with item
-        widget = BSSourceItem(self, self._backup_source)
+        widget = BSSourceItem(self, self._backup_source, self._backup_set)
         self.add_item(widget)
         self.show()
 
@@ -262,12 +348,14 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
     """ * """
     _bs_source = None
     _backup_source = None
+    _backup_set = None
 
-    def __init__(self, bs_source, backup_source):
+    def __init__(self, bs_source, backup_source, backup_set):
         super(BSSourceItem, self).__init__(bs_source)
 
         self._bs_source = bs_source
         self._backup_source = backup_source
+        self._backup_set = backup_set
 
         self._init_ui()
 
@@ -275,6 +363,52 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         """ * """
         self.title_text = self._backup_source.source_name
 
+    def mousePressEvent(self, e):
+        print(self._backup_source.backup_source_ass[self._backup_set])
+
+
+class BSFilter(bs.gui.lib.BSNode):
+    """ * """
+    _bs_sets_canvas = None
+    _backup_filter = None
+    _backup_set = None
+
+    def __init__(self, bs_sets_canvas, backup_filter, backup_set):
+        super(BSFilter, self).__init__(bs_sets_canvas)
+
+        self._bs_sets_canvas = bs_sets_canvas
+        self._backup_filter = backup_filter
+        self._backup_set = backup_set
+
+        self._init_ui()
+
+    @property
+    def backup_filter(self):
+        return self._backup_filter
+
+    def _init_ui(self):
+        # title
+        self.title_text = self._backup_filter.backup_filter_pattern
+        self.title_size = 13
+        self.show()
+
+
+class BSTarget(bs.gui.lib.BSNode):
+    """ * """
+    _bs_sets_canvas = None
+
+    def __init__(self, bs_sets_canvas):
+        super(BSTarget, self).__init__(bs_sets_canvas)
+
+        self._bs_sets_canvas = bs_sets_canvas
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[4], ))
+        self.title_text = "Targets"
+        self.title_size = 13
+        self.show()
 
 #class ViewSets(QtGui.QWidget):
 #    """ * """

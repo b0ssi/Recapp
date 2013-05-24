@@ -65,8 +65,8 @@ class Sets(bs.model.models_master.BSModel):
     set_name = ["TEXT"]
     key_hash_64 = ["TEXT"]
     set_db_path = ["TEXT"]
-    sources = ["TEXT"]
-    filters = ["TEXT"]
+    source_ass = ["TEXT"]
+    filter_ass = ["TEXT"]
     targets = ["TEXT"]
 
     def __init__(self):

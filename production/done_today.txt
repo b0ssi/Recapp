@@ -3,6 +3,16 @@
 ################################
 
 2013-05-24
+- Started implementing new concepts sketched out yesterday:
+	- db-changes: sets columns "source_ass", "filter_ass" contain dictionaries that link source-ids and filter-ids (respectively) to other nodes (through their ids). If they link to `-1` it means they directly connect to the set's set of targets. Each node can only link to one other node but accept multiple incoming connections. Filters can be chained up (but not in loops, this is an implementation detail in the control code later). A source can directly link to the set of targets.
+	- BackupSourceCtrl: implemented logics in ctrl and gui code. Ctrl code carries all associations as object links. Gui code now sets up fully, spawning and connecting nodes (visually).
+	- [done] BackupFilterCtrl: implementing same logics in ctrl and gui as for BackupSourceCtrl.
+	- [done] implementing target sets visually:
+		- write gui classes
+		- spawn node(s)
+		- get sources/filters to connect arrows up to targets set
+
+2013-05-23
 - restarted gui/ctrl implementation for sets with new concept
 	- all node-based now after all.
 	- sources are single nodes
