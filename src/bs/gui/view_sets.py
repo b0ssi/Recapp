@@ -19,33 +19,113 @@
 
 from PySide import QtCore, QtGui
 import bs.config
+import bs.ctrl.session
 import bs.gui.lib
 import bs.messages.general
+import json
+import logging
 import re
 import time
 
 
 class BS(QtGui.QFrame):
     """ * """
+    _window_main = None
     _session_gui = None
     _backup_sets = None
+    _app = None
 
+    gui_data_modified_signal = None
     resizeSignal = QtCore.Signal(QtGui.QResizeEvent)
     _menu_sets = None
     _bs_sets_canvas = None
+    _backup_set_current = None
 
-    def __init__(self, session_gui):
-        super(BS, self).__init__()
+    def __init__(self, window_main, session_gui, app):
+        super(BS, self).__init__(window_main)
 
+        self._window_main = window_main
         self._session_gui = session_gui
         self._backup_sets = session_gui.session.backup_sets
+        self._app = app
 
+        self.gui_data_modified_signal = bs.utils.Signal()
+        self.gui_data_modified_signal.connect(self._app.idle_1s_timer.start)
+        self.gui_data_save_signal = bs.utils.Signal()
+        self.gui_data_save_signal.connect(self._save_to_db)
+        self._app.idle_1s_timer.timeout.connect(self.gui_data_save_signal.emit)
         self._init_ui()
 
     def _init_ui(self):
         """ * """
+        self.setGeometry(0, 0, self.parent().width(), self.parent().height())
         self._menu_sets = BSMenu(self, self._backup_sets)
-        self._bs_sets_canvas = BSSetsCanvas(self)
+        self._bs_sets_canvas = BSSetsCanvas(self, self._menu_sets)
+
+    @property
+    def backup_set_current(self):
+        return self._backup_set_current
+
+    @backup_set_current.setter
+    def backup_set_current(self, backup_set_current):
+        if not isinstance(backup_set_current, bs.ctrl.session.BackupSetCtrl):
+            logging.warning("%s: The first argument needs to be of type BackupSetCtrl."
+                            % (self.__class__.__name__, ))
+            return False
+        self._backup_set_current = backup_set_current
+
+    def set_modified(self, force_save=False):
+        """ *
+        triggers the modified signal (which again sets connected handlers such
+        as a save button to enabled, etc.) which then starts the timer which
+        has a connection to self._save_to_db().
+        force_save evades the timer, stops it and calls self._save_to_db()
+        directly.
+        """
+        if force_save:
+            self._app.idle_1s_timer.stop()
+            self._save_to_db()
+            self.gui_data_save_signal.emit()
+        else:
+            self.gui_data_modified_signal.emit()
+
+    def _save_to_db(self):
+        """ *
+        Designed to get triggered by either a save button or an (idle) timer
+        timeout. Only calls the actual _save_to_db function on the current
+        BackupSetCtrl().
+        """
+        if self._backup_set_current:
+            # update node data in memory
+            for node_widget in self._bs_sets_canvas.bs_source_widgets + self._bs_sets_canvas.bs_filter_widgets + self._bs_sets_canvas.bs_target_widgets:
+                node_widget.save_gui_data()
+            # save node data to db
+            self._backup_set_current.save_to_db()
+            logging.debug("%s: Set %s successfully saved to db."
+                          % (self.__class__.__name__,
+                             self.backup_set_current, ))
+
+#    def save_gui_data(self):
+#        """ *
+#        Saves the state of all currently existing nodes' data (usually only for
+#        active set or none if no set active) to backup_set.gui_data.
+#        Does not save to db. self.save_gui_data_to_db() does that explicitly.
+#        """
+#        for node_widget in self._bs_source_widgets + self._bs_filter_widgets + self._bs_target_widgets:
+#            node_widget.save_gui_data()
+#
+#    def save_gui_data_to_db(self):
+#        """ *
+#        Saves current backup_set's gui_data to db.
+#        """
+#        if self._bs.backup_set_current:
+#            self._bs.backup_set_current.save_to_db()
+#            logging.debug("%s: Set %s successfully saved to db."
+#                          % (self.__class__.__name__,
+#                             self._bs.backup_set_current, ))
+#        else:
+#            logging.debug("%s: No set saved: No set loaded."
+#                          % (self.__class__.__name__, ))
 
     def resizeEvent(self, e):
         """ * """
@@ -55,16 +135,18 @@ class BS(QtGui.QFrame):
 class BSSetsCanvas(bs.gui.lib.BSCanvas):
     """ * """
     _bs = None
+    _menu_sets = None
 
     _bs_source_widgets = None
     _bs_filter_widgets = None
     _bs_target_widgets = None
     _arrow_widgets = None
 
-    def __init__(self, bs):
+    def __init__(self, bs, menu_sets):
         super(BSSetsCanvas, self).__init__(bs)
 
         self._bs = bs
+        self._menu_sets = menu_sets
 
         self._bs_source_widgets = []
         self._bs_filter_widgets = []
@@ -74,45 +156,29 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         self._init_ui()
         self.lower()
 
-    def _init_ui(self):
-#        self.setStyleSheet("background: red")
+    @property
+    def bs_source_widgets(self):
+        return self._bs_source_widgets
 
-        self.setGeometry(0, 0, self.parent().width(), self.parent().height())
-#        # add sources
-#        self._bs_sources = BSSource(self)
-#        self._bs_sources.show()
-#        # add filters
-#        self._bs_filters = BSFilters(self)
-#        self._bs_filters.show()
-#        # add targets
-#        self._bs_targets = BSTargets(self)
-#        self._bs_targets.show()
-#        # connect widgets
-#        self._arrow_1 = BSArrow(self._bs_sources, self._bs_filters)
-#        self._arrow_2 = BSArrow(self._bs_filters, self._bs_targets)
-#        # lay out widgets
-#        menu_width = self.parent()._menu_sets.width()
-#        self._bs_sources.setGeometry((self.width() - menu_width) * 0.25 + menu_width - self._bs_sources.width() / 2,
-#                                     self.height() / 2 - self._bs_sources.height() / 2,
-#                                     self._bs_sources.width(),
-#                                     self._bs_sources.height())
-#        self._bs_filters.setGeometry((self.width() - menu_width) * 0.5 + menu_width - self._bs_filters.width() / 2,
-#                                     self.height() / 2 - self._bs_filters.height() / 2,
-#                                     self._bs_filters.width(),
-#                                     self._bs_filters.height())
-#        self._bs_targets.setGeometry((self.width() - menu_width) * 0.75 + menu_width - self._bs_targets.width() / 2,
-#                                     self.height() / 2 - self._bs_targets.height() / 2,
-#                                     self._bs_targets.width(),
-#                                     self._bs_targets.height())
-#        self._bs_sources.draw_arrows()
-#        self._bs_filters.draw_arrows()
-#        self._bs_targets.draw_arrows()
+    @property
+    def bs_filter_widgets(self):
+        return self._bs_filter_widgets
+
+    @property
+    def bs_target_widgets(self):
+        return self._bs_target_widgets
+
+    def _init_ui(self):
+        pass
 
     def load_set(self, backup_set):
         """ *
         Loads a backup-set onto the canvas.
         """
-        self._backup_set = backup_set
+        # save current set
+        self._bs.set_modified(force_save=True)
+        # set new current set
+        self._bs.backup_set_current = backup_set
         # EMPTY CANVAS
         # clean canvas, delete old widgets
         for bs_source_widget in self._bs_source_widgets:
@@ -130,28 +196,28 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         # LOAD NODES
         # Load backup-sources
         for backup_source in backup_set.backup_sources:
-            widget = BSSource(self, backup_source, backup_set)
+            widget = BSSource(self, self._bs, backup_source, backup_set)
             self._bs_source_widgets.append(widget)
         # load backup-filters
         for backup_filter in backup_set.backup_filters:
-            widget = BSFilter(self, backup_filter, backup_set)
+            widget = BSFilter(self, self._bs, backup_filter, backup_set)
             self._bs_filter_widgets.append(widget)
         # load target set
         if backup_set.backup_targets:
-            widget = BSTarget(self)
+            widget = BSTarget(self, self._bs, backup_set.backup_targets, backup_set)
             self._bs_target_widgets.append(widget)
         # CONNECT NODES
         # sources - filters/targets
         for bs_source_widget in self._bs_source_widgets:
             backup_source = bs_source_widget.backup_source
             backup_source_ass = backup_source.backup_source_ass
-            if backup_source_ass[self._backup_set] == backup_set.backup_targets:
+            if backup_source_ass[self._bs.backup_set_current] == backup_set.backup_targets:
                 widget = bs.gui.lib.BSArrow(bs_source_widget, self._bs_target_widgets[0])
                 self._arrow_widgets.append(widget)
             else:
                 for bs_filter_widget in self._bs_filter_widgets:
                     backup_filter = bs_filter_widget.backup_filter
-                    if backup_filter == backup_source_ass[self._backup_set]:
+                    if backup_filter == backup_source_ass[self._bs.backup_set_current]:
                         # we have source and filter widget now. Connect!
                         widget = bs.gui.lib.BSArrow(bs_source_widget, bs_filter_widget)
                         self._arrow_widgets.append(widget)
@@ -159,53 +225,68 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for bs_filter_widget_a in self._bs_filter_widgets:
             backup_filter_a = bs_filter_widget_a.backup_filter
             backup_filter_a_ass = backup_filter_a.backup_filter_ass
-            if backup_filter_a_ass[self._backup_set] == backup_set.backup_targets:
+            if backup_filter_a_ass[self._bs.backup_set_current] == backup_set.backup_targets:
                 widget = bs.gui.lib.BSArrow(bs_filter_widget_a, self._bs_target_widgets[0])
                 self._arrow_widgets.append(widget)
             else:
                 for bs_filter_widget_b in self._bs_filter_widgets:
                     backup_filter_b = bs_filter_widget_b.backup_filter
-                    if backup_filter_b == backup_filter_a_ass[self._backup_set] and\
+                    if backup_filter_b == backup_filter_a_ass[self._bs.backup_set_current] and\
                         backup_filter_b != backup_filter_a:
                         # we have both associated filters now. Connect!
                         widget = bs.gui.lib.BSArrow(bs_filter_widget_a, bs_filter_widget_b)
                         self._arrow_widgets.append(widget)
         # LAY-OUT NODES
         # sources
-        n = len(self._bs_source_widgets)
         for bs_source_widget in self._bs_source_widgets:
-            i = self._bs_source_widgets.index(bs_source_widget)
-            x_c = self.width() * .25
-            y_c = self.height() / (n + 1) * (i + 1)
+            # get pos data
+            gui_data = backup_set.gui_data
+            try:
+                pos = gui_data["nodes"]["bs_source_widgets"][str(bs_source_widget.backup_source.source_id)]["pos"]
+            except:
+                pos = [self.width() / 2, self.height() / 2]
+            x_c = pos[0]
+            y_c = pos[1]
             x = x_c - bs_source_widget.width() / 2
             y = y_c - bs_source_widget.height() / 2
             bs_source_widget.setGeometry(x, y,
                                          bs_source_widget.width(),
                                          bs_source_widget.height())
         # filters
-        n = len(self._bs_filter_widgets)
         for bs_filter_widget in self._bs_filter_widgets:
-            i = self._bs_filter_widgets.index(bs_filter_widget)
-            x_c = self.width() * .50
-            y_c = self.height() / (n + 1) * (i + 1)
+            # get pos data
+            gui_data = backup_set.gui_data
+            try:
+                pos = gui_data["nodes"]["bs_filter_widgets"][str(bs_filter_widget.backup_filter.filter_id)]["pos"]
+            except:
+                pos = [self.width() / 2, self.height() / 2]
+            x_c = pos[0]
+            y_c = pos[1]
             x = x_c - bs_filter_widget.width() / 2
             y = y_c - bs_filter_widget.height() / 2
             bs_filter_widget.setGeometry(x, y,
                                          bs_filter_widget.width(),
                                          bs_filter_widget.height())
         # targets
-        bs_target_widget = self._bs_target_widgets[0]
-        x_c = self.width() * 0.75
-        y_c = self.height() / 2
-        x = x_c - bs_target_widget.width() / 2
-        y = y_c - bs_target_widget.height() / 2
-        bs_target_widget.setGeometry(x, y,
-                                     bs_target_widget.width(),
-                                     bs_target_widget.height())
+        for bs_target_widget in self._bs_target_widgets:
+            # get pos data
+            gui_data = backup_set.gui_data
+            try:
+                pos = gui_data["nodes"]["bs_target_widgets"]["container"]["pos"]
+            except:
+                pos = [self.width() / 2, self.height() / 2]
+            x_c = pos[0]
+            y_c = pos[1]
+            x = x_c - bs_target_widget.width() / 2
+            y = y_c - bs_target_widget.height() / 2
+            bs_target_widget.setGeometry(x, y,
+                                         bs_target_widget.width(),
+                                         bs_target_widget.height())
         # REDRAW ARROWS
         for bs_filter_widget in self._bs_filter_widgets:
             bs_filter_widget.draw_arrows()
-        bs_target_widget.draw_arrows()
+        for bs_target_widget in self._bs_target_widgets:
+            bs_target_widget.draw_arrows()
         self.update()
 
 
@@ -216,6 +297,7 @@ class BSMenu(bs.gui.lib.BSNode):
 
     _x_c = None
     _y_c = None
+    _btn_save = None
 
     def __init__(self, bs, backup_sets):
         super(BSMenu, self).__init__(bs)
@@ -252,6 +334,8 @@ class BSMenu(bs.gui.lib.BSNode):
         for backup_set in self._backup_sets.sets:
             widget = BSMenuItem(self, backup_set, self._bs)
             self.add_item(widget)
+        self._btn_save = BSMenuItemSave(self, self._bs)
+        self.add_item(self._btn_save)
 
     def mouseMoveEvent(self, e):
         """ * """
@@ -306,7 +390,41 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
 
     def _init_ui(self):
         """ * """
+        # layout
+        self._layout.setColumnStretch(0, 100)
+        self._layout.setColumnStretch(1, 1)
+        self._layout.setColumnMinimumWidth(1, 28)
+        # title
         self.title_text = self._backup_set.set_name
+        # buttons
+        self._btn_del = bs.gui.lib.BSNodeItemButton(self, "DEL")
+        self._layout.addWidget(self._btn_del, 0, 1, 1, 1)
+        # CSS
+        self.css = ((self,
+                     "",
+                     "background: #%s",
+                     (
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      )
+                     ),
+                     (self.title,
+                      "",
+                      "color: #%s",
+                      (
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                      )
+                     )
+                    )
 
     def mousePressEvent(self, e):
         """ * """
@@ -315,17 +433,79 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
         self._bs._bs_sets_canvas.load_set(self._backup_set)
 
 
+class BSMenuItemSave(bs.gui.lib.BSNodeItem):
+    """ * """
+    _bs = None
+    _bs_menu = None
+
+    def __init__(self, bs_menu, bs):
+        super(BSMenuItemSave, self).__init__(bs_menu)
+
+        self._bs = bs
+        self._bs_menu = bs_menu
+
+        self._init_ui()
+
+    def _init_ui(self):
+        # connect to signals
+        self._bs.gui_data_modified_signal.connect(self.setEnabled)
+        self._bs.gui_data_save_signal.connect(self.setDisabled)
+        self.setDisabled(True)
+        # layout
+        # title
+        self.title.setAlignment(QtCore.Qt.AlignCenter)
+        self.title_text = "SAVE"
+        # CSS
+        self.css = ((self,
+                     "",
+                     "background: #%s; margin-top: %spx",
+                     (
+                      (bs.config.PALETTE[8], 10, ),
+                      (bs.config.PALETTE[7], 10, ),
+                      (bs.config.PALETTE[7], 10, ),
+                      (bs.config.PALETTE[1], 10, ),
+                      (bs.config.PALETTE[1], 10, ),
+                      (bs.config.PALETTE[1], 10, ),
+                      )
+                     ),
+                     (self.title,
+                      "",
+                      "color: #%s",
+                      (
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[6], ),
+                       (bs.config.PALETTE[6], ),
+                       (bs.config.PALETTE[6], ),
+                      )
+                     )
+                    )
+
+    def mousePressEvent(self, e):
+        """ *
+        Triggers backup_set.save_to_db() and disables this button again.
+        """
+        super(BSMenuItemSave, self).mousePressEvent(e)
+
+        self._bs.set_modified(force_save=True)
+
+
 class BSSource(bs.gui.lib.BSNode):
     """ * """
-    _backup_source = None
+    _bs = None
     _bs_sets_canvas = None
+    _backup_source = None
     _backup_set = None
 
-    def __init__(self, bs_sets_canvas, backup_source, backup_set):
+    _mouse_press_event_pos = None  # this holds the press_event object's pos()
+
+    def __init__(self, bs_sets_canvas, bs, backup_source, backup_set):
         super(BSSource, self).__init__(bs_sets_canvas)
 
-        self._backup_source = backup_source
         self._bs_sets_canvas = bs_sets_canvas
+        self._bs = bs
+        self._backup_source = backup_source
         self._backup_set = backup_set
 
         self._init_ui()
@@ -342,6 +522,49 @@ class BSSource(bs.gui.lib.BSNode):
         widget = BSSourceItem(self, self._backup_source, self._backup_set)
         self.add_item(widget)
         self.show()
+
+    def mousePressEvent(self, e):
+        """ * """
+        super(BSSource, self).mousePressEvent(e)
+
+        self._mouse_press_event_pos = e.globalPos()
+
+    def mouseReleaseEvent(self, e):
+        """ * """
+        super(BSSource, self).mouseReleaseEvent(e)
+
+        # emit modified-signal, only if mouse has actually moved
+        if self._mouse_press_event_pos != e.globalPos():
+            self._bs.set_modified()
+
+    def save_gui_data(self):
+        """ *
+        Saves the state of the node.
+        This includes node-position only for now.
+        Not to be called by itself; only by an iterator that runs through *all*
+        nodes to call this save_gui_data method.
+        """
+        x = self.geometry().x()
+        y = self.geometry().y()
+        x_c = x + self.width() / 2
+        y_c = y + self.height() / 2
+        pos = [x_c, y_c]
+        gui_data = self._backup_set.gui_data
+        # build dict
+        try:
+            x = gui_data["nodes"]
+        except:
+            gui_data["nodes"] = {}
+        try:
+            x = gui_data["nodes"]["bs_source_widgets"]
+        except:
+            gui_data["nodes"]["bs_source_widgets"] = {}
+        try:
+            x = gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.source_id)]
+        except:
+            gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.source_id)] = {}
+        # update dict
+        gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.source_id)]["pos"] = pos
 
 
 class BSSourceItem(bs.gui.lib.BSNodeItem):
@@ -362,6 +585,32 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
     def _init_ui(self):
         """ * """
         self.title_text = self._backup_source.source_name
+        # CSS
+        self.css = ((self,
+                     "",
+                     "background: #%s",
+                     (
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[0], ),
+                      )
+                     ),
+                     (self.title,
+                      "",
+                      "color: #%s",
+                      (
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[4], ),
+                      )
+                     )
+                    )
 
     def mousePressEvent(self, e):
         print(self._backup_source.backup_source_ass[self._backup_set])
@@ -370,13 +619,17 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 class BSFilter(bs.gui.lib.BSNode):
     """ * """
     _bs_sets_canvas = None
+    _bs = None
     _backup_filter = None
     _backup_set = None
 
-    def __init__(self, bs_sets_canvas, backup_filter, backup_set):
+    _mouse_press_event_pos = None  # this holds the press_event object's pos()
+
+    def __init__(self, bs_sets_canvas, bs, backup_filter, backup_set):
         super(BSFilter, self).__init__(bs_sets_canvas)
 
         self._bs_sets_canvas = bs_sets_canvas
+        self._bs = bs
         self._backup_filter = backup_filter
         self._backup_set = backup_set
 
@@ -392,15 +645,66 @@ class BSFilter(bs.gui.lib.BSNode):
         self.title_size = 13
         self.show()
 
+    def mousePressEvent(self, e):
+        """ * """
+        super(BSFilter, self).mousePressEvent(e)
+
+        self._mouse_press_event_pos = e.globalPos()
+
+    def mouseReleaseEvent(self, e):
+        """ * """
+        super(BSFilter, self).mouseReleaseEvent(e)
+
+        # emit modified-signal, only if mouse has actually moved
+        if self._mouse_press_event_pos != e.globalPos():
+            self._bs.set_modified()
+
+    def save_gui_data(self):
+        """ *
+        Saves the state of the node.
+        This includes node-position only for now.
+        Not to be called by itself; only by an iterator that runs through *all*
+        nodes to call this save_gui_data method.
+        """
+        x = self.geometry().x()
+        y = self.geometry().y()
+        x_c = x + self.width() / 2
+        y_c = y + self.height() / 2
+        pos = [x_c, y_c]
+        gui_data = self._backup_set.gui_data
+        # build dict
+        try:
+            x = gui_data["nodes"]
+        except:
+            gui_data["nodes"] = {}
+        try:
+            x = gui_data["nodes"]["bs_filter_widgets"]
+        except:
+            gui_data["nodes"]["bs_filter_widgets"] = {}
+        try:
+            x = gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.filter_id)]
+        except:
+            gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.filter_id)] = {}
+        # update dict
+        gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.filter_id)]["pos"] = pos
+
 
 class BSTarget(bs.gui.lib.BSNode):
     """ * """
     _bs_sets_canvas = None
+    _bs = None
+    _backup_targets = None
+    _backup_set = None
 
-    def __init__(self, bs_sets_canvas):
+    _mouse_press_event_pos = None  # this holds the press_event object's pos()
+
+    def __init__(self, bs_sets_canvas, bs, backup_targets, backup_set):
         super(BSTarget, self).__init__(bs_sets_canvas)
 
         self._bs_sets_canvas = bs_sets_canvas
+        self._bs = bs
+        self._backup_targets = backup_targets
+        self._backup_set = backup_set
 
         self._init_ui()
 
@@ -409,6 +713,49 @@ class BSTarget(bs.gui.lib.BSNode):
         self.title_text = "Targets"
         self.title_size = 13
         self.show()
+
+    def mousePressEvent(self, e):
+        """ * """
+        super(BSTarget, self).mousePressEvent(e)
+
+        self._mouse_press_event_pos = e.globalPos()
+
+    def mouseReleaseEvent(self, e):
+        """ * """
+        super(BSTarget, self).mouseReleaseEvent(e)
+
+        # emit modified-signal, only if mouse has actually moved
+        if self._mouse_press_event_pos != e.globalPos():
+            self._bs.set_modified()
+
+    def save_gui_data(self):
+        """ *
+        Saves the state of the node.
+        This includes node-position only for now.
+        Not to be called by itself; only by an iterator that runs through *all*
+        nodes to call this save_gui_data method.
+        """
+        x = self.geometry().x()
+        y = self.geometry().y()
+        x_c = x + self.width() / 2
+        y_c = y + self.height() / 2
+        pos = [x_c, y_c]
+        gui_data = self._backup_set.gui_data
+        # build dict
+        try:
+            x = gui_data["nodes"]
+        except:
+            gui_data["nodes"] = {}
+        try:
+            x = gui_data["nodes"]["bs_target_widgets"]
+        except:
+            gui_data["nodes"]["bs_target_widgets"] = {}
+        try:
+            x = gui_data["nodes"]["bs_target_widgets"]["container"]
+        except:
+            gui_data["nodes"]["bs_target_widgets"]["container"] = {}
+        # update dict
+        gui_data["nodes"]["bs_target_widgets"]["container"]["pos"] = pos
 
 #class ViewSets(QtGui.QWidget):
 #    """ * """

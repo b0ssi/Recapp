@@ -22,40 +22,176 @@ import bs.config
 from PySide import QtCore, QtGui
 
 
-class BSNodeItemButton(QtGui.QFrame):
+class BSFrame(QtGui.QFrame):
     """ * """
-    _title = None
 
-    _layout = None
+    _css = None
+    _css_enabled_default = None
+    _css_enabled_hover = None
+    _css_enabled_active = None
+    _css_disabled = None
 
-    def __init__(self, parent, title):
-        super(BSNodeItemButton, self).__init__(parent)
+    def __init__(self, parent):
+        super(BSFrame, self).__init__(parent)
 
-        self._title = title
+    @property
+    def css(self):
+        return self._css
 
-        self._init_ui()
-
-    def _init_ui(self):
-        self._layout = QtGui.QGridLayout(self)
-        title = QtGui.QLabel(self._title)
-        self._layout.addWidget(title, 0, 0, 1, 1)
-        # CSS
-        self.setStyleSheet("color: #%s"
-                           % (bs.config.PALETTE[6], ))
+    @css.setter
+    def css(self, arg):
+        """ *
+        argument 1 needs to be of following format:
+        (
+         (object,
+          class_constraint,
+          pattern,
+          (
+           (dataset1),
+           (dataset2),
+           ...
+          )
+         ),
+         ...
+        )
+        where `class_constraint` needs to be either ".", "" or `None`.
+        This decides whether the css is constrained to the object only/object
+        and all subtypes or to whole hierarcy.
+        "." will wrap the css definitions into `.classname {...}`: constrains to instances of class only
+        "" will wrap the css definitions into `classname {...}` constrains to any instance of class or subtype
+        `None` will not wrap the css definitions: only constrains to object hierarchy (leaving out
+        `[.]class {}` completely in css string).
+        """
+        out = []
+        for dataset in arg:
+            # extract data
+            obj = dataset[0]
+            class_constraint = dataset[1]
+            pattern = dataset[2]
+            data = dataset[3]
+            # extract stylesheets
+            css_definitions = []
+            for n in data:
+                if not class_constraint is None:
+                    css_definition = "%s%s {" % (class_constraint, str(obj.__class__.__name__), )
+                    css_definition += pattern % n
+                    css_definition += "}"
+                else:
+                    css_definition = pattern % n
+                css_definitions.append(css_definition)
+            out.append((obj, css_definitions, ))
+        self._css = out
+        # set initial style
+        self.setEnabled(self.isEnabled())
 
     def enterEvent(self, e):
-        """ * """
-        self.setStyleSheet("background: #%s; color: #%s"
-                           % (bs.config.PALETTE[1],
-                              bs.config.PALETTE[4], ))
+        """ *
+        Compiles CSS style code-string from self.css and sets css on all
+        nodes saved in self.css.
+        """
+        super(BSFrame, self).enterEvent(e)
+
+        if self.css:
+            if self.isEnabled():
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][1]
+                    obj.setStyleSheet(css_definition)
+            else:
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][4]
+                    obj.setStyleSheet(css_definition)
 
     def leaveEvent(self, e):
-        """ * """
-        self.setStyleSheet("background: None; color: #%s"
-                           % (bs.config.PALETTE[6], ))
+        """ *
+        Compiles CSS style code-string from self.css and sets css on all
+        nodes saved in self.css.
+        """
+        super(BSFrame, self).leaveEvent(e)
+
+        if self.css:
+            if self.isEnabled():
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][0]
+                    obj.setStyleSheet(css_definition)
+            else:
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][3]
+                    obj.setStyleSheet(css_definition)
+
+    def mousePressEvent(self, e):
+        """ *
+        Compiles CSS style code-string from self.css and sets css on all
+        nodes saved in self.css.
+        """
+        super(BSFrame, self).mousePressEvent(e)
+
+        if self.css:
+            if self.isEnabled():
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][2]
+                    obj.setStyleSheet(css_definition)
+            # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
+
+    def mouseReleaseEvent(self, e):
+        """ *
+        Compiles CSS style code-string from self.css and sets css on all
+        nodes saved in self.css.
+        """
+        super(BSFrame, self).mouseReleaseEvent(e)
+
+        if self.css:
+            if self.isEnabled():
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][1]
+                    obj.setStyleSheet(css_definition)
+            # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
+
+    def setEnabled(self, mode=True):
+        """ *
+        Compiles CSS style code-string from self.css and sets css on all
+        nodes saved in self.css.
+        """
+        if self.css:
+            if mode:
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][0]
+                    obj.setStyleSheet(css_definition)
+            else:
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][3]
+                    obj.setStyleSheet(css_definition)
+
+        super(BSFrame, self).setEnabled(mode)
+
+    def setDisabled(self, mode=True):
+        """ *
+        Compiles CSS style code-string from self.css and sets css on all
+        nodes saved in self.css.
+        """
+        if self.css:
+            if not mode:
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][0]
+                    obj.setStyleSheet(css_definition)
+            else:
+                for dataset in self.css:
+                    obj = dataset[0]
+                    css_definition = dataset[1][3]
+                    obj.setStyleSheet(css_definition)
+
+        super(BSFrame, self).setDisabled(mode)
 
 
-class BSDraggable(QtGui.QFrame):
+class BSDraggable(BSFrame):
     """ * """
 
     _pos_offset = None  # stores local pos offset for drag-ability
@@ -201,63 +337,31 @@ class BSArrow(QtGui.QWidget):
                          )
 
 
-class BSFrame(BSDraggable):
+class BSNode(BSDraggable):
     """ * """
+
     _layout = None
+    _title = None
     _arrows = None
 
     def __init__(self, parent):
-        super(BSFrame, self).__init__(parent)
+        super(BSNode, self).__init__(parent)
 
         self._arrows = []
 
-        # INIT UI
+        # title
+        self._title = QtGui.QLabel("")
         # layout
         self._layout = QtGui.QGridLayout(self)
-        # CSS
-        self.setStyleSheet(bs.config.CSS)
+        self._layout.addWidget(self._title, 0, 0, 1, 1)
+        self._layout.setSpacing(1)
+        self._layout.setContentsMargins(5, 5, 5, 41)
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
         gfx.setOffset(0)
         gfx.setColor(QtGui.QColor(20, 20, 20))
         gfx.setBlurRadius(4)
         self.setGraphicsEffect(gfx)
-
-    def assign_to_arrow(self, arrow):
-        """ * """
-        if not arrow in self._arrows:
-            self._arrows.append(arrow)
-
-    def draw_arrows(self):
-        """ * """
-        if not len(self._arrows) == 0:
-            for arrow in self._arrows:
-                arrow.refresh()
-
-    def mousePressEvent(self, e):
-        """ * """
-        self.raise_()
-        super(BSFrame, self).mousePressEvent(e)
-
-    def mouseMoveEvent(self, e):
-        """ * """
-        self.draw_arrows()
-        super(BSFrame, self).mouseMoveEvent(e)
-
-
-class BSNode(BSFrame):
-    """ * """
-
-    _layout = None
-    _title = None
-
-    def __init__(self, parent):
-        super(BSNode, self).__init__(parent)
-        # title
-        self._title = QtGui.QLabel("")
-        self._layout.addWidget(self._title, 0, 0, 1, 1)
-        self._layout.setSpacing(1)
-        self._layout.setContentsMargins(5, 5, 5, 41)
 
     @property
     def title_text(self):
@@ -291,8 +395,29 @@ class BSNode(BSFrame):
         pos_y = self._layout.count()
         self._layout.addWidget(bs_node_item, pos_y, 0, 1, 1)
 
+    def assign_to_arrow(self, arrow):
+        """ * """
+        if not arrow in self._arrows:
+            self._arrows.append(arrow)
 
-class BSNodeItem(QtGui.QFrame):
+    def draw_arrows(self):
+        """ * """
+        if not len(self._arrows) == 0:
+            for arrow in self._arrows:
+                arrow.refresh()
+
+    def mousePressEvent(self, e):
+        """ * """
+        self.raise_()
+        super(BSNode, self).mousePressEvent(e)
+
+    def mouseMoveEvent(self, e):
+        """ * """
+        self.draw_arrows()
+        super(BSNode, self).mouseMoveEvent(e)
+
+
+class BSNodeItem(BSFrame):
     """ * """
 
     _layout = None
@@ -305,17 +430,17 @@ class BSNodeItem(QtGui.QFrame):
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(11, 0, 6, 0)
-        self._layout.setColumnStretch(0, 100)
-        self._layout.setColumnStretch(1, 1)
-        self._layout.setColumnMinimumWidth(1, 28)
         self._layout.setRowMinimumHeight(0, 28)
         self._title = QtGui.QLabel("")
-        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[3], ))
+#        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[3], ))
         self._layout.addWidget(self._title, 0, 0, 1, 1)
-        self._btn_del = BSNodeItemButton(self, "DEL")
-        self._layout.addWidget(self._btn_del, 0, 1, 1, 1)
         # CSS
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[1], ))
+#        self.setStyleSheet("BSNodeItem {background: #%s}"
+#                           % (bs.config.PALETTE[1], ))
+
+    @property
+    def title(self):
+        return self._title
 
     @property
     def title_text(self):
@@ -327,21 +452,58 @@ class BSNodeItem(QtGui.QFrame):
         """ * """
         self._title.setText(title)
 
-    def enterEvent(self, e):
-        """ * """
-        super(BSNodeItem, self).enterEvent(e)
-
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[0]))
-        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[4], ))
+#    def enterEvent(self, e):
+#        """ * """
+#        super(BSNodeItem, self).enterEvent(e)
+#
+#        self.setStyleSheet("BSNodeItem {background: #%s}"
+#                           % (bs.config.PALETTE[0]))
+#        self._title.setStyleSheet("QLabel {color: #%s}"
+#                                  % (bs.config.PALETTE[4], ))
 
     def leaveEvent(self, e):
         """ * """
         super(BSNodeItem, self).leaveEvent(e)
 
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[1]))
-        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[3], ))
+#        self.setStyleSheet("BSNodeItem {background: #%s}"
+#                           % (bs.config.PALETTE[1]))
+#        self._title.setStyleSheet("QLabel {color: #%s}"
+#                                  % (bs.config.PALETTE[3], ))
 
     def mouseMoveEvent(self, e):
         """ *
         Override to ignore
         """
+
+
+class BSNodeItemButton(BSFrame):
+    """ * """
+    _title = None
+
+    _layout = None
+
+    def __init__(self, parent, title):
+        super(BSNodeItemButton, self).__init__(parent)
+
+        self._title = title
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self._layout = QtGui.QGridLayout(self)
+        title = QtGui.QLabel(self._title)
+        self._layout.addWidget(title, 0, 0, 1, 1)
+        # CSS
+        self.setStyleSheet("color: #%s"
+                           % (bs.config.PALETTE[6], ))
+
+    def enterEvent(self, e):
+        """ * """
+        self.setStyleSheet("background: #%s; color: #%s"
+                           % (bs.config.PALETTE[1],
+                              bs.config.PALETTE[4], ))
+
+    def leaveEvent(self, e):
+        """ * """
+        self.setStyleSheet("background: None; color: #%s"
+                           % (bs.config.PALETTE[6], ))

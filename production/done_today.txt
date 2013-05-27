@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2013-05-25 - 27
+- implemented save-methodology for nodes
+	- set-table on db has a column "gui_data" that saves a dictionary with a namespace for the nodes, ids, etc. and their x/y (center) coordinates. That's all for now, will be able to add data later on easily.
+	- added save button
+	- added timeout signals that exectue the save_to_db after a 1s timeout if the modified_signal has been triggered. During that time the save button gets enabled making it possible to click it manually (If you're really in a hurry)
+
 2013-05-24
 - Started implementing new concepts sketched out yesterday:
 	- db-changes: sets columns "source_ass", "filter_ass" contain dictionaries that link source-ids and filter-ids (respectively) to other nodes (through their ids). If they link to `-1` it means they directly connect to the set's set of targets. Each node can only link to one other node but accept multiple incoming connections. Filters can be chained up (but not in loops, this is an implementation detail in the control code later). A source can directly link to the set of targets.

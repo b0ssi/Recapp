@@ -27,24 +27,59 @@ import logging
 import time
 
 
+class Application(QtGui.QApplication):
+    """ * """
+
+    idle_1s_timer = None
+
+    def __init__(self, name):
+        super(Application, self).__init__(name)
+
+        # timers
+        self.idle_1s_timer = QtCore.QTimer(self)
+        self.idle_1s_timer.setSingleShot(True)
+        self.idle_1s_timer.setInterval(1000)
+        # session-wide setup
+        font = QtGui.QFont()
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+        self.setFont(font)
+
+    def notify(self, receiver, e):
+        if e.type() == QtCore.QEvent.KeyPress or\
+            e.type() == QtCore.QEvent.MouseMove and\
+            self.idle_1s_timer.isActive():
+            self.idle_1s_timer.start()
+
+        return QtGui.QApplication.notify(self, receiver, e)
+
+
 class WindowMain(QtGui.QMainWindow):
     """ * """
+    _sessions = None
+    _session_gui = None
+    _app = None
+
     _default_width = 640
     _default_height = 480
     _menu_bar = None
-    _sessions = None
-    _session_gui = None
     # references to all other windows. They are most likely initialized in
     # other classes but all referenced here for easy access
     _window_about = None
     _layout = None
+    _view = None
 
-    def __init__(self, sessions, session_gui):
+    def __init__(self, sessions, session_gui, app):
         super(WindowMain, self).__init__()
 
         self._sessions = sessions
         self._session_gui = session_gui
+        self._app = app
+
         self._init_ui()
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, e):
+        print(e)
 
     @property
     def window_about(self):
@@ -101,15 +136,20 @@ class WindowMain(QtGui.QMainWindow):
         # clear layout
         for i in range(self._layout.count()):
             self._layout.itemAt(i).widget().deleteLater()
+        # delete last active view widget (this should be the same as above in _layout
+#        try:
+#            self._view.deleteLate()
+#        except:
+#            pass
         if view == "login":
             # ui: set
-            widget = bs.gui.view_login.ViewLogin(self._sessions,
-                                                 self._session_gui)
-            self._layout.addWidget(widget, 0, 0, 1, 1)
-            widget.view_login_form.input_username.setFocus()
+            self._view = bs.gui.view_login.ViewLogin(self._sessions,
+                                                     self._session_gui)
+            self._layout.addWidget(self._view, 0, 0, 1, 1)
+            self._view.view_login_form.input_username.setFocus()
         elif view == "x":
-            widget = bs.gui.view_sets.BS(self._session_gui)
-            self._layout.addWidget(widget, 0, 0, 1, 1)
+            self._view = bs.gui.view_sets.BS(self, self._session_gui, self._app)
+            self._layout.addWidget(self._view, 0, 0, 1, 1)
         # update menu
         self._menu_bar.update()
 

@@ -15,9 +15,7 @@
 ##                                                                           ##
 ###############################################################################
 
-""" * """
-
-from PySide import QtGui
+from PySide import QtCore, QtGui
 import bs.config
 import bs.gui.window_main
 import bs.messages
@@ -31,6 +29,9 @@ import re
 import sqlite3
 import time
 import win32file
+
+""" * """
+
 
 
 class SessionsCtrl(object):
@@ -51,13 +52,9 @@ class SessionsCtrl(object):
         self._guis = []
         # gui stuff
         if self._gui_mode:
-            self._app = QtGui.QApplication("asdf")
+            self._app = bs.gui.window_main.Application("asdf")
             self._app.setWindowIcon(QtGui.QIcon("img/favicon.png"))
-            self.add_session_gui()
-            # session-wide setup
-            font = QtGui.QFont()
-            font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-            self._app.setFont(font)
+            self.add_session_gui(self._app)
             self._app.exec_()
 
     def __repr__(self):
@@ -138,11 +135,11 @@ class SessionsCtrl(object):
             logging.warning("%s: The session does not exist: %s"
                             % (self.__class__.__name__, session, ))
 
-    def add_session_gui(self):
+    def add_session_gui(self, app):
         """ *
         Adds a new UI instance to host a separate is_unlocked session.
         """
-        session_gui = SessionGuiCtrl(self)
+        session_gui = SessionGuiCtrl(self, app)
         self._guis.append(session_gui)
         return session_gui
 
@@ -158,13 +155,18 @@ class SessionGuiCtrl(object):
     """ *
     Container for a GUI session
     """
-    _main_window = None
     _sessions = None
+    _app = None
+
+    _main_window = None
     _session = None
 
-    def __init__(self, sessions):
+    def __init__(self, sessions, app):
+
         self._sessions = sessions
-        self._main_window = bs.gui.window_main.WindowMain(self._sessions, self)
+        self._app = app
+
+        self._main_window = bs.gui.window_main.WindowMain(self._sessions, self, self._app)
 
     @property
     def main_window(self):
@@ -181,7 +183,7 @@ class SessionGuiCtrl(object):
     @session.setter
     def session(self, session):
         """ * """
-        if not isinstance(session, SessionCtrl):
+        if not isinstance(session, SessionCtrl) and session:
             logging.warning("%s: The first argument needs to be of type "\
                             "`SessionCtrl`."
                             % (self.__class__.__name__, ))
@@ -1148,6 +1150,7 @@ class BackupSetCtrl(bs.model.models.Sets):
     _backup_sources = None
     _backup_filters = None
     _backup_targets = None
+    _gui_data = None
 
     def __init__(self, session, set_id, set_uid, set_name, key_hash_64, \
                  set_db_path, source_objs, filter_objs, target_objs):
@@ -1285,6 +1288,20 @@ class BackupSetCtrl(bs.model.models.Sets):
         self._update((("targets", json.dumps(target_ids_list)), ),
                      (("id", "=", self._set_id, ), ))
 
+    @property
+    def gui_data(self):
+        """ *
+        This associative array holds arbitrary gui-specific data such as
+        node-coordinates and anything that might be added in the future.
+        """
+        if not self._gui_data:
+            # get data from db
+            res = self._get("gui_data",
+                            (("id", "=", self.set_id, ), ))
+            gui_data = json.loads(res[0][0])
+            self._gui_data = gui_data
+        return self._gui_data
+
     def add_backup_source(self, backup_source):
         """ *
         Adds a backup-source to this backup-set.
@@ -1326,6 +1343,17 @@ class BackupSetCtrl(bs.model.models.Sets):
                 backup_sources_list_new.append(backup_source_in_current_set)
         # update db
         self._update((("sources", json.dumps(backup_sources_list_new), ), ), (("id", "=", self.set_id, ), ))
+
+    def save_to_db(self):
+        """ *
+        Explicitly saves specified fields to db that are only intermittendly
+        modified in memory during runtime.
+        """
+        logging.debug("%s: Saving gui_data to db..." % (self.__class__.__name__, ))
+        self._update((("gui_data", json.dumps(self.gui_data)), ), (("id", "=", self.set_id, ), ))
+        # emit signal
+        logging.debug("%s: gui_data successfully saved to db." % (self.__class__.__name__, ))
+        return True
 
 
 class BackupSetsCtrl(bs.model.models.Sets):

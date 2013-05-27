@@ -68,6 +68,7 @@ class Sets(bs.model.models_master.BSModel):
     source_ass = ["TEXT"]
     filter_ass = ["TEXT"]
     targets = ["TEXT"]
+    gui_data = ["TEXT"]
 
     def __init__(self):
         pass

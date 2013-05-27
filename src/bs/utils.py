@@ -24,7 +24,7 @@ import time
 import win32file
 
 
-class Event(object):
+class Signal(object):
     """ * """
     def __init__(self):
         self.handlers = set()
@@ -33,34 +33,57 @@ class Event(object):
         return "Event (%s) <%s>" % (self.num_handlers(),
                                     self.__class__.__name__, )
 
-    def add_handler(self, handler):
+    def connect(self, handler):
         """ * """
         self.handlers.add(handler)
-        print("'%s' successfully added to handlers." % (handler,))
+        logging.debug("%s: '%s' successfully added to handlers."
+                      % (self.__class__.__name__,
+                         handler, ))
         return self
 
-    def remove_handler(self, handler):
+    def disconnect(self, handler):
         """ * """
         try:
             self.handlers.remove(handler)
-            print("'%s' successfully removed from handlers." % (handler,))
+            logging.debug("%s: Handler '%s' successfully removed from event "\
+                          "dispatcher."
+                          % (self.__class__.__name__,
+                             handler, ))
         except:
-            print("This handler is not currently registered with the event "\
-                  "and can therefore not be detached.")
+            logging.warning("%s: This handler is not currently registered "\
+                            "with the event and can therefore not be detached."
+                            % (self.__class__.__name__, ))
         return self
 
-    def fire_handlers(self, *args, **kwargs):
+    def emit(self, *args, **kwargs):
         """ * """
+        # if a handler does not exist anymore (because its bound object has
+        # been deleted e.g., disconnect the handler.
+        # Otherwise, call it.
+        handlers_to_disconnect = []
         for handler in self.handlers:
-            handler(*args, **kwargs)
+            try:
+                handler(*args, **kwargs)
+                logging.debug("%s: Handler %s successfully called."
+                              % (self.__class__.__name__,
+                                 handler, ))
+            except:
+                logging.debug("%s: Handler %s does not exist anymore. "\
+                              "Detaching from event dispatcher."
+                              % (self.__class__.__name__,
+                                 handler, ))
+                handlers_to_disconnect.append(handler)
+        # disconnect
+        for handler_to_disconnect in handlers_to_disconnect:
+            self.disconnect(handler_to_disconnect)
 
     def num_handlers(self):
         """ * """
         return len(self.handlers)
 
-    __iadd__ = add_handler
-    __isub__ = remove_handler
-    __call__ = fire_handlers
+    __iadd__ = connect
+    __isub__ = disconnect
+    __call__ = emit
     __len__ = num_handlers
 
 #class MyTrigger(object):

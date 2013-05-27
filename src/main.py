@@ -1,13 +1,4 @@
 # -*- coding: utf-8 -*-
-import bs.ctrl._db
-import bs.ctrl.backup
-import bs.ctrl.session
-import json
-import logging
-import os
-import re
-import sys
-import time
 
 ###############################################################################
 ##    main                                                                   ##
@@ -26,7 +17,15 @@ import time
 
 """ * """
 
-
+import bs.ctrl._db
+import bs.ctrl.backup
+import bs.ctrl.session
+import json
+import logging
+import os
+import re
+import sys
+import time
 
 
 # logging
@@ -36,7 +35,7 @@ logging.basicConfig(format="--------------- "\
                            "(%(funcName)s)\r"\
                            "%(levelname)s      \t"\
                            "%(message)s",
-                    level=logging.CRITICAL)
+                    level=logging.DEBUG)
 
 
 if __name__ == '__main__':
@@ -52,6 +51,7 @@ if __name__ == '__main__':
     sync_db.sync()
     # init sessions
     sessions = bs.ctrl.session.SessionsCtrl(gui_mode)
+
 
 ## PREP
 ## sync db if necessary

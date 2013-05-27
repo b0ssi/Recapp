@@ -48,7 +48,9 @@ PALETTE = ["59554e",  # 0
            "33312d",  # 3
            "ffde02",  # 4
            "767167",  # 5
-           "888277"]  # 6
+           "888277",  # 6
+           "ff0000",  # 7
+           "ff2a2a"]  # 8
 # CSS
 CSS = ""  # "QWidget {background: #c7c7ff; border-radius: 2px}"
 # background: #59554e
@@ -56,12 +58,12 @@ CSS += "BSSetsCanvas {background: #59554e}"
 # background: #6a665d
 CSS += "nothing {background: #6a665d}"
 # background: #c7c7ff
-CSS += "BSFrame {background: #c7c7ff}"
+CSS += "BSNode {background: #c7c7ff}"
 # background: #33312d
 CSS += "nothing {background: #33312d}"
 # border-radius: 2px
 #CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
-CSS += "BSNodeItem, BSFrame {border-radius: 2px}"
+CSS += "BSNodeItem, BSNode {border-radius: 2px}"
 # color: #33312d
 CSS += "nothing {color: #33312d}"
 # color: #ffde02
