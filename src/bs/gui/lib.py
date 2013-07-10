@@ -18,6 +18,7 @@
 """ * """
 
 import bs.config
+import bs.gui.view_sets
 
 from PySide import QtCore, QtGui
 
@@ -256,13 +257,16 @@ class BSArrow(QtGui.QWidget):
     _join_style = None
 
     def __init__(self, source, target):
-        super(BSArrow, self).__init__(source.parentWidget())
+        super(BSArrow, self).__init__(source.parent())
 
         self._source = source
         self._target = target
-        self._source.assign_to_arrow(self)
-        self._target.assign_to_arrow(self)
+        self._source.assign_to_arrow_as_source(self)
+        self._target.assign_to_arrow_as_target(self)
 
+        # associate with parent (canvas)
+        self.parent().arrow_widgets.append(self)
+        # style set-up
         self._stroke_width = 3
         self._stroke_style = QtCore.Qt.SolidLine
         self._line_cap = QtCore.Qt.RoundCap
@@ -272,8 +276,31 @@ class BSArrow(QtGui.QWidget):
         self.show()
 
     @property
+    def source(self):
+        return self._source
+
+    @source.setter
+    def source(self, arg):
+        self._source = arg
+
+    @property
     def target(self):
         return self._target
+
+    @target.setter
+    def target(self, arg):
+        self._target = arg
+
+    def delete(self):
+        """ *
+        Removes the arrow from associated objects (source, target) and deletes
+        the widget.
+        """
+        # unassign arrow from source, target
+        self._source.unassign_from_arrow(self)
+        self._target.unassign_from_arrow(self)
+        self.parent().arrow_widgets.pop(self.parent().arrow_widgets.index(self))
+        self.deleteLater()
 
     def paintEvent(self, e=None):
         """ * """
@@ -337,17 +364,204 @@ class BSArrow(QtGui.QWidget):
                          )
 
 
+class BSArrowCarrier(BSDraggable):
+    """ * """
+    _app = None
+    _bs = None
+
+    _source = None
+    _arrow_inbound = None
+    _mouse_press_global_pos = None
+
+    def __init__(self, parent, app, bs):
+        super(BSArrowCarrier, self).__init__(parent)
+
+        self._app = app
+        self._bs = bs
+
+        self.setStyleSheet("background: red")
+        self.setGeometry(0, 0, 50, 50)
+        # gonnect to global_mouse_pos_signal
+        self.register_signals()
+
+        self.show()
+        self.lower()
+
+    def register_signals(self):
+        """ *
+        Registers object's signals.
+        """
+        self._app.global_mouse_pos_signal.connect(self.move_to)
+        self._app.global_mouse_press_signal.connect(self.record_mouse_pos)
+        self._app.global_mouse_release_signal.connect(self.mouse_release_action)
+
+    def unregister_signals(self):
+        """ *
+        Unregisters object's signals. Called, when object is not used anymore.
+        """
+        self._app.global_mouse_pos_signal.disconnect(self.move_to)
+        self._app.global_mouse_press_signal.disconnect(self.record_mouse_pos)
+        self._app.global_mouse_release_signal.disconnect(self.mouse_release_action)
+
+    def _reset(self):
+        """ * """
+        self._source = None
+        self._arrow_inbound = None
+
+    def move_to(self, e):
+        """ * """
+#        super(BSArrowCarrier, self).mouseMoveEvent(e)
+        # coordinates in parent's space
+        x = self.parent().mapFromGlobal(e.globalPos()).x()
+        y = self.parent().mapFromGlobal(e.globalPos()).y()
+        self.setGeometry(x + 5,
+                         y + 5,
+                         self.width(),
+                         self.height())
+        self.draw_arrows()
+
+    def record_mouse_pos(self, widget, e):
+        """ *
+        Records current mouse position for figuring out if mouse has moved or
+        not in other methods.
+        """
+        self._mouse_press_global_pos = e.globalPos()
+
+    def mouse_release_action(self, widget, e):
+        """ *
+        Connects the arrow to the node widget.
+        """
+        if e.globalPos() == self._mouse_press_global_pos:
+            # get coordinates in parent's local space
+            x = self.parent().mapFromGlobal(e.globalPos()).x()
+            y = self.parent().mapFromGlobal(e.globalPos()).y()
+            # widget on parent at clicked point
+            widget = self.parent().childAt(x, y)
+            # try to get node base-object
+            while not widget is self.parent():
+                if isinstance(widget, BSNode):
+                    break
+                try:
+                    widget = widget.parent()
+                except:
+                    widget = self.parent()
+            # if clicked on node
+            if not widget == self.parent():
+                # BUILDING LOGICS CHECKS
+                # start node
+                is_allowed_start_node = False
+                needs_reconnect = False
+                if isinstance(widget, bs.gui.view_sets.BSSource) or\
+                   isinstance(widget, bs.gui.view_sets.BSFilter):
+                    if not widget.arrow_outbound:
+                        is_allowed_start_node = True
+                    else:
+                        needs_reconnect = True
+                # finalize node
+                is_allowed_finalize_node = False
+                if isinstance(widget, bs.gui.view_sets.BSFilter) or\
+                   isinstance(widget, bs.gui.view_sets.BSTarget):
+                    is_allowed_finalize_node = True
+                node_to_test = widget
+                while node_to_test.arrow_outbound:
+                    node_to_test = node_to_test.arrow_outbound.target
+                    if node_to_test == self._source:
+                        is_allowed_finalize_node = False
+                        break
+                # EXECUTE ACTION BASED ON CONTEXT
+                # if start action
+                if not self._source:
+                    if is_allowed_start_node:
+                        self.connect_start(widget)
+                    elif needs_reconnect:
+                        self.connect_reconnect(widget)
+                # elif connection action
+                else:
+                    if is_allowed_finalize_node:
+                        self.connect_finalize(widget)
+            # cancel
+            elif self._source:
+                self.connect_cancel()
+
+    def connect_start(self, source):
+        """ * """
+        self._source = source
+        self._arrow_inbound = BSArrow(self._source, self)
+
+    def connect_reconnect(self, source):
+        self._source = source
+        self._arrow_inbound = self._source.arrow_outbound
+        self._arrow_inbound.target.unassign_from_arrow(self._arrow_inbound)
+        self._arrow_inbound.target = self
+
+    def connect_finalize(self, target):
+        """ * """
+        # update data on controllers
+        if isinstance(self._source, bs.gui.view_sets.BSSource):
+            # re-associate with new backup_filter/backup_target
+            if isinstance(target, bs.gui.view_sets.BSTarget):
+                self._source.backup_source.backup_source_ass[self._bs.backup_set_current] = target.backup_targets
+            else:
+                self._source.backup_source.backup_source_ass[self._bs.backup_set_current] = target.backup_filter
+        if isinstance(self._source, bs.gui.view_sets.BSFilter):
+            # re-associate with new backup_filter/backup_target
+            if isinstance(target, bs.gui.view_sets.BSTarget):
+                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current] = target.backup_targets
+            else:
+                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current] = target.backup_filter
+        # trigger modified signal
+        self._bs.set_modified()
+        target.assign_to_arrow_as_target(self._arrow_inbound)
+        self._arrow_inbound.target = target
+        self._arrow_inbound.refresh()
+        self._reset()
+
+    def connect_cancel(self):
+        print("1")
+        self._arrow_inbound.delete()
+        print("2")
+        # re-initialize self
+        self._reset()
+        print("3")
+
+    def assign_to_arrow_as_target(self, arrow):
+        """ * """
+        self._arrow_inbound = arrow
+
+    def unassign_from_arrow(self, arrow):
+        """ * """
+        if arrow == self._arrow_inbound:
+            self._arrow_inbound = None
+
+    def draw_arrows(self):
+        """ * """
+        if self._arrow_inbound:
+            self._arrow_inbound.refresh()
+
+    def mouseMoveEvent(self, e):
+        """ *
+        Override.
+        """
+        pass
+
+
 class BSNode(BSDraggable):
     """ * """
+    _app = None
 
     _layout = None
     _title = None
-    _arrows = None
+    _arrows_inbound = None
+    _arrow_outbound = None
+    _title_size = None
+#    _mouse_press_global_pos = None  # Holds mouse pos when key was pressed to compare against pos when released
 
-    def __init__(self, parent):
+    def __init__(self, parent, app):
         super(BSNode, self).__init__(parent)
 
-        self._arrows = []
+        self._app = app
+
+        self._arrows_inbound = []
 
         # title
         self._title = QtGui.QLabel("")
@@ -372,44 +586,65 @@ class BSNode(BSDraggable):
         self._title.setText(text)
 
     @property
+    def arrow_inbound(self):
+        return self._arrows_inbound
+
+    @property
+    def arrow_outbound(self):
+        return self._arrow_outbound
+
+    @property
     def title_size(self):
-        pass
+        return self._title_size
 
     @title_size.setter
     def title_size(self, size):
+        self._title_size = size
         self._title.setStyleSheet("margin-left: 1px; margin-top: %spx; margin-bottom: %spx; font-size: %spx; color: #%s"
                                   % (
-                                     size / 9,
-                                     size - 8,
-                                     size,
+                                     self._title_size / 9,
+                                     self._title_size - 8,
+                                     self._title_size,
                                      bs.config.PALETTE[0]))
         self._layout.setContentsMargins(self._layout.contentsMargins().left(),
                                         self._layout.contentsMargins().top(),
                                         self._layout.contentsMargins().right(),
-                                        size * 2 + 5)
+                                        self._title_size * 2 + 5)
+        self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
 
-    def add_item(self, bs_node_item):
-        """ *
-        Adds bs_node_item to the widget.
-        """
-        pos_y = self._layout.count()
-        self._layout.addWidget(bs_node_item, pos_y, 0, 1, 1)
-
-    def assign_to_arrow(self, arrow):
+    def assign_to_arrow_as_source(self, arrow):
         """ * """
-        if not arrow in self._arrows:
-            self._arrows.append(arrow)
+        if arrow is not self._arrow_outbound:
+            self._arrow_outbound = arrow
+
+    def assign_to_arrow_as_target(self, arrow):
+        """ * """
+        if not arrow in self._arrows_inbound:
+            self._arrows_inbound.append(arrow)
+
+    def unassign_from_arrow(self, arrow):
+        """ *
+        Unassigns `arrow` from this widget.
+        """
+        if arrow in self._arrows_inbound:
+            self._arrows_inbound.pop(self._arrows_inbound.index(arrow))
+        elif arrow == self._arrow_outbound:
+            self._arrow_outbound = None
 
     def draw_arrows(self):
         """ * """
-        if not len(self._arrows) == 0:
-            for arrow in self._arrows:
-                arrow.refresh()
+        if not len(self._arrows_inbound) == 0:
+            for arrow_inbound in self._arrows_inbound:
+                arrow_inbound.refresh()
+        if self._arrow_outbound:
+            self._arrow_outbound.refresh()
 
     def mousePressEvent(self, e):
         """ * """
-        self.raise_()
         super(BSNode, self).mousePressEvent(e)
+
+#        self._mouse_press_global_pos = e.globalPos()
+        self.raise_()
 
     def mouseMoveEvent(self, e):
         """ * """
@@ -427,16 +662,12 @@ class BSNodeItem(BSFrame):
     def __init__(self, parent):
         super(BSNodeItem, self).__init__(parent)
 
+        self.setMinimumHeight(28)
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(11, 0, 6, 0)
-        self._layout.setRowMinimumHeight(0, 28)
         self._title = QtGui.QLabel("")
-#        self._title.setStyleSheet("color: #%s" % (bs.config.PALETTE[3], ))
         self._layout.addWidget(self._title, 0, 0, 1, 1)
-        # CSS
-#        self.setStyleSheet("BSNodeItem {background: #%s}"
-#                           % (bs.config.PALETTE[1], ))
 
     @property
     def title(self):
@@ -451,24 +682,6 @@ class BSNodeItem(BSFrame):
     def title_text(self, title):
         """ * """
         self._title.setText(title)
-
-#    def enterEvent(self, e):
-#        """ * """
-#        super(BSNodeItem, self).enterEvent(e)
-#
-#        self.setStyleSheet("BSNodeItem {background: #%s}"
-#                           % (bs.config.PALETTE[0]))
-#        self._title.setStyleSheet("QLabel {color: #%s}"
-#                                  % (bs.config.PALETTE[4], ))
-
-    def leaveEvent(self, e):
-        """ * """
-        super(BSNodeItem, self).leaveEvent(e)
-
-#        self.setStyleSheet("BSNodeItem {background: #%s}"
-#                           % (bs.config.PALETTE[1]))
-#        self._title.setStyleSheet("QLabel {color: #%s}"
-#                                  % (bs.config.PALETTE[3], ))
 
     def mouseMoveEvent(self, e):
         """ *
@@ -507,3 +720,21 @@ class BSNodeItemButton(BSFrame):
         """ * """
         self.setStyleSheet("background: None; color: #%s"
                            % (bs.config.PALETTE[6], ))
+
+
+class BSMessageBox(QtGui.QMessageBox):
+    """ * """
+
+    def __init__(self, icon, title, message):
+        super(BSMessageBox, self).__init__(icon, title, message)
+
+        css = "BSMessageBox {background: #%s}"\
+              "BSMessageBox QPushButton {background: #%s; color: #%s; width: 70px; height: 20px; border-radius: 3px}"\
+              "BSMessageBox QPushButton:hover {background: #%s; color: #%s}"\
+              % (bs.config.PALETTE[2],
+                 bs.config.PALETTE[1],
+                 bs.config.PALETTE[3],
+                 bs.config.PALETTE[0],
+                 bs.config.PALETTE[4],
+                 )
+        self.setStyleSheet(css)

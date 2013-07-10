@@ -35,7 +35,7 @@ logging.basicConfig(format="--------------- "\
                            "(%(funcName)s)\r"\
                            "%(levelname)s      \t"\
                            "%(message)s",
-                    level=logging.DEBUG)
+                    level=logging.WARNING)
 
 
 if __name__ == '__main__':

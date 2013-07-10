@@ -39,6 +39,10 @@ class Application(QtGui.QApplication):
         self.idle_1s_timer = QtCore.QTimer(self)
         self.idle_1s_timer.setSingleShot(True)
         self.idle_1s_timer.setInterval(1000)
+        # global mouse pos signal
+        self.global_mouse_pos_signal = bs.utils.Signal()
+        self.global_mouse_press_signal = bs.utils.Signal()
+        self.global_mouse_release_signal = bs.utils.Signal()
         # session-wide setup
         font = QtGui.QFont()
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
@@ -49,6 +53,15 @@ class Application(QtGui.QApplication):
             e.type() == QtCore.QEvent.MouseMove and\
             self.idle_1s_timer.isActive():
             self.idle_1s_timer.start()
+        # global_mouse_pos
+        if e.type() == QtCore.QEvent.Type.MouseMove:
+            self.global_mouse_pos_signal.emit(e)
+        # global_mouse_press
+        if e.type() == QtCore.QEvent.Type.MouseButtonPress:
+            self.global_mouse_press_signal.emit(receiver, e)
+        # global_mouse_release
+        if e.type() == QtCore.QEvent.Type.MouseButtonRelease:
+            self.global_mouse_release_signal.emit(receiver, e)
 
         return QtGui.QApplication.notify(self, receiver, e)
 

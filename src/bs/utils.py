@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+import copy
+import hashlib
+import logging
+import threading
+import time
+import win32file
 
 ###############################################################################
 ##    utils                                                                  ##
@@ -16,12 +22,6 @@
 ###############################################################################
 
 """ * """
-
-import hashlib
-import logging
-import threading
-import time
-import win32file
 
 
 class Signal(object):
@@ -61,18 +61,19 @@ class Signal(object):
         # been deleted e.g., disconnect the handler.
         # Otherwise, call it.
         handlers_to_disconnect = []
-        for handler in self.handlers:
+        # create copy to protect if list changes (disconnect is called for
+        # specific handler) while the loop runs
+        handlers_copy = copy.copy(self.handlers)
+        for handler in handlers_copy:
             try:
                 handler(*args, **kwargs)
                 logging.debug("%s: Handler %s successfully called."
                               % (self.__class__.__name__,
                                  handler, ))
             except:
-                logging.debug("%s: Handler %s does not exist anymore. "\
-                              "Detaching from event dispatcher."
-                              % (self.__class__.__name__,
+                logging.warning("%s: Handler emission error: %s" %
+                                (self.__class__.__name__,
                                  handler, ))
-                handlers_to_disconnect.append(handler)
         # disconnect
         for handler_to_disconnect in handlers_to_disconnect:
             self.disconnect(handler_to_disconnect)

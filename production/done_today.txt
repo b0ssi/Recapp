@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-10
+- debugged arrow signals and reference management that lead to reference-radicals that were still active (and called other local references) even though they should have been deleted but hadn't, as they were not added to the central list managing the arrows.
+
 2013-05-25 - 27
 - implemented save-methodology for nodes
 	- set-table on db has a column "gui_data" that saves a dictionary with a namespace for the nodes, ids, etc. and their x/y (center) coordinates. That's all for now, will be able to add data later on easily.
