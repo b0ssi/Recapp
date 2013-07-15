@@ -144,7 +144,11 @@
 			[.]	list widget for sets
 				[ ]	ability to create a new set
 				[X]	ability to delete an existing set
-				[ ]	edit an existing set
+				[.]	edit an existing set
+					[.]	add an existing unused source
+					[.]	add an existing unused filter
+					[ ] remove a source in use by current set
+					[ ] remove a filter in use by current set
 			[.]	details widget to visualize/edit/execute etc. sets
 				[.]	sources
 					[ ]	ability to add a source

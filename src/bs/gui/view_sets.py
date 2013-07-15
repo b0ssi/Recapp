@@ -78,9 +78,13 @@ class BS(QtGui.QFrame):
             return False
         self._backup_set_current = backup_set_current
 
+    @property
+    def session_gui(self):
+        return self._session_gui
+
     def set_modified(self, force_save=False):
         """ *
-        triggers the modified signal (which again sets connected handlers such
+        Triggers the modified signal (which again sets connected handlers such
         as a save button to enabled, etc.) which then starts the timer which
         has a connection to self._save_to_db().
         force_save evades the timer, stops it and calls self._save_to_db()
@@ -146,7 +150,8 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     _bs_filter_widgets = None
     _bs_target_widgets = None
     _arrow_widgets = None
-    _arrow_tmp_carrier_widget = None  # This is where the temporary arrow's carrier is held when interactively connecting nodes. Initialized on node's connectins socket
+    _bs_arrow_carrier = None  # This is where the temporary arrow's carrier is held when interactively connecting nodes. Initialized on node's connectins socket
+    _mouse_press_global_pos = None
 
     def __init__(self, bs, menu_sets, app):
         super(BSSetsCanvas, self).__init__(bs)
@@ -199,11 +204,11 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             arrow_widget.deleteLater()
         self._arrow_widgets = []
         # arrow_tmp_carrier_widget
-        if self._arrow_tmp_carrier_widget:
+        if self._bs_arrow_carrier:
             # unregister old carrier's signals
-            self._arrow_tmp_carrier_widget.unregister_signals()
+            self._bs_arrow_carrier.unregister_signals()
             # delete
-            self._arrow_tmp_carrier_widget.deleteLater()
+            self._bs_arrow_carrier.deleteLater()
 
     def load_set(self, backup_set):
         """ *
@@ -215,7 +220,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         # clean canvas, delete old widgets
         self.empty_canvas()
         # arrow_carrier
-        self._arrow_tmp_carrier_widget = bs.gui.lib.BSArrowCarrier(self, self._app, self._bs)
+        self._bs_arrow_carrier = bs.gui.lib.BSArrowCarrier(self, self._app, self._bs)
         # set new current set
         self._bs.backup_set_current = backup_set
         # LOAD NODES
@@ -313,6 +318,43 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for bs_target_widget in self._bs_target_widgets:
             bs_target_widget.draw_arrows()
         self.update()
+
+    def mousePressEvent(self, e):
+        self._mouse_press_global_pos = e.globalPos()
+
+        super(BSSetsCanvas, self).mousePressEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        """ *
+        """
+        if e.globalPos() == self._mouse_press_global_pos and\
+            e.button() & QtCore.Qt.MouseButton.RightButton:
+            # Main context menu
+            menu_main = QtGui.QMenu(self)
+            # SUBMENU SOURCES
+            menu_sources = QtGui.QMenu("Sources", menu_main)
+            # building list of sources not in use and iterating through:
+            sources_unused = [x for x in self._bs.session_gui.session.backup_sources.sources if x not in self._bs.backup_set_current.backup_sources]
+            for backup_source in sources_unused:
+                action_source = QtGui.QAction(backup_source.source_name, menu_sources)
+                menu_sources.addAction(action_source)
+            if len(sources_unused) == 0:
+                menu_sources.setDisabled(True)
+            # SUBMENU FILTERS
+            menu_filters = QtGui.QMenu("Filters", menu_main)
+            # building list of filters not in use and iterating through:
+            filters_unused = [x for x in self._bs.session_gui.session.backup_filters.filters if x not in self._bs.backup_set_current.backup_filters]
+            for backup_filter in filters_unused:
+                action_filter = QtGui.QAction(backup_filter.backup_filter_pattern, menu_filters)
+                menu_filters.addAction(action_filter)
+            if len(filters_unused) == 0:
+                menu_filters.setDisabled(True)
+
+            menu_main.addMenu(menu_sources)
+            menu_main.addMenu(menu_filters)
+            menu_main.popup(e.globalPos())
+        else:
+            super(BSSetsCanvas, self).mouseReleaseEvent(e)
 
 
 class BSMenu(bs.gui.lib.BSDraggable):
@@ -556,7 +598,6 @@ class BSMenuItemSave(bs.gui.lib.BSNodeItem):
     _bs = None
     _bs_menu = None
 
-
     def __init__(self, bs_menu, bs):
         super(BSMenuItemSave, self).__init__(bs_menu)
 
@@ -620,8 +661,13 @@ class BSSource(bs.gui.lib.BSNode):
 
     _mouse_press_event_pos = None  # this holds the press_event object's pos()
 
-    def __init__(self, bs_sets_canvas, bs, backup_source, backup_set, app):
-        super(BSSource, self).__init__(bs_sets_canvas, app)
+    def __init__(self,
+                 bs_sets_canvas,
+                 bs,
+                 backup_source,
+                 backup_set,
+                 app):
+        super(BSSource, self).__init__(bs_sets_canvas, app, True)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
@@ -641,7 +687,8 @@ class BSSource(bs.gui.lib.BSNode):
         self.title_size = 13
         # populate with item
         widget = BSSourceItem(self, self._backup_source, self._backup_set)
-        self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
+        self._custom_contents_container._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
+#         self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
         self.show()
 
     def save_gui_data(self):
@@ -747,8 +794,13 @@ class BSFilter(bs.gui.lib.BSNode):
 
     _mouse_press_event_pos = None  # this holds the press_event object's pos()
 
-    def __init__(self, bs_sets_canvas, bs, backup_filter, backup_set, app):
-        super(BSFilter, self).__init__(bs_sets_canvas, app)
+    def __init__(self,
+                 bs_sets_canvas,
+                 bs,
+                 backup_filter,
+                 backup_set,
+                 app):
+        super(BSFilter, self).__init__(bs_sets_canvas, app, True)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
@@ -822,7 +874,12 @@ class BSTarget(bs.gui.lib.BSNode):
 
     _mouse_press_event_pos = None  # this holds the press_event object's pos()
 
-    def __init__(self, bs_sets_canvas, bs, backup_targets, backup_set, app):
+    def __init__(self,
+                 bs_sets_canvas,
+                 bs,
+                 backup_targets,
+                 backup_set,
+                 app):
         super(BSTarget, self).__init__(bs_sets_canvas, app)
 
         self._bs_sets_canvas = bs_sets_canvas

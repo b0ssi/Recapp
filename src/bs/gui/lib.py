@@ -206,12 +206,13 @@ class BSDraggable(BSFrame):
 
     def mouseMoveEvent(self, e):
         """ * """
-        x = self.mapToParent(e.pos()).x() - self._pos_offset.x()
-        y = self.mapToParent(e.pos()).y() - self._pos_offset.y()
-        self.setGeometry(x,
-                         y,
-                         self.width(),
-                         self.height())
+        if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            x = self.mapToParent(e.pos()).x() - self._pos_offset.x()
+            y = self.mapToParent(e.pos()).y() - self._pos_offset.y()
+            self.setGeometry(x,
+                             y,
+                             self.width(),
+                             self.height())
 
 
 class BSCanvas(BSDraggable):
@@ -223,14 +224,16 @@ class BSCanvas(BSDraggable):
 
     def mouseMoveEvent(self, e):
         """ * """
-        for child in self.children():
-            child.setGeometry(child.x() - (self._pos_offset.x() - e.x()),
-                              child.y() - (self._pos_offset.y() - e.y()),
-                              child.width(),
-                              child.height()
-                              )
-        self._pos_offset = e.pos()
-        self.setGeometry(0, 0, self.width(), self.height())
+        if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            for child in self.children():
+                if not isinstance(child, QtGui.QAction):
+                    child.setGeometry(child.x() - (self._pos_offset.x() - e.x()),
+                                      child.y() - (self._pos_offset.y() - e.y()),
+                                      child.width(),
+                                      child.height()
+                                      )
+            self._pos_offset = e.pos()
+            self.setGeometry(0, 0, self.width(), self.height())
         super(BSCanvas, self).mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
@@ -307,11 +310,11 @@ class BSArrow(QtGui.QWidget):
         path = QtGui.QPainterPath()
         # p1a
         p1a = self._source.parentWidget().mapToGlobal(self._source.geometry().center())
-        p1a.setX(p1a.x() + self._source.width() / 2 + 10)
+        p1a.setX(p1a.x() + self._source.width() / 2 + 2)
         p1a = self.mapFromGlobal(p1a)
         # p2a
         p2a = self._target.parentWidget().mapToGlobal(self._target.geometry().center())
-        p2a.setX(p2a.x() - self._target.width() / 2 - 10)
+        p2a.setX(p2a.x() - self._target.width() / 2 - 5)
         p2a = self.mapFromGlobal(p2a)
         # calc distance
         vec1 = QtGui.QVector2D(p1a)
@@ -431,38 +434,47 @@ class BSArrowCarrier(BSDraggable):
         """ *
         Connects the arrow to the node widget.
         """
-        if e.globalPos() == self._mouse_press_global_pos:
-            # get coordinates in parent's local space
-            x = self.parent().mapFromGlobal(e.globalPos()).x()
-            y = self.parent().mapFromGlobal(e.globalPos()).y()
-            # widget on parent at clicked point
-            widget = self.parent().childAt(x, y)
+        if (e.globalPos() == self._mouse_press_global_pos) and\
+            e.button() == QtCore.Qt.MouseButton.LeftButton:
+#             # get coordinates in parent's local space
+#             x = self.parent().mapFromGlobal(e.globalPos()).x()
+#             y = self.parent().mapFromGlobal(e.globalPos()).y()
+#             # widget on parent at clicked point
+#             print(widget)
+#             widget = self.parent().childAt(x, y)
+#             print(widget)
             # try to get node base-object
+            widget_node = None #  (Parent-node-widget) of clicked widget
+            widget_aux = None #  (clicked node (if child of widget_node)
             while not widget is self.parent():
                 if isinstance(widget, BSNode):
+                    widget_node = widget
                     break
+                # capture widget_aux
+                if isinstance(widget, BSNodeConnPad):
+                    widget_aux = widget
                 try:
                     widget = widget.parent()
                 except:
                     widget = self.parent()
             # if clicked on node
-            if not widget == self.parent():
-                # BUILDING LOGICS CHECKS
+            if widget_node:
+                # BUILDING LOGIC CHECKS
                 # start node
                 is_allowed_start_node = False
                 needs_reconnect = False
-                if isinstance(widget, bs.gui.view_sets.BSSource) or\
-                   isinstance(widget, bs.gui.view_sets.BSFilter):
-                    if not widget.arrow_outbound:
+                if isinstance(widget_node, bs.gui.view_sets.BSSource) or\
+                   isinstance(widget_node, bs.gui.view_sets.BSFilter):
+                    if not widget_node.arrow_outbound:
                         is_allowed_start_node = True
                     else:
                         needs_reconnect = True
                 # finalize node
                 is_allowed_finalize_node = False
-                if isinstance(widget, bs.gui.view_sets.BSFilter) or\
-                   isinstance(widget, bs.gui.view_sets.BSTarget):
+                if isinstance(widget_node, bs.gui.view_sets.BSFilter) or\
+                   isinstance(widget_node, bs.gui.view_sets.BSTarget):
                     is_allowed_finalize_node = True
-                node_to_test = widget
+                node_to_test = widget_node
                 while node_to_test.arrow_outbound:
                     node_to_test = node_to_test.arrow_outbound.target
                     if node_to_test == self._source:
@@ -471,14 +483,15 @@ class BSArrowCarrier(BSDraggable):
                 # EXECUTE ACTION BASED ON CONTEXT
                 # if start action
                 if not self._source:
-                    if is_allowed_start_node:
-                        self.connect_start(widget)
-                    elif needs_reconnect:
-                        self.connect_reconnect(widget)
-                # elif connection action
+                    if widget_aux:
+                        if is_allowed_start_node:
+                            self.connect_start(widget_node)
+                        elif needs_reconnect:
+                            self.connect_reconnect(widget_node)
+                # else if connection action
                 else:
                     if is_allowed_finalize_node:
-                        self.connect_finalize(widget)
+                        self.connect_finalize(widget_node)
             # cancel
             elif self._source:
                 self.connect_cancel()
@@ -554,9 +567,11 @@ class BSNode(BSDraggable):
     _arrows_inbound = None
     _arrow_outbound = None
     _title_size = None
+    _conn_pad = None
+    _custom_contents_container = None # used by custom nodes to place custom contents into
 #    _mouse_press_global_pos = None  # Holds mouse pos when key was pressed to compare against pos when released
 
-    def __init__(self, parent, app):
+    def __init__(self, parent, app, has_conn_pad=False):
         super(BSNode, self).__init__(parent)
 
         self._app = app
@@ -565,11 +580,19 @@ class BSNode(BSDraggable):
 
         # title
         self._title = QtGui.QLabel("")
+        # conn_pad
+        self._conn_pad = BSNodeConnPad()
+        # custom_contents_container
+        self._custom_contents_container = QtGui.QWidget()
+        self._custom_contents_container._layout = QtGui.QGridLayout(self._custom_contents_container)
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.addWidget(self._title, 0, 0, 1, 1)
+        if has_conn_pad:
+            self._layout.addWidget(self._conn_pad, 0, 1, 2, 1)
+        self._layout.addWidget(self._custom_contents_container, 1, 0, 1, 1)
         self._layout.setSpacing(1)
-        self._layout.setContentsMargins(5, 5, 5, 41)
+        self._layout.setContentsMargins(5, 5, 5, 5)
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
         gfx.setOffset(0)
@@ -601,15 +624,14 @@ class BSNode(BSDraggable):
     def title_size(self, size):
         self._title_size = size
         self._title.setStyleSheet("margin-left: 1px; margin-top: %spx; margin-bottom: %spx; font-size: %spx; color: #%s"
-                                  % (
-                                     self._title_size / 9,
+                                  % (self._title_size / 9,
                                      self._title_size - 8,
                                      self._title_size,
                                      bs.config.PALETTE[0]))
         self._layout.setContentsMargins(self._layout.contentsMargins().left(),
                                         self._layout.contentsMargins().top(),
                                         self._layout.contentsMargins().right(),
-                                        self._title_size * 2 + 5)
+                                        self._layout.contentsMargins().bottom()) #self._title_size * 2 + 5)
         self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
 
     def assign_to_arrow_as_source(self, arrow):
@@ -650,6 +672,35 @@ class BSNode(BSDraggable):
         """ * """
         self.draw_arrows()
         super(BSNode, self).mouseMoveEvent(e)
+
+
+class BSNodeConnPad(QtGui.QFrame):
+    """ * """
+
+    _layout = None
+
+    def __init__(self):
+        super(BSNodeConnPad, self).__init__()
+
+        self._init_ui()
+
+    def _init_ui(self):
+        # layout
+        self._layout = QtGui.QGridLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        # connect-icon
+        icon = QtGui.QFrame()
+        css = "QFrame {border-radius: 7px; border: 2px solid #%s; background: #%s}" % (bs.config.PALETTE[1],
+                                                                                       bs.config.PALETTE[1])
+        css += "QFrame:hover {background: #%s}" % (bs.config.PALETTE[4])
+        icon.setStyleSheet(css)
+        icon.setMinimumSize(QtCore.QSize(14, 14))
+        self._layout.addWidget(icon, 0, 0, 1, 1)
+
+    def mouseReleaseEvent(self, e):
+        """ *
+        Override
+        """
 
 
 class BSNodeItem(BSFrame):

@@ -2,6 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-15
+- isolated connect_start actions for nodes (associating arrows) onto node's connection pad (BSNodeConnPad)
+- canvas/nodes: isolated all actions to left-clicks only
+- implemented right-click action on canvas that opens context menu listing sets of sources and filters not currently used in current set
+
 2013-07-10
 - debugged arrow signals and reference management that lead to reference-radicals that were still active (and called other local references) even though they should have been deleted but hadn't, as they were not added to the central list managing the arrows.
 
