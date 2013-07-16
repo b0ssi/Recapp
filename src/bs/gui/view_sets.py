@@ -185,7 +185,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         return self._arrow_widgets
 
     def _init_ui(self):
-        pass
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 
     def empty_canvas(self):
         """ *
@@ -226,16 +226,13 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         # LOAD NODES
         # Load backup-sources
         for backup_source in backup_set.backup_sources:
-            widget = BSSource(self, self._bs, backup_source, backup_set, self._app)
-            self._bs_source_widgets.append(widget)
+            self.add_node(backup_source, backup_set)
         # load backup-filters
         for backup_filter in backup_set.backup_filters:
-            widget = BSFilter(self, self._bs, backup_filter, backup_set, self._app)
-            self._bs_filter_widgets.append(widget)
+            self.add_node(backup_filter, backup_set)
         # load target set
         if backup_set.backup_targets:
-            widget = BSTarget(self, self._bs, backup_set.backup_targets, backup_set, self._app)
-            self._bs_target_widgets.append(widget)
+            self.add_node(backup_set.backup_targets, backup_set)
         # CONNECT NODES
         # sources - filters/targets
         for bs_source_widget in self._bs_source_widgets:
@@ -319,6 +316,32 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             bs_target_widget.draw_arrows()
         self.update()
 
+    def add_node(self, backup_entity, backup_set, global_pos=None):
+        """ *
+        Adds a new node.
+        """
+        if isinstance(backup_entity, bs.ctrl.session.BackupSourceCtrl):
+            widget = BSSource(self, self._bs, backup_entity, backup_set, self._app)
+            self._bs_source_widgets.append(widget)
+            # add entity on ctrl level
+            backup_set.add_backup_source(backup_entity)
+        elif isinstance(backup_entity, bs.ctrl.session.BackupFilterCtrl):
+            widget = BSFilter(self, self._bs, backup_entity, backup_set, self._app)
+            self._bs_filter_widgets.append(widget)
+            # add entity on ctrl level
+            backup_set.add_backup_filter(backup_entity)
+        elif isinstance(backup_entity, list) and\
+            isinstance(backup_entity[0], bs.ctrl.session.BackupTargetCtrl):
+            widget = BSTarget(self, self._bs, backup_entity, backup_set, self._app)
+            self._bs_target_widgets.append(widget)
+        # set position
+        if global_pos:
+            widget.setGeometry(self.mapFromGlobal(global_pos).x(),
+                               self.mapFromGlobal(global_pos).y(),
+                               widget.width(),
+                               widget.height())
+        self._bs.set_modified()
+
     def mousePressEvent(self, e):
         self._mouse_press_global_pos = e.globalPos()
 
@@ -328,33 +351,129 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         """ *
         """
         if e.globalPos() == self._mouse_press_global_pos and\
-            e.button() & QtCore.Qt.MouseButton.RightButton:
+            e.button() & QtCore.Qt.MouseButton.RightButton and\
+            self._bs.backup_set_current:
             # Main context menu
-            menu_main = QtGui.QMenu(self)
-            # SUBMENU SOURCES
-            menu_sources = QtGui.QMenu("Sources", menu_main)
-            # building list of sources not in use and iterating through:
-            sources_unused = [x for x in self._bs.session_gui.session.backup_sources.sources if x not in self._bs.backup_set_current.backup_sources]
-            for backup_source in sources_unused:
-                action_source = QtGui.QAction(backup_source.source_name, menu_sources)
-                menu_sources.addAction(action_source)
-            if len(sources_unused) == 0:
-                menu_sources.setDisabled(True)
-            # SUBMENU FILTERS
-            menu_filters = QtGui.QMenu("Filters", menu_main)
-            # building list of filters not in use and iterating through:
-            filters_unused = [x for x in self._bs.session_gui.session.backup_filters.filters if x not in self._bs.backup_set_current.backup_filters]
-            for backup_filter in filters_unused:
-                action_filter = QtGui.QAction(backup_filter.backup_filter_pattern, menu_filters)
-                menu_filters.addAction(action_filter)
-            if len(filters_unused) == 0:
-                menu_filters.setDisabled(True)
-
-            menu_main.addMenu(menu_sources)
-            menu_main.addMenu(menu_filters)
+            menu_main = BSSetsCMenu(self, self._bs.backup_set_current, e.globalPos())
             menu_main.popup(e.globalPos())
         else:
             super(BSSetsCanvas, self).mouseReleaseEvent(e)
+
+
+class BSSetsCMenu(QtGui.QMenu):
+    """ * """
+    _bs_sets_canvas = None
+    _backup_set_current = None
+    _c_menu_main_global_pos = None
+
+    _menu_sources = None
+    _menu_filters = None
+
+    def __init__(self,
+                 bs_sets_canvas,
+                 backup_set_current,
+                 c_menu_main_global_pos):
+        super(BSSetsCMenu, self).__init__(bs_sets_canvas)
+
+        self._bs_sets_canvas = bs_sets_canvas
+        self._backup_set_current = backup_set_current
+        self._c_menu_main_global_pos = c_menu_main_global_pos
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self._menu_sources = BSSetsCMenuSub("Sources",
+                                            self,
+                                            self._bs_sets_canvas._bs.session_gui.session.backup_sources.sources,
+                                            self._bs_sets_canvas._bs.backup_set_current.backup_sources,
+                                            self._bs_sets_canvas,
+                                            self._backup_set_current,
+                                            self._c_menu_main_global_pos)
+        self._menu_filters = BSSetsCMenuSub("Filters",
+                                            self,
+                                            self._bs_sets_canvas._bs.session_gui.session.backup_filters.filters,
+                                            self._bs_sets_canvas._bs.backup_set_current.backup_filters,
+                                            self._bs_sets_canvas,
+                                            self._backup_set_current,
+                                            self._c_menu_main_global_pos)
+        self.addMenu(self._menu_sources)
+        self.addMenu(self._menu_filters)
+
+
+class BSSetsCMenuSub(QtGui.QMenu):
+    """ * """
+    _backup_entities_session = None  # these is the list of entities (backup_sources/backup_filters) for the entire sessionself._bs.backup_set_current.backup_sources
+    _backup_entities_set = None  # these is the list of entities (backup_sources/backup_filters) for the entire sessionself._bs.backup_set_current.backup_sources
+    _bs_sets_canvas = None
+    _backup_set_current = None
+    _c_menu_main_global_pos = None
+
+    def __init__(self,
+                 name,
+                 parent,
+                 backup_entities_session,
+                 backup_entities_set,
+                 bs_sets_canvas,
+                 backup_set_current,
+                 c_menu_main_global_pos):
+        super(BSSetsCMenuSub, self).__init__(name, parent)
+
+        self._backup_entities_session = backup_entities_session
+        self._backup_entities_set = backup_entities_set
+        self._bs_sets_canvas = bs_sets_canvas
+        self._backup_set_current = backup_set_current
+        self._c_menu_main_global_pos = c_menu_main_global_pos
+
+        self._init_ui()
+
+    def _init_ui(self):
+        sources_unused = [x for x in self._backup_entities_session if x not in self._backup_entities_set]
+        for backup_entity in sources_unused:
+            if isinstance(backup_entity, bs.ctrl.session.BackupSourceCtrl):
+                name = backup_entity.source_name
+            elif isinstance(backup_entity, bs.ctrl.session.BackupFilterCtrl):
+                name = backup_entity.backup_filter_pattern
+            action = BSSetsCMenuAction(name,
+                                       self,
+                                       self._bs_sets_canvas,
+                                       backup_entity,
+                                       self._backup_set_current,
+                                       self._c_menu_main_global_pos)
+            self.addAction(action)
+        if len(sources_unused) == 0:
+            self.setDisabled(True)
+
+
+class BSSetsCMenuAction(QtGui.QAction):
+    """ * """
+    _bs_sets_canvas = None
+    _backup_entity = None
+    _backup_set_current = None
+    _c_menu_main_global_pos = None
+
+    def __init__(self,
+                 name,
+                 parent,
+                 bs_sets_canvas,
+                 backup_entity,
+                 backup_set_current,
+                 c_menu_main_global_pos):
+        super(BSSetsCMenuAction, self).__init__(name, parent)
+
+        self._bs_sets_canvas = bs_sets_canvas
+        self._backup_entity = backup_entity
+        self._backup_set_current = backup_set_current
+        self._c_menu_main_global_pos = c_menu_main_global_pos
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self.triggered.connect(self.fire)
+
+    def fire(self):
+        self._bs_sets_canvas.add_node(self._backup_entity,
+                                      self._backup_set_current,
+                                      self._c_menu_main_global_pos)
 
 
 class BSMenu(bs.gui.lib.BSDraggable):
@@ -682,6 +801,8 @@ class BSSource(bs.gui.lib.BSNode):
         return self._backup_source
 
     def _init_ui(self):
+        # css
+        self.setStyleSheet("BSSource {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
         # title
         self.title_text = self._backup_source.source_name
         self.title_size = 13
@@ -815,6 +936,8 @@ class BSFilter(bs.gui.lib.BSNode):
         return self._backup_filter
 
     def _init_ui(self):
+        # css
+        self.setStyleSheet("BSFilter {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
         # title
         self.title_text = self._backup_filter.backup_filter_pattern
         self.title_size = 13
@@ -895,7 +1018,9 @@ class BSTarget(bs.gui.lib.BSNode):
         return self._backup_targets
 
     def _init_ui(self):
-        self.setStyleSheet("background: #%s" % (bs.config.PALETTE[4], ))
+        # css
+        self.setStyleSheet("BSTarget {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
+        # title
         self.title_text = "Targets"
         self.title_size = 13
         self.show()

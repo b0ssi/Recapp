@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-16
+- finished canvas context menu to create new nodes
+- node-creation now fully completed (persistent, saves etc.)
+- trigger set_modified when disconnecting, creating nodes
+- nodes can now be focused on (click), with visual feedback (border)
+
 2013-07-15
 - isolated connect_start actions for nodes (associating arrows) onto node's connection pad (BSNodeConnPad)
 - canvas/nodes: isolated all actions to left-clicks only

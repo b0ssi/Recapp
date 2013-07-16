@@ -59,8 +59,8 @@ CSS += "BSSetsCanvas {background: #59554e}"
 CSS += "nothing {background: #6a665d}"
 # background: #c7c7ff
 CSS += "BSNode, BSMenu {background: #c7c7ff}"
-# background: #33312d
-CSS += "nothing {background: #33312d}"
+# background: #ffde02
+CSS += "BSTarget {background: #ffde02}"
 # border-radius: 2px
 #CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
 CSS += "BSMenu, BSNodeItem, BSNode {border-radius: 2px}"

@@ -16,11 +16,11 @@
 ###############################################################################
 
 """ * """
-
+from PySide import QtCore, QtGui
+import binascii
 import bs.config
 import bs.gui.view_sets
-
-from PySide import QtCore, QtGui
+import re
 
 
 class BSFrame(QtGui.QFrame):
@@ -57,7 +57,7 @@ class BSFrame(QtGui.QFrame):
         )
         where `class_constraint` needs to be either ".", "" or `None`.
         This decides whether the css is constrained to the object only/object
-        and all subtypes or to whole hierarcy.
+        and all sub-types or to whole hierarchy.
         "." will wrap the css definitions into `.classname {...}`: constrains to instances of class only
         "" will wrap the css definitions into `classname {...}` constrains to any instance of class or subtype
         `None` will not wrap the css definitions: only constrains to object hierarchy (leaving out
@@ -444,8 +444,8 @@ class BSArrowCarrier(BSDraggable):
 #             widget = self.parent().childAt(x, y)
 #             print(widget)
             # try to get node base-object
-            widget_node = None #  (Parent-node-widget) of clicked widget
-            widget_aux = None #  (clicked node (if child of widget_node)
+            widget_node = None  # (Parent-node-widget) of clicked widget
+            widget_aux = None  # (clicked node (if child of widget_node)
             while not widget is self.parent():
                 if isinstance(widget, BSNode):
                     widget_node = widget
@@ -530,12 +530,16 @@ class BSArrowCarrier(BSDraggable):
         self._reset()
 
     def connect_cancel(self):
-        print("1")
+        # remove association
+        if isinstance(self._source, bs.gui.view_sets.BSSource):
+            self._source.backup_source.backup_source_ass[self._bs.backup_set_current] = None
+        elif isinstance(self._source, bs.gui.view_sets.BSFilter):
+            self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current] = None
+        # delete arrow
         self._arrow_inbound.delete()
-        print("2")
         # re-initialize self
         self._reset()
-        print("3")
+        self._bs.set_modified()
 
     def assign_to_arrow_as_target(self, arrow):
         """ * """
@@ -570,6 +574,7 @@ class BSNode(BSDraggable):
     _conn_pad = None
     _custom_contents_container = None # used by custom nodes to place custom contents into
 #    _mouse_press_global_pos = None  # Holds mouse pos when key was pressed to compare against pos when released
+    _bg_hex_orig = None
 
     def __init__(self, parent, app, has_conn_pad=False):
         super(BSNode, self).__init__(parent)
@@ -578,21 +583,22 @@ class BSNode(BSDraggable):
 
         self._arrows_inbound = []
 
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
         # title
         self._title = QtGui.QLabel("")
-        # conn_pad
-        self._conn_pad = BSNodeConnPad()
         # custom_contents_container
         self._custom_contents_container = QtGui.QWidget()
         self._custom_contents_container._layout = QtGui.QGridLayout(self._custom_contents_container)
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.addWidget(self._title, 0, 0, 1, 1)
+        # conn_pad
         if has_conn_pad:
+            self._conn_pad = BSNodeConnPad()
             self._layout.addWidget(self._conn_pad, 0, 1, 2, 1)
         self._layout.addWidget(self._custom_contents_container, 1, 0, 1, 1)
         self._layout.setSpacing(1)
-        self._layout.setContentsMargins(5, 5, 5, 5)
+        self._layout.setContentsMargins(0, 0, 0, 0)
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
         gfx.setOffset(0)
@@ -673,6 +679,14 @@ class BSNode(BSDraggable):
         self.draw_arrows()
         super(BSNode, self).mouseMoveEvent(e)
 
+    def focusInEvent(self, e):
+        """ * """
+        self._bg_hex_orig = res = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
+        self.setStyleSheet("BSNode {border: 1px solid #333333}")
+
+    def focusOutEvent(self, e):
+        """ * """
+        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._bg_hex_orig, ))
 
 class BSNodeConnPad(QtGui.QFrame):
     """ * """
@@ -688,11 +702,11 @@ class BSNodeConnPad(QtGui.QFrame):
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
         # connect-icon
         icon = QtGui.QFrame()
-        css = "QFrame {border-radius: 7px; border: 2px solid #%s; background: #%s}" % (bs.config.PALETTE[1],
-                                                                                       bs.config.PALETTE[1])
-        css += "QFrame:hover {background: #%s}" % (bs.config.PALETTE[4])
+        css = "QFrame {border-top-right-radius: 2px; border-bottom-right-radius: 2px;  background: #%s}" % (bs.config.PALETTE[1], )
+        css += "QFrame:hover {background: #%s}" % (bs.config.PALETTE[4], )
         icon.setStyleSheet(css)
         icon.setMinimumSize(QtCore.QSize(14, 14))
         self._layout.addWidget(icon, 0, 0, 1, 1)

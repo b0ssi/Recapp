@@ -1306,28 +1306,23 @@ class BackupSetCtrl(bs.model.models.Sets):
         """ *
         Adds a backup-source to this backup-set.
         """
-        ## NOT TESTED YET ##############
-        ################################
-        return False
+        # add backup_source as member to this set
+        if backup_source not in self.backup_sources:
+            self.backup_sources.append(backup_source)
+        # add set association to backup_source
+        if not self in backup_source.backup_source_ass.keys():
+            backup_source.backup_source_ass[self] = None
 
-        # VALIDATE DATA
-        # backup-source
-        if not isinstance(backup_source, BackupSourceCtrl):
-            logging.warning("Argument one needs to be of type BackupSourceCtrl.")
-            return False
-        backup_source_id = backup_source.backup_source_id
-        # if in this backup-set, remove
-        if backup_source in self.backup_sources:
-            # remove from self.backup_sources
-            self.backup_sources.pop(self.backup_sources.index(backup_source))
-            # remove from backup-set in db
-            res = self._get(("sources", ), (("id", "=", self.backup_set_id, ), ))
-            print(res)
-        # if not in this backup-set
-        else:
-            logging.warning("The backup-source is not part of this "\
-                            "backup-set (%s): %s"
-                            % (self, backup_source, ))
+    def add_backup_filter(self, backup_filter):
+        """ *
+        Adds a backup-filter to this backup-set.
+        """
+        # add backup_filter as member to this set
+        if backup_filter not in self.backup_filters:
+            self.backup_filters.append(backup_filter)
+        # add set association to backup_filter
+        if not self in backup_filter.backup_filter_ass.keys():
+            backup_filter.backup_filter_ass[self] = None
 
     def remove_backup_source(self, backup_source):
         """ *
@@ -1360,8 +1355,12 @@ class BackupSetCtrl(bs.model.models.Sets):
             if isinstance(associated_obj, BackupFilterCtrl):
                 associated_obj_id = associated_obj.backup_filter_id
             # if ass: targets
-            else:
+            elif isinstance(associated_obj, list) and\
+                isinstance(associated_obj[0], BackupTargetCtrl):
                 associated_obj_id = -1
+            # if ass: None
+            elif not associated_obj:
+                associated_obj_id = None
             source_ass[str(backup_source.backup_source_id)] = associated_obj_id
         self._update((("source_ass", json.dumps(source_ass)), ), (("id", "=", self.backup_set_id, ), ))
         # filter_ass
@@ -1372,8 +1371,12 @@ class BackupSetCtrl(bs.model.models.Sets):
             if isinstance(associated_obj, BackupFilterCtrl):
                 associated_obj_id = associated_obj.backup_filter_id
             # if ass: targets
-            else:
+            elif isinstance(associated_obj, list) and\
+                isinstance(associated_obj[0], BackupTargetCtrl):
                 associated_obj_id = -1
+            # if ass: None
+            elif not associated_obj:
+                associated_obj_id = None
             filter_ass[str(backup_filter.backup_filter_id)] = associated_obj_id
         self._update((("filter_ass", json.dumps(filter_ass)), ), (("id", "=", self.backup_set_id, ), ))
         logging.debug("%s: gui_data successfully saved to db." % (self.__class__.__name__, ))
