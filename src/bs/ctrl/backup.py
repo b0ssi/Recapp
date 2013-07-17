@@ -43,10 +43,10 @@ class Backup(object):
     _targets = None
     _tmp_dir = None
 
-    def __init__(self, set):
-        self._backup_set = set
-        self._sources = set.sources
-        self._targets = set.targets
+    def __init__(self, backup_set):
+        self._backup_set = backup_set
+        self._sources = backup_set.backup_sources
+        self._targets = backup_set.backup_targets
         self._tmp_dir = tempfile.TemporaryDirectory()
 
     def _update_db(self, conn):
@@ -338,9 +338,9 @@ class Backup(object):
                         logging.info("%s: Entity %s is new: %s"
                                      % (self.__class__.__name__,
                                         entity_id, file_obj.path, ))
-                        # this might still be an identic data-stream that existed
-                        # under a different path/entity before, so only back-up
-                        # if hash is unique
+                        # this might still be an identical data-stream that
+                        # existed under a different path/entity before, so only
+                        # back-up if hash is unique
                         if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
                                             (file_obj.sha512, )).fetchall()) == 0:
                             # BACKUP

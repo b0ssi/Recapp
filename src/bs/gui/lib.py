@@ -436,13 +436,6 @@ class BSArrowCarrier(BSDraggable):
         """
         if (e.globalPos() == self._mouse_press_global_pos) and\
             e.button() == QtCore.Qt.MouseButton.LeftButton:
-#             # get coordinates in parent's local space
-#             x = self.parent().mapFromGlobal(e.globalPos()).x()
-#             y = self.parent().mapFromGlobal(e.globalPos()).y()
-#             # widget on parent at clicked point
-#             print(widget)
-#             widget = self.parent().childAt(x, y)
-#             print(widget)
             # try to get node base-object
             widget_node = None  # (Parent-node-widget) of clicked widget
             widget_aux = None  # (clicked node (if child of widget_node)
@@ -458,7 +451,8 @@ class BSArrowCarrier(BSDraggable):
                 except:
                     widget = self.parent()
             # if clicked on node
-            if widget_node:
+            if widget_node and\
+                isinstance(widget_node, bs.gui.lib.BSNode):
                 # BUILDING LOGIC CHECKS
                 # start node
                 is_allowed_start_node = False
@@ -478,6 +472,10 @@ class BSArrowCarrier(BSDraggable):
                 while node_to_test.arrow_outbound:
                     node_to_test = node_to_test.arrow_outbound.target
                     if node_to_test == self._source:
+                        is_allowed_finalize_node = False
+                        break
+                    # if reconnecting and target is the carrier itself, abort
+                    if isinstance(node_to_test, bs.gui.lib.BSArrowCarrier):
                         is_allowed_finalize_node = False
                         break
                 # EXECUTE ACTION BASED ON CONTEXT
@@ -564,6 +562,7 @@ class BSArrowCarrier(BSDraggable):
 
 class BSNode(BSDraggable):
     """ * """
+    _bs_sets_canvas = None
     _app = None
 
     _layout = None
@@ -574,11 +573,12 @@ class BSNode(BSDraggable):
     _conn_pad = None
     _custom_contents_container = None # used by custom nodes to place custom contents into
 #    _mouse_press_global_pos = None  # Holds mouse pos when key was pressed to compare against pos when released
-    _bg_hex_orig = None
+    _border_hex_orig = None
 
-    def __init__(self, parent, app, has_conn_pad=False):
-        super(BSNode, self).__init__(parent)
+    def __init__(self, bs_sets_canvas, app, has_conn_pad=False):
+        super(BSNode, self).__init__(bs_sets_canvas)
 
+        self._bs_sets_canvas = bs_sets_canvas
         self._app = app
 
         self._arrows_inbound = []
@@ -656,7 +656,7 @@ class BSNode(BSDraggable):
         """
         if arrow in self._arrows_inbound:
             self._arrows_inbound.pop(self._arrows_inbound.index(arrow))
-        elif arrow == self._arrow_outbound:
+        elif arrow is self._arrow_outbound:
             self._arrow_outbound = None
 
     def draw_arrows(self):
@@ -681,12 +681,30 @@ class BSNode(BSDraggable):
 
     def focusInEvent(self, e):
         """ * """
-        self._bg_hex_orig = res = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
+        self._border_hex_orig = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
         self.setStyleSheet("BSNode {border: 1px solid #333333}")
 
     def focusOutEvent(self, e):
         """ * """
-        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._bg_hex_orig, ))
+        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._border_hex_orig, ))
+
+    def keyPressEvent(self, e):
+        """ * """
+        if e.matches(QtGui.QKeySequence.Delete):
+            self.remove_node()
+
+    def remove_node(self):
+        """ *
+        Removes the node's arrows. Additional operations take place on
+        inheriting objects.
+        """
+        # delete arrows
+        while len(self._arrows_inbound) > 0:
+            arrow_inbound = self._arrows_inbound[0]
+            arrow_inbound.delete()
+        if self._arrow_outbound:
+            self._arrow_outbound.delete()
+
 
 class BSNodeConnPad(QtGui.QFrame):
     """ * """

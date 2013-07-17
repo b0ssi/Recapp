@@ -359,6 +359,43 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         else:
             super(BSSetsCanvas, self).mouseReleaseEvent(e)
 
+    def keyPressEvent(self, e):
+        """ * """
+        if e.text() == "h":
+            bs_nodes = self._bs_filter_widgets + self._bs_source_widgets + self._bs_target_widgets
+            bb_l = 0
+            bb_t = 0
+            bb_r = 0
+            bb_b = 0
+            for bs_node in bs_nodes:
+                if bs_node is bs_nodes[0]:
+                    bb_l = bs_node.x()
+                    bb_r = bs_node.x() + bs_node.width()
+                    bb_t = bs_node.y()
+                    bb_b = bs_node.y() + bs_node.height()
+                # generate bounding box for current node positions
+                if bs_node.x() < bb_l:
+                    bb_l = bs_node.x()
+                if (bs_node.x() + bs_node.width()) > bb_r:
+                    bb_r = (bs_node.x() + bs_node.width())
+                if bs_node.y() < bb_t:
+                    bb_t = bs_node.y()
+                if (bs_node.y() + bs_node.height()) > bb_b:
+                    bb_b = (bs_node.y() + bs_node.height())
+            bb_current = QtCore.QRect(bb_l,
+                                      bb_t,
+                                      bb_r - bb_l,
+                                      bb_b - bb_t)
+            print(bb_current)
+            for bs_node in bs_nodes:
+                # bring node down into view
+                bs_node.setGeometry(int(bs_node.x() - (bb_current.center().x() - self.width() / 2)),
+                                    int(bs_node.y() - (bb_current.center().y() - self.height() / 2)),
+                                    bs_node.width(),
+                                    bs_node.height())
+                bs_node.draw_arrows()
+            self._bs.set_modified()
+
 
 class BSSetsCMenu(QtGui.QMenu):
     """ * """
@@ -841,6 +878,18 @@ class BSSource(bs.gui.lib.BSNode):
         # update dict
         gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.backup_source_id)]["pos"] = pos
 
+    def remove_node(self):
+        """ * """
+        super(BSSource, self).remove_node()
+
+        # unregister set-association
+        self._backup_source.backup_source_ass.pop(self._backup_set)
+        # remove from set-ctrl
+        self._backup_set.backup_sources.pop(self._backup_set.backup_sources.index(self._backup_source))
+        # remove from canvas
+        self._bs_sets_canvas.bs_source_widgets.pop(self._bs_sets_canvas.bs_source_widgets.index(self))
+        self.deleteLater()
+
     def mousePressEvent(self, e):
         """ * """
         super(BSSource, self).mousePressEvent(e)
@@ -986,6 +1035,18 @@ class BSFilter(bs.gui.lib.BSNode):
         # update dict
         gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.backup_filter_id)]["pos"] = pos
 
+    def remove_node(self):
+        """ * """
+        super(BSFilter, self).remove_node()
+
+        # unregister set-association
+        self._backup_filter.backup_filter_ass.pop(self._backup_set)
+        # remove from set-ctrl
+        self._backup_set.backup_filters.pop(self._backup_set.backup_filters.index(self._backup_filter))
+        # remove from canvas
+        self._bs_sets_canvas.bs_filter_widgets.pop(self._bs_sets_canvas.bs_filter_widgets.index(self))
+        self.deleteLater()
+
 
 class BSTarget(bs.gui.lib.BSNode):
     """ * """
@@ -1067,6 +1128,11 @@ class BSTarget(bs.gui.lib.BSNode):
             gui_data["nodes"]["bs_target_widgets"]["container"] = {}
         # update dict
         gui_data["nodes"]["bs_target_widgets"]["container"]["pos"] = pos
+
+    def keyPressEvent(self, e):
+        """ *
+        Override
+        """
 
 #class ViewSets(QtGui.QWidget):
 #    """ * """

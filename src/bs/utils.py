@@ -74,6 +74,7 @@ class Signal(object):
                 logging.warning("%s: Handler emission error: %s" %
                                 (self.__class__.__name__,
                                  handler, ))
+                raise
         # disconnect
         for handler_to_disconnect in handlers_to_disconnect:
             self.disconnect(handler_to_disconnect)

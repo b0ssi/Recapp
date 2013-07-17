@@ -787,6 +787,11 @@ class BackupTargetCtrl(bs.model.models.Targets):
                             "system: %s" % (self.__class__.__name__,
                                             out))
             raise SystemExit
+        elif len(out) == 0:
+            logging.critical("%s: The physical location of this target could "\
+                             "not be found (target_device_id: %s)" % (self.__class__.__name__,
+                                                                      self._target_device_id))
+            raise SystemExit
         else:
             return out[0]
 

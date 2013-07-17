@@ -144,19 +144,21 @@
 			[.]	list widget for sets
 				[ ]	ability to create a new set
 				[X]	ability to delete an existing set
-				[.]	edit an existing set
-					[.]	add an existing unused source
-					[.]	add an existing unused filter
-					[ ] remove a source in use by current set
-					[ ] remove a filter in use by current set
+				[X]	edit an existing set
+					[X]	add an existing unused source
+					[X]	add an existing unused filter
+					[X] remove a source in use by current set
+					[X] remove a filter in use by current set
 			[.]	details widget to visualize/edit/execute etc. sets
 				[.]	sources
-					[ ]	ability to add a source
+					[X]	ability to add a source
 					[X]	ability to remove a source
 					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 				[.]	filters
-					[ ]	ability to add a filter
-					[ ]	ability to remove a filter
+					[X]	ability to add a filter
+					[X]	ability to remove a filter
+					[ ]	add name and use as title on node ("Files > 1GiB"/".pdf Files")
+					[ ]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
 				[.]	targets
 					[ ]	ability to add a target
 					[ ]	ability to remove a target

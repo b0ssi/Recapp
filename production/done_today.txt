@@ -2,6 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-17
+- backup-process: started thinking about how to pre-compute number of files/capacity that needs backup for preview purposes (free-space verification, visualization, etc.)
+- "homing" shortcut added to canvas to focus in on node group if it gets far off-screen
+- nodes are now fully deletable
+
 2013-07-16
 - finished canvas context menu to create new nodes
 - node-creation now fully completed (persistent, saves etc.)
