@@ -16,10 +16,14 @@
 ###############################################################################
 
 from PySide import QtCore, QtGui
+import binascii
 import bs.config
+import bs.ctrl.backup
 import bs.gui.window_main
 import bs.messages
 import bs.model.models
+import Crypto.Hash.SHA256
+import Crypto.Protocol.KDF
 import hashlib
 import json
 import logging
@@ -1150,24 +1154,30 @@ class BackupSetCtrl(bs.model.models.Sets):
     _backup_set_id = None
     _set_uid = None
     _set_name = None
-    _key_hash_64 = None
+    _salt_dk = None
     _set_db_path = None
     _backup_sources = None
     _backup_filters = None
     _backup_targets = None
     _gui_data = None
 
-    def __init__(self, session, set_id, set_uid, set_name, key_hash_64, \
+    _backup_ctrl = None
+    _is_authenticated = None
+    _key_hash_32 = None
+
+    def __init__(self, session, set_id, set_uid, set_name, salt_dk, \
                  set_db_path, source_objs, filter_objs, target_objs):
         self._session = session
         self._backup_set_id = set_id
         self._set_uid = set_uid
         self._set_name = set_name
-        self._key_hash_64 = key_hash_64
+        self._salt_dk = salt_dk
         self._set_db_path = set_db_path
         self._backup_sources = source_objs
         self._backup_filters = filter_objs
         self._backup_targets = target_objs
+
+        self._backup_ctrl = bs.ctrl.backup.BackupCtrl(self)
 
         # if set_id == None, this is a new set, add to database
         if not self._backup_set_id:
@@ -1175,12 +1185,12 @@ class BackupSetCtrl(bs.model.models.Sets):
             for target_obj in target_objs:
                 target_ids.append(target_obj._target_id)
             target_ids_list = target_ids
-            res = self._add("user_id, set_uid, set_name, key_hash_64, set_db_path, sources, filters, targets",
+            res = self._add("user_id, set_uid, set_name, salt_dk, set_db_path, sources, filters, targets",
                       (
                        self._session.user.id,
                        set_uid,
                        set_name,
-                       key_hash_64,
+                       salt_dk,
                        set_db_path,
                        json.dumps(target_ids_list)
                        )
@@ -1194,6 +1204,10 @@ class BackupSetCtrl(bs.model.models.Sets):
         return "Sets #%d id(%d) <%s>" % (self._backup_set_id,
                                         id(self),
                                         self.__class__.__name__, )
+
+    @property
+    def backup_ctrl(self):
+        return self._backup_ctrl
 
     @property
     def backup_set_id(self):
@@ -1227,8 +1241,8 @@ class BackupSetCtrl(bs.model.models.Sets):
                      )
 
     @property
-    def key_hash_64(self):
-        return self._key_hash_64
+    def salt_dk(self):
+        return self._salt_dk
 
     @property
     def set_db_path(self):
@@ -1306,6 +1320,17 @@ class BackupSetCtrl(bs.model.models.Sets):
             gui_data = json.loads(res[0][0])
             self._gui_data = gui_data
         return self._gui_data
+
+    @property
+    def is_authenticated(self):
+        if self._is_authenticated:
+            return True
+        else:
+            return False
+
+    @property
+    def key_hash_32(self):
+        return self._key_hash_32
 
     def add_backup_source(self, backup_source):
         """ *
@@ -1387,6 +1412,23 @@ class BackupSetCtrl(bs.model.models.Sets):
         logging.debug("%s: gui_data successfully saved to db." % (self.__class__.__name__, ))
         return True
 
+    def authenticate(self, key_raw):
+        """ *
+        Authenticates user with backup_set.
+        """
+        # Calculate PBKDF2 ciphers
+        key_hash_32 = Crypto.Protocol.KDF.PBKDF2(key_raw,
+                                                 binascii.unhexlify(self.salt_dk[:128]),
+                                                 dkLen=32,
+                                                 count=64000)
+        # compare hash of entered key against hash_64 in db/on set-obj
+        dk_hex = binascii.hexlify(key_hash_32).decode("utf-8")
+        if dk_hex == self.salt_dk[128:]:
+            self._is_authenticated = True
+            self._key_hash_32 = hashlib.sha512(key_raw.encode()).hexdigest()
+        else:
+            logging.warning("%s: The password is invalid." % (self.__class__.__name__, ))
+
 
 class BackupSetsCtrl(bs.model.models.Sets):
     """ * """
@@ -1407,13 +1449,13 @@ class BackupSetsCtrl(bs.model.models.Sets):
         """ * """
         # sets list is empty, load from db
         if len(self._sets) == 0:
-            res = self._get("id, set_uid, set_name, key_hash_64, set_db_path, source_ass, filter_ass, targets",
+            res = self._get("id, set_uid, set_name, salt_dk, set_db_path, source_ass, filter_ass, targets",
                             (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
                 set_id = data_set[0]
                 set_uid = data_set[1]
                 set_name = data_set[2]
-                key_hash_64 = data_set[3]
+                salt_dk = data_set[3]
                 set_db_path = data_set[4]
                 source_objs = []
                 for source_id in json.loads(data_set[5]):
@@ -1436,7 +1478,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
                                             set_id,
                                             set_uid,
                                             set_name,
-                                            key_hash_64,
+                                            salt_dk,
                                             set_db_path,
                                             source_objs,
                                             filter_objs,
@@ -1493,7 +1535,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
                             % (self.__class__.__name__, ))
             return False
         else:
-            key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
+            salt_dk = hashlib.sha512(key_raw.encode()).hexdigest()
         # set_db_path
         check = False
         if not isinstance(set_db_path, str):
@@ -1561,7 +1603,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
                                     set_id,
                                     set_uid,
                                     set_name,
-                                    key_hash_64,
+                                    salt_dk,
                                     set_db_path,
                                     source_objs,
                                     filter_objs,

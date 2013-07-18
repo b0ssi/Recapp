@@ -38,37 +38,38 @@ logging.basicConfig(format="--------------- "\
                     level=logging.WARNING)
 
 
-# if __name__ == '__main__':
-#     """ * """
-#     # extract sys.argv
-#     gui_mode = False
-# 
-#     for arg in sys.argv:
-#         if re.match("^gui\=True$", arg):
-#             gui_mode = True
-#     # sync db
-#     sync_db = bs.ctrl._db.SyncDb("bs.model.models")
-#     sync_db.sync()
-#     # init sessions
-#     sessions = bs.ctrl.session.SessionsCtrl(gui_mode)
+if __name__ == '__main__':
+    """ * """
+    # extract sys.argv
+    gui_mode = False
+  
+    for arg in sys.argv:
+        if re.match("^gui\=True$", arg):
+            gui_mode = True
+    # sync db
+    sync_db = bs.ctrl._db.SyncDb("bs.model.models")
+    sync_db.sync()
+    # init sessions
+    sessions = bs.ctrl.session.SessionsCtrl(gui_mode)
 
 
-# PREP
-# sync db if necessary
-sync_db = bs.ctrl._db.SyncDb("bs.model.models")
-sync_db.sync()
-
-my_sessions_1 = bs.ctrl.session.SessionsCtrl()
-my_session_1 = my_sessions_1.add_session("alpha", "1")
-
-print(my_session_1.backup_sets.sets[0].backup_sources)
-print(my_session_1.backup_sets.sets[0].backup_filters)
-print(my_session_1.backup_sets.sets[0].backup_targets)
-print(my_session_1.backup_sets.sets[0].backup_sources[0].source_path)
-print(my_session_1.backup_sets.sets[0].backup_targets[0]._target_device_id)
-
-my_backup = bs.ctrl.backup.Backup(my_session_1.backup_sets.sets[0])
-my_backup.backup_exec()
+# # PREP
+# # sync db if necessary
+# sync_db = bs.ctrl._db.SyncDb("bs.model.models")
+# sync_db.sync()
+#  
+# my_sessions_1 = bs.ctrl.session.SessionsCtrl()
+# my_session_1 = my_sessions_1.add_session("alpha", "1")
+#  
+# print(my_session_1.backup_sets.sets[0].backup_sources)
+# print(my_session_1.backup_sets.sets[0].backup_filters)
+# print(my_session_1.backup_sets.sets[0].backup_targets)
+# print(my_session_1.backup_sets.sets[0].backup_sources[0].source_path)
+# print(my_session_1.backup_sets.sets[0].backup_targets[0]._target_device_id)
+#  
+# my_backup = bs.ctrl.backup.Backup(my_session_1.backup_sets.sets[0])
+# print(my_backup.bytes_total)
+# print(my_backup.files_num_total)
 
 
 #print(my_sets_1.sets[0].targets)

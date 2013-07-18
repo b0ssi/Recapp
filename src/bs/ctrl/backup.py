@@ -20,6 +20,8 @@
 import Crypto.Cipher.AES
 import Crypto.Random
 import Crypto.Util.Counter
+import Crypto.Protocol.KDF
+import binascii
 import bs.utils
 import getpass
 import hashlib
@@ -33,7 +35,7 @@ import zipfile
 import zlib
 
 
-class Backup(object):
+class BackupCtrl(object):
     """ *
     Manages and runs a backup-session.
     """
@@ -43,11 +45,37 @@ class Backup(object):
     _targets = None
     _tmp_dir = None
 
+    _bytes_total = None
+    _files_num_total = None
+
     def __init__(self, backup_set):
         self._backup_set = backup_set
         self._sources = backup_set.backup_sources
         self._targets = backup_set.backup_targets
         self._tmp_dir = tempfile.TemporaryDirectory()
+
+        self._bytes_total = {}
+        self._files_num_total = {}
+
+    @property
+    def bytes_total(self):
+        """ *
+        Calculates total number of bytes to be backed up (new/changed data).
+        """
+        # check: all sources have been pre-computed
+        for backup_source in self._backup_set.backup_sources:
+            if backup_source not in self._bytes_total.keys():
+                self.backup_exec(backup_source, simulate=True)
+        return self._bytes_total
+
+    @property
+    def files_num_total(self):
+        """ *
+        Calculates total number of bytes to be backed up (new/changed data).
+        """
+        if not self._files_num_total:
+            self.backup_exec(simulate=True)
+        return self._files_num_total
 
     def _update_db(self, conn):
         """ *
@@ -283,51 +311,42 @@ class Backup(object):
         except:
             raise
 
-    def backup_exec(self):
+    def backup_exec(self, backup_source, simulate=False):
         """ *
         Main backup-exec: Runs through a set of sources, applying filters,
         determining the state of an entity, throwing warnings accordingly and
         backing up those that change has been detected in.
         """
-        # check if set is encrypted and prompt for key_raw-input
-        # a key_raw is set as indicated by 64-bit verification hash in db:
-        if self._backup_set.key_hash_64:
-            key_raw = getpass.getpass("The backup-set is encrypted. Please "\
-                                      "enter the key_raw to continue:")
-            key_hash_32 = hashlib.sha256(key_raw.encode()).digest()
-            key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
-            # compare hash of entered key against hash_64 in db/on set-obj
-            if key_hash_64 == self._backup_set.key_hash_64:
-                self._key_hash_32 = key_hash_32
-            # if mismatch, prompt and exit
-            else:
-                logging.critical("%s: The password entered is invalid; the "\
-                                 "backup-process can not continue."
-                                 % (self.__class__.__name__, ))
-                raise SystemExit
+        # check if set is encrypted and request authorization status if so.
+        # If not authorized, abort.
+        if self._backup_set.salt_dk:
+            if not self._backup_set.is_authenticated:
+                logging.warning("%s: The backup-set seems to be encrypted "\
+                                "but has not been unlocked yet."
+                                % (self.__class__.__name__, ))
+                return False
         # update database
         conn = sqlite3.connect(self._backup_set.set_db_path)
-        new_column_name = self._update_db(conn)
-        bytes_processed = [0, 0]
-        files_processed = 0
-
+        if not simulate:
+            new_column_name = self._update_db(conn)
+        self._bytes_total[backup_source] = 0
+        self._files_num_total[backup_source] = 0
         time_start = time.time()
-        i = 0
-        for source in self._sources:
-            source_path = source.source_path
-            for folder_path, folders, files in os.walk(source_path):
-                for file in files:
-                    # create file object
-                    file_obj = BackupFile(self._backup_set,
-                                          os.path.join(folder_path, file),
-                                          self._targets,
-                                          self._tmp_dir,
-                                          key_hash_32)
+        backup_source_path = backup_source.source_path
+        for folder_path, folders, files in os.walk(backup_source_path):
+            for file in files:
+                # create file object
+                file_obj = BackupFileCtrl(self._backup_set,
+                                      os.path.join(folder_path, file),
+                                      self._targets,
+                                      self._tmp_dir,
+                                      self._backup_set.key_hash_32)
 
-                    entity_datas = conn.execute("SELECT id, path, ctime, mtime, atime, inode, size, sha512 FROM lookup WHERE path = ?",
-                                                (file_obj.path, )).fetchall()
-                    # new path
-                    if len(entity_datas) == 0:
+                entity_datas = conn.execute("SELECT id, path, ctime, mtime, atime, inode, size, sha512 FROM lookup WHERE path = ?",
+                                            (file_obj.path, )).fetchall()
+                # new path
+                if len(entity_datas) == 0:
+                    if not simulate:
                         # create new entity
                         # AQUIRE NEW ID
                         entity_id = conn.execute("SELECT MAX(rowid) AS rowid FROM lookup").fetchone()[0]
@@ -345,6 +364,8 @@ class Backup(object):
                                             (file_obj.sha512, )).fetchall()) == 0:
                             # BACKUP
                             file_obj.backup()
+                            self._bytes_total[backup_source] += file_obj.size
+                            self._files_num_total[backup_source] += 1
                         # UPDATE DB
                         self._update_data_in_db(conn,
                                                 new_column_name,
@@ -357,193 +378,202 @@ class Backup(object):
                                                 file_size=file_obj.size,
                                                 file_sha512=file_obj.sha512,
                                                 backup_archive_name=file_obj.current_backup_archive_name)
-                    # existing path
-                    elif len(entity_datas) == 1:
-                        entity_id = entity_datas[0][0]
-                        entity_path = entity_datas[0][1]
-                        entity_ctime = entity_datas[0][2]
-                        entity_mtime = entity_datas[0][3]
-                        entity_atime = entity_datas[0][4]
-                        entity_inode = entity_datas[0][5]
-                        entity_size = entity_datas[0][6]
-                        entity_sha512 = entity_datas[0][7]
+                    else:
+                        if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
+                                            (file_obj.sha512, )).fetchall()) == 0:
+                            self._bytes_total[backup_source] += file_obj.size
+                            self._files_num_total[backup_source] += 1
+                # existing path
+                elif len(entity_datas) == 1:
+                    entity_id = entity_datas[0][0]
+                    entity_path = entity_datas[0][1]
+                    entity_ctime = entity_datas[0][2]
+                    entity_mtime = entity_datas[0][3]
+                    entity_atime = entity_datas[0][4]
+                    entity_inode = entity_datas[0][5]
+                    entity_size = entity_datas[0][6]
+                    entity_sha512 = entity_datas[0][7]
 
-                        if file_obj.path == entity_path: path = 1
-                        else: path = 0
-                        if file_obj.ctime == entity_ctime: ctime = 1
-                        else: ctime = 0
-                        if file_obj.mtime == entity_mtime: mtime = 1
-                        else: mtime = 0
-                        if file_obj.atime == entity_atime: atime = 1
-                        else: atime = 0
-                        if file_obj.size == entity_size: size = 1
-                        else: size = 0
+                    if file_obj.path == entity_path: path = 1
+                    else: path = 0
+                    if file_obj.ctime == entity_ctime: ctime = 1
+                    else: ctime = 0
+                    if file_obj.mtime == entity_mtime: mtime = 1
+                    else: mtime = 0
+                    if file_obj.atime == entity_atime: atime = 1
+                    else: atime = 0
+                    if file_obj.size == entity_size: size = 1
+                    else: size = 0
 
-                        combinations = "%s%s%s%s%s" \
-                                       % (path, ctime, mtime, atime, size, )
+                    combinations = "%s%s%s%s%s" \
+                                   % (path, ctime, mtime, atime, size, )
 
-                        if combinations == "00000":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00001":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00010":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00011":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00100":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00101":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00110":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "00111":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01000":
-                            # OK: simple move and change in mtime, size and
-                            # recent access
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01001":
-                            # OK: simple move and change in mtime, size same
-                            # and recent access
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01010":
-                            # OK: simple move and change in mtime, size
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01011":
-                            # OK: simple move and change in mtime, size same
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01100":
-                            # ERROR: mtime same but size changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01101":
-                            # OK: simple move plus recent access
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01110":
-                            # ERROR: mtime same but size changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "01111":
-                            # OK: simple move
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10000":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10001":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10010":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10011":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10100":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10101":
-                            # OK: ctime, atime changed
-                            # e.g. previously existing file was absent
-                            # temporarily and has been moved/copied back in
-                            # without change in data
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                            # update DB
+                    if combinations == "00000":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00001":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00010":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00011":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00100":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00101":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00110":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "00111":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01000":
+                        # OK: simple move and change in mtime, size and
+                        # recent access
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01001":
+                        # OK: simple move and change in mtime, size same
+                        # and recent access
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01010":
+                        # OK: simple move and change in mtime, size
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01011":
+                        # OK: simple move and change in mtime, size same
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01100":
+                        # ERROR: mtime same but size changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01101":
+                        # OK: simple move plus recent access
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01110":
+                        # ERROR: mtime same but size changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "01111":
+                        # OK: simple move
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10000":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10001":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10010":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10011":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10100":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10101":
+                        # OK: ctime, atime changed
+                        # e.g. previously existing file was absent
+                        # temporarily and has been moved/copied back in
+                        # without change in data
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # update DB
+                        if not simulate:
                             self._update_data_in_db(conn,
                                                     new_column_name,
                                                     entity_id=entity_id,
                                                     file_ctime=file_obj.ctime,
                                                     file_atime=file_obj.atime)
-                        if combinations == "10110":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "10111":
-                            # ERROR: inode same but ctime changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "11000":
-                            # OK: mtime, atime, size changed, rest same
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                            # BACKUP
+                        self._bytes_total[backup_source] += file_obj.size
+                        self._files_num_total[backup_source] += 1
+                    if combinations == "10110":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "10111":
+                        # ERROR: inode same but ctime changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "11000":
+                        # OK: mtime, atime, size changed, rest same
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # BACKUP
+                        if not simulate:
                             if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
@@ -556,13 +586,16 @@ class Backup(object):
                                                     file_size=file_obj.size,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        if combinations == "11001":
-                            # OK: mtime and atime changed, rest same
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                            # BACKUP
+                        self._bytes_total[backup_source] += file_obj.size
+                        self._files_num_total[backup_source] += 1
+                    if combinations == "11001":
+                        # OK: mtime and atime changed, rest same
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # BACKUP
+                        if not simulate:
                             if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
@@ -574,13 +607,16 @@ class Backup(object):
                                                     file_atime=file_obj.atime,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        if combinations == "11010":
-                            # OK: regular edit, mtime, size changed, rest same
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                            # BACKUP
+                        self._bytes_total[backup_source] += file_obj.size
+                        self._files_num_total[backup_source] += 1
+                    if combinations == "11010":
+                        # OK: regular edit, mtime, size changed, rest same
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # BACKUP
+                        if not simulate:
                             if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
@@ -592,13 +628,16 @@ class Backup(object):
                                                     file_size=file_obj.size,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        if combinations == "11011":
-                            # OK: only mtime changed. size same
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                            # BACKUP
+                        self._bytes_total[backup_source] += file_obj.size
+                        self._files_num_total[backup_source] += 1
+                    if combinations == "11011":
+                        # OK: only mtime changed. size same
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # BACKUP
+                        if not simulate:
                             if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
                                                 (file_obj.sha512, )).fetchall()) == 0:
                                 file_obj.backup()
@@ -609,45 +648,48 @@ class Backup(object):
                                                     file_mtime=file_obj.mtime,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        if combinations == "11100":
-                            # ERROR: size and only atime have changed
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "11101":
-                            # OK: no change but has been accessed recently
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                        if combinations == "11110":
-                            # ERROR: size has changed but rest is unchanged
-                            logging.warning("%s: Unhandled combination: %s: %s"
-                                            % (self.__class__.__name__,
-                                               combinations,
-                                               file_obj.path, ))
-                        if combinations == "11111":
-                            # OK: no change at all
-                            logging.info("%s: OK: %s: %s"
-                                         % (self.__class__.__name__,
-                                            combinations,
-                                            file_obj.path, ))
-                            # update DB
+                        self._bytes_total[backup_source] += file_obj.size
+                        self._files_num_total[backup_source] += 1
+                    if combinations == "11100":
+                        # ERROR: size and only atime have changed
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "11101":
+                        # OK: no change but has been accessed recently
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                    if combinations == "11110":
+                        # ERROR: size has changed but rest is unchanged
+                        logging.warning("%s: Unhandled combination: %s: %s"
+                                        % (self.__class__.__name__,
+                                           combinations,
+                                           file_obj.path, ))
+                    if combinations == "11111":
+                        # OK: no change at all
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # update DB
+                        if not simulate:
                             self._update_data_in_db(conn,
                                                     new_column_name,
                                                     entity_id=entity_id)
-                    if i % 1 == 0:
-                        print("%i files/s" % (i / (time.time() - time_start - 0.001), ))
-                    if i % 1000 == 0:
-                        conn.commit()
-                    i += 1
+#                 if self._files_num_total[backup_source] % 1 == 0:
+#                     print("%i files/s | %i bytes total" % (self._files_num_total[backup_source] / (time.time() - time_start - 0.001),
+#                                                            self._bytes_total[backup_source]))
+                if self._files_num_total[backup_source] % 1000 == 0:
+                    conn.commit()
         conn.commit()
         conn.close()
         return True
 
 
-class BackupFile(object):
+class BackupFileCtrl(object):
     """ *
     Representation of a backup-file in its specific state.
     """
@@ -908,7 +950,7 @@ class BackupFile(object):
                                    self.sha512))
 
 
-class BackupRestore(object):
+class BackupRestoreCtrl(object):
     """ * """
     _set_obj = None
     _entity_ids = None
@@ -932,9 +974,9 @@ class BackupRestore(object):
             while not self._key_hash_32:
                 key_raw = getpass.getpass("This set is encrypted; please "\
                                           "enter the corresponding password:")
-                key_hash_64 = hashlib.sha512(key_raw.encode()).hexdigest()
+                salt_dk = hashlib.sha512(key_raw.encode()).hexdigest()
                 # verify hash_64
-                if key_hash_64 == self._set_obj.key_hash_64:
+                if salt_dk == self._set_obj.salt_dk:
                     key_hash_32 = hashlib.sha256(key_raw.encode()).digest()
                     self._key_hash_32 = key_hash_32
                     return self._key_hash_32
@@ -943,7 +985,7 @@ class BackupRestore(object):
         """ * """
         for entity_id in self._entity_ids:
             # restore-file obj, provides all necessary metadata about entity
-            backup_restore_file = BackupRestoreFile(self._set_obj,
+            backup_restore_file = BackupRestoreFileCtrl(self._set_obj,
                                                     entity_id,
                                                     self._snapshot_to_restore_tstamp)
             self._unzip_file(backup_restore_file)
@@ -1024,7 +1066,7 @@ class BackupRestore(object):
                          time_elapsed))
 
 
-class BackupRestoreFile(object):
+class BackupRestoreFileCtrl(object):
     """ * """
     _set_obj = None
     _entity_id = None

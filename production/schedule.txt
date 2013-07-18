@@ -153,7 +153,10 @@
 				[.]	sources
 					[X]	ability to add a source
 					[X]	ability to remove a source
-					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+					[.]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+						[ ]	install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
+						[ ]	implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
+							[ ]	look into Qt animations (wading throbber e.g. while scanning~)
 				[.]	filters
 					[X]	ability to add a filter
 					[X]	ability to remove a filter

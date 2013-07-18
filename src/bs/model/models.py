@@ -63,7 +63,7 @@ class Sets(bs.model.models_master.BSModel):
     set_uid = ["TEXT", "UNIQUE"]
     user_id = ["INTEGER"]
     set_name = ["TEXT"]
-    key_hash_64 = ["TEXT"]
+    salt_dk = ["TEXT"]
     set_db_path = ["TEXT"]
     source_ass = ["TEXT"]
     filter_ass = ["TEXT"]

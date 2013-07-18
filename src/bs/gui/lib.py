@@ -562,6 +562,7 @@ class BSArrowCarrier(BSDraggable):
 
 class BSNode(BSDraggable):
     """ * """
+    _bs = None
     _bs_sets_canvas = None
     _app = None
 
@@ -575,9 +576,10 @@ class BSNode(BSDraggable):
 #    _mouse_press_global_pos = None  # Holds mouse pos when key was pressed to compare against pos when released
     _border_hex_orig = None
 
-    def __init__(self, bs_sets_canvas, app, has_conn_pad=False):
+    def __init__(self, bs, bs_sets_canvas, app, has_conn_pad=False):
         super(BSNode, self).__init__(bs_sets_canvas)
 
+        self._bs = bs
         self._bs_sets_canvas = bs_sets_canvas
         self._app = app
 
@@ -704,6 +706,7 @@ class BSNode(BSDraggable):
             arrow_inbound.delete()
         if self._arrow_outbound:
             self._arrow_outbound.delete()
+        self._bs.set_modified()
 
 
 class BSNodeConnPad(QtGui.QFrame):
@@ -764,7 +767,7 @@ class BSNodeItem(BSFrame):
     @title_text.setter
     def title_text(self, title):
         """ * """
-        self._title.setText(title)
+        self._title.setText(str(title))
 
     def mouseMoveEvent(self, e):
         """ *

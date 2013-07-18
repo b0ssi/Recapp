@@ -25,6 +25,7 @@ import bs.messages.general
 import json
 import logging
 import re
+import threading
 import time
 
 
@@ -823,7 +824,7 @@ class BSSource(bs.gui.lib.BSNode):
                  backup_source,
                  backup_set,
                  app):
-        super(BSSource, self).__init__(bs_sets_canvas, app, True)
+        super(BSSource, self).__init__(bs, bs_sets_canvas, app, True)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
@@ -951,7 +952,42 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                     )
 
     def mousePressEvent(self, e):
-        print(self._backup_source.backup_source_ass[self._backup_set])
+        """ * """
+        # if backup_set is encrypted, prompt for key
+        if self._backup_set.salt_dk:
+            err_msg = "The Backup-Set seems to be encrypted. Please enter the password:"
+            while not self._backup_set.is_authenticated:
+                key_raw, ok = QtGui.QInputDialog.getText(self,
+                                                         "Backup-Set Authentication",
+                                                         err_msg,
+                                                         echo=QtGui.QLineEdit.Password,
+                                                         text="",
+                                                         flags=0)
+                if ok:
+                    self._backup_set.authenticate(key_raw)
+                else:
+                    break
+                if self._backup_set.is_authenticated:
+                    break
+                err_msg = "Invalid password. Please try again:"
+            if self._backup_set.is_authenticated:
+                t_1 = threading.Thread(target=self.update)
+                t_1.start()
+
+    def update(self):
+        t_2 = threading.Thread(target=self.update2)
+        t_2.start()
+        while t_2.is_alive():
+            try:
+                self.title_text = bs.utils.format_data_size(self._backup_set.backup_ctrl._bytes_total[self._backup_source])
+            except:
+                print("- - -")
+            time.sleep(0.1)
+        self.title_text = bs.utils.format_data_size(self._backup_set.backup_ctrl._bytes_total[self._backup_source])
+
+    def update2(self):
+        """ * """
+        x = self._backup_set.backup_ctrl.bytes_total[self._backup_source]
 
 
 class BSFilter(bs.gui.lib.BSNode):
@@ -970,7 +1006,7 @@ class BSFilter(bs.gui.lib.BSNode):
                  backup_filter,
                  backup_set,
                  app):
-        super(BSFilter, self).__init__(bs_sets_canvas, app, True)
+        super(BSFilter, self).__init__(bs, bs_sets_canvas, app, True)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
@@ -1064,7 +1100,7 @@ class BSTarget(bs.gui.lib.BSNode):
                  backup_targets,
                  backup_set,
                  app):
-        super(BSTarget, self).__init__(bs_sets_canvas, app)
+        super(BSTarget, self).__init__(bs, bs_sets_canvas, app)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
