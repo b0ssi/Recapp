@@ -154,8 +154,9 @@
 					[X]	ability to add a source
 					[X]	ability to remove a source
 					[.]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
-						[ ]	install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
-						[ ]	implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
+						[(X)]	install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
+							> installed on each backup_source, so central location can iterate over all backup_sources to do a batch-process
+						[.]	implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
 							[ ]	look into Qt animations (wading throbber e.g. while scanning~)
 				[.]	filters
 					[X]	ability to add a filter
@@ -166,6 +167,9 @@
 					[ ]	ability to add a target
 					[ ]	ability to remove a target
 					[ ]	think about: ?ability to measure/visualize the space left on the target?
+				[ ]	Arrows
+					[.] Implement support to connect multiple arrows to multiple nodes
+						[.]	Del button on arrow
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
 		[ ]	implement consistent scheme for passing object-references into classes

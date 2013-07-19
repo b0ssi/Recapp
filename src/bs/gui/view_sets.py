@@ -193,6 +193,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         Empties the canvas, removing/deleting all widgets and arrows.
         """
         for bs_source_widget in self._bs_source_widgets:
+            if not bs_source_widget.request_exit():
+                logging.warning("%s: Node did not respond positively to exit request." % (self.__class__.__name__, ))
+                return False
             bs_source_widget.deleteLater()
         self._bs_source_widgets = []
         for bs_filters_widgets in self._bs_filter_widgets:
@@ -210,18 +213,27 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             self._bs_arrow_carrier.unregister_signals()
             # delete
             self._bs_arrow_carrier.deleteLater()
+        return True
 
-    def load_set(self, backup_set):
+    def close_set(self):
         """ *
-        Loads a backup-set onto the canvas.
+        Closes the current backup_set
         """
         # save current set
         self._bs.set_modified(force_save=True)
         # EMPTY CANVAS
         # clean canvas, delete old widgets
-        self.empty_canvas()
+        if not self.empty_canvas():
+            logging.warning("%s: Canvas could not be emptied." % (self.__class__.__name__, ))
+            return False
         # arrow_carrier
         self._bs_arrow_carrier = bs.gui.lib.BSArrowCarrier(self, self._app, self._bs)
+
+    def load_set(self, backup_set):
+        """ *
+        Loads a backup-set onto the canvas.
+        """
+        self.close_set()
         # set new current set
         self._bs.backup_set_current = backup_set
         # LOAD NODES
@@ -387,7 +399,6 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
                                       bb_t,
                                       bb_r - bb_l,
                                       bb_b - bb_t)
-            print(bb_current)
             for bs_node in bs_nodes:
                 # bring node down into view
                 bs_node.setGeometry(int(bs_node.x() - (bb_current.center().x() - self.width() / 2)),
@@ -799,6 +810,16 @@ class BSMenuItemSave(bs.gui.lib.BSNodeItem):
                      )
                     )
 
+    def setEnabled(self, *args, **kwargs):
+        super(BSMenuItemSave, self).setEnabled(*args, **kwargs)
+
+        self.title_text = "SAVE"
+
+    def setDisabled(self, *args, **kwargs):
+        super(BSMenuItemSave, self).setDisabled(*args, **kwargs)
+
+        self.title_text = "SAVED"
+
     def mousePressEvent(self, e):
         """ *
         Triggers backup_set.save_to_db() and disables this button again.
@@ -817,6 +838,7 @@ class BSSource(bs.gui.lib.BSNode):
     _app = None
 
     _mouse_press_event_pos = None  # this holds the press_event object's pos()
+    _bs_source_item = None
 
     def __init__(self,
                  bs_sets_canvas,
@@ -845,9 +867,9 @@ class BSSource(bs.gui.lib.BSNode):
         self.title_text = self._backup_source.source_name
         self.title_size = 13
         # populate with item
-        widget = BSSourceItem(self, self._backup_source, self._backup_set)
-        self._custom_contents_container._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
-#         self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
+        self._bs_source_item = BSSourceItem(self, self._backup_source, self._backup_set)
+        self._custom_contents_container._layout.addWidget(self._bs_source_item, self._layout.count(), 0, 1, 1)
+#         self._layout.addWidget(self._bs_source_item, self._layout.count(), 0, 1, 1)
         self.show()
 
     def save_gui_data(self):
@@ -891,6 +913,14 @@ class BSSource(bs.gui.lib.BSNode):
         self._bs_sets_canvas.bs_source_widgets.pop(self._bs_sets_canvas.bs_source_widgets.index(self))
         self.deleteLater()
 
+    def request_exit(self):
+        """ * """
+        if self._bs_source_item.request_exit():
+            return True
+        else:
+            logging.warning("%s: Could not exit." % (self.__class__.__name__, ))
+            return False
+
     def mousePressEvent(self, e):
         """ * """
         super(BSSource, self).mousePressEvent(e)
@@ -900,7 +930,6 @@ class BSSource(bs.gui.lib.BSNode):
     def mouseReleaseEvent(self, e):
         """ * """
         super(BSSource, self).mouseReleaseEvent(e)
-
         # emit modified-signal, only if mouse has actually moved
         if self._mouse_press_event_pos != e.globalPos():
             self._bs.set_modified()
@@ -912,6 +941,9 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
     _backup_source = None
     _backup_set = None
 
+    _update_thread = None
+    _request_exit = None
+
     def __init__(self, bs_source, backup_source, backup_set):
         super(BSSourceItem, self).__init__(bs_source)
 
@@ -919,11 +951,13 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         self._backup_source = backup_source
         self._backup_set = backup_set
 
+        self._request_exit = False
+
         self._init_ui()
 
     def _init_ui(self):
         """ * """
-        self.title_text = self._backup_source.source_name
+        self.title_text = "Calculate Pending Data"
         # CSS
         self.css = ((self,
                      "",
@@ -951,7 +985,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                      )
                     )
 
-    def mousePressEvent(self, e):
+    def mouseReleaseEvent(self, e):
         """ * """
         # if backup_set is encrypted, prompt for key
         if self._backup_set.salt_dk:
@@ -971,23 +1005,37 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                     break
                 err_msg = "Invalid password. Please try again:"
             if self._backup_set.is_authenticated:
-                t_1 = threading.Thread(target=self.update)
-                t_1.start()
+                if not self._update_thread or\
+                    not self._update_thread.is_alive():
+                    self._update_thread = threading.Thread(target=self.update)
+                    self._update_thread.start()
 
     def update(self):
-        t_2 = threading.Thread(target=self.update2)
-        t_2.start()
-        while t_2.is_alive():
-            try:
-                self.title_text = bs.utils.format_data_size(self._backup_set.backup_ctrl._bytes_total[self._backup_source])
-            except:
-                print("- - -")
+        pre_calc_thread = self._backup_set.backup_ctrls[self._backup_source].pre_process_data()
+        while True:
+            bytes_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_source].bytes_to_be_backed_up
+            if self._request_exit:
+                self._backup_set.backup_ctrls[self._backup_source].request_exit()
+            files_num_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_source].files_num_to_be_backed_up
+            self.title_text = "%s | %s files" % (bs.utils.format_data_size(bytes_to_be_backed_up),
+                                                 files_num_to_be_backed_up, )
+            if not pre_calc_thread.is_alive():
+                break
             time.sleep(0.1)
-        self.title_text = bs.utils.format_data_size(self._backup_set.backup_ctrl._bytes_total[self._backup_source])
 
-    def update2(self):
-        """ * """
-        x = self._backup_set.backup_ctrl.bytes_total[self._backup_source]
+    def request_exit(self):
+        """ *
+        Requests threads to exit. To be used before deleting a node.
+        """
+        self._request_exit = True
+        while True:
+            if not self._update_thread or\
+                not self._update_thread.is_alive():
+                break
+            else:
+                time.sleep(0.1)
+        self._request_exit = False
+        return True
 
 
 class BSFilter(bs.gui.lib.BSNode):

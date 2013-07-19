@@ -186,7 +186,7 @@ class HashFile(object):
     """
     _file_path = ""
     _hash_obj = None
-    _data = []
+    _data = None
     _status = 0
     _sleeping_time = 0.005
     _buffer_size = 1024 * 1024 * 1
@@ -197,6 +197,7 @@ class HashFile(object):
         # instantiate default _hash_obj
         if not hash_obj:
             self._hash_obj = hashlib.sha512()
+        self._data = []
 
     def _read_data(self):
         """ * """

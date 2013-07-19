@@ -2,6 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-19
+- started thinking about logics behind filters: nodes need to be able to connect to multiple other nodes
+	- started implementing del button on arrow
+- finalized threaded backup_source pre-computing, exit handling, etc.; computing now per backup_source. Each backup_source has its own backup_ctrl.
+
 2013-07-18
 - integrated threaded real-time visualization of capacity and number of files to be backuped by each backup_source in a backup_set while backup-sim runs
 - fully implemented PBKDF2-based password-authentication for BackupCtrl object (full backup/simulate)

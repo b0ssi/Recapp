@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+from PySide import QtCore, QtGui
+import binascii
+import bs.config
+import bs.gui.view_sets
+import logging
+import re
 
 ###############################################################################
 ##    bs.gui.nodes                                                           ##
@@ -16,11 +22,6 @@
 ###############################################################################
 
 """ * """
-from PySide import QtCore, QtGui
-import binascii
-import bs.config
-import bs.gui.view_sets
-import re
 
 
 class BSFrame(QtGui.QFrame):
@@ -258,6 +259,7 @@ class BSArrow(QtGui.QWidget):
     _stroke_width = None
     _line_cap = None
     _join_style = None
+    _btn_del = None
 
     def __init__(self, source, target):
         super(BSArrow, self).__init__(source.parent())
@@ -277,6 +279,8 @@ class BSArrow(QtGui.QWidget):
         # INIT UI
         self.lower()
         self.show()
+        # Delete button
+        self._btn_del = BSArrowBtnDel(self)
 
     @property
     def source(self):
@@ -345,6 +349,12 @@ class BSArrow(QtGui.QWidget):
                          self._join_style)
         painter.setPen(pen)
         painter.drawPath(path)
+        # del button
+        side_len = 12
+        self._btn_del.setGeometry(p1a.x() + (p2a.x() - p1a.x()) / 2 - side_len / 2,
+                                  p1a.y() + (p2a.y() - p1a.y()) / 2 - side_len / 2,
+                                  side_len,
+                                  side_len)
 
         super(BSArrow, self).paintEvent(e)
 
@@ -365,6 +375,38 @@ class BSArrow(QtGui.QWidget):
                          self._target.geometry().united(self._source.geometry()).width() + margin * 2,
                          self._target.geometry().united(self._source.geometry()).height() + margin * 2
                          )
+
+
+class BSArrowBtnDel(BSFrame):
+    """ * """
+    _bs_arrow = None
+
+    _mouse_press_global_pos = None
+
+    def __init__(self, bs_arrow):
+        super(BSArrowBtnDel, self).__init__(bs_arrow)
+
+        self._bs_arrow = bs_arrow
+
+        self._init_ui()
+
+    def _init_ui(self):
+        css = "BSFrame {background: #C7C7FF; border-radius: 6px}"
+        css += "BSFrame:hover {background: #FF0000}"
+        self.setStyleSheet(css)
+        self.show()
+        self.raise_()
+
+    def mouseMoveEvent(self, e):
+        """ * """
+
+    def mousePressEvent(self, e):
+        self._mouse_press_global_pos = e.globalPos()
+
+    def mouseReleaseEvent(self, e):
+        if self._mouse_press_global_pos == e.globalPos():
+            if e.button() & QtCore.Qt.MouseButton.LeftButton:
+                print("Del!!!")
 
 
 class BSArrowCarrier(BSDraggable):
@@ -601,6 +643,7 @@ class BSNode(BSDraggable):
         self._layout.addWidget(self._custom_contents_container, 1, 0, 1, 1)
         self._layout.setSpacing(1)
         self._layout.setContentsMargins(0, 0, 0, 0)
+        self.setMinimumWidth(170)
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
         gfx.setOffset(0)
@@ -700,13 +743,24 @@ class BSNode(BSDraggable):
         Removes the node's arrows. Additional operations take place on
         inheriting objects.
         """
-        # delete arrows
-        while len(self._arrows_inbound) > 0:
-            arrow_inbound = self._arrows_inbound[0]
-            arrow_inbound.delete()
-        if self._arrow_outbound:
-            self._arrow_outbound.delete()
-        self._bs.set_modified()
+        # request exits
+        if self.request_exit():
+            # delete arrows
+            while len(self._arrows_inbound) > 0:
+                arrow_inbound = self._arrows_inbound[0]
+                arrow_inbound.delete()
+            if self._arrow_outbound:
+                self._arrow_outbound.delete()
+            self._bs.set_modified()
+        else:
+            logging.warning("%s: Node could net be removed as active threads"\
+                            "did not shut down properly." % (self.__class__.__name__, ))
+
+    def request_exit(self):
+        """ *
+        To be overridden by inheriting objects.
+        """
+        return True
 
 
 class BSNodeConnPad(QtGui.QFrame):
@@ -728,9 +782,21 @@ class BSNodeConnPad(QtGui.QFrame):
         icon = QtGui.QFrame()
         css = "QFrame {border-top-right-radius: 2px; border-bottom-right-radius: 2px;  background: #%s}" % (bs.config.PALETTE[1], )
         css += "QFrame:hover {background: #%s}" % (bs.config.PALETTE[4], )
-        icon.setStyleSheet(css)
-        icon.setMinimumSize(QtCore.QSize(14, 14))
-        self._layout.addWidget(icon, 0, 0, 1, 1)
+        self.setMaximumWidth(14)
+        self.setMinimumWidth(14)
+        self.setStyleSheet(css)
+#         icon.setMinimumSize(QtCore.QSize(14, 14))
+#         self._layout.addWidget(icon, 0, 0, 1, 1)
+
+    def mouseMoveEvent(self, e):
+        """ *
+        Override
+        """
+
+    def mousePressEvent(self, e):
+        """ *
+        Override
+        """
 
     def mouseReleaseEvent(self, e):
         """ *

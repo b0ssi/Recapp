@@ -1161,7 +1161,7 @@ class BackupSetCtrl(bs.model.models.Sets):
     _backup_targets = None
     _gui_data = None
 
-    _backup_ctrl = None
+    _backup_ctrls = None
     _is_authenticated = None
     _key_hash_32 = None
 
@@ -1177,8 +1177,11 @@ class BackupSetCtrl(bs.model.models.Sets):
         self._backup_filters = filter_objs
         self._backup_targets = target_objs
 
-        self._backup_ctrl = bs.ctrl.backup.BackupCtrl(self)
-
+        # build backup_ctrls
+        self._backup_ctrls = {}
+        for backup_source in self._backup_sources:
+            self._backup_ctrls[backup_source] = bs.ctrl.backup.BackupCtrl(self,
+                                                                          backup_source)
         # if set_id == None, this is a new set, add to database
         if not self._backup_set_id:
             target_ids = []
@@ -1204,10 +1207,6 @@ class BackupSetCtrl(bs.model.models.Sets):
         return "Sets #%d id(%d) <%s>" % (self._backup_set_id,
                                         id(self),
                                         self.__class__.__name__, )
-
-    @property
-    def backup_ctrl(self):
-        return self._backup_ctrl
 
     @property
     def backup_set_id(self):
@@ -1322,6 +1321,10 @@ class BackupSetCtrl(bs.model.models.Sets):
         return self._gui_data
 
     @property
+    def backup_ctrls(self):
+        return self._backup_ctrls
+
+    @property
     def is_authenticated(self):
         if self._is_authenticated:
             return True
@@ -1342,6 +1345,10 @@ class BackupSetCtrl(bs.model.models.Sets):
         # add set association to backup_source
         if not self in backup_source.backup_source_ass.keys():
             backup_source.backup_source_ass[self] = None
+        # add backup_ctrl for new source
+        if backup_source not in self._backup_ctrls.keys():
+            self._backup_ctrls[backup_source] = bs.ctrl.backup.BackupCtrl(self,
+                                                                          backup_source)
 
     def add_backup_filter(self, backup_filter):
         """ *

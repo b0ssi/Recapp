@@ -16,11 +16,10 @@
 ###############################################################################
 
 """ Hosts all backup- and restore-logics and procedures. """
-
 import Crypto.Cipher.AES
+import Crypto.Protocol.KDF
 import Crypto.Random
 import Crypto.Util.Counter
-import Crypto.Protocol.KDF
 import binascii
 import bs.utils
 import getpass
@@ -30,9 +29,11 @@ import os
 import re
 import sqlite3
 import tempfile
+import threading
 import time
 import zipfile
 import zlib
+
 
 
 class BackupCtrl(object):
@@ -40,42 +41,32 @@ class BackupCtrl(object):
     Manages and runs a backup-session.
     """
     _backup_set = None
-    _key_hash_32 = None
-    _sources = None
+    _backup_source = None
+
     _targets = None
     _tmp_dir = None
+    _bytes_to_be_backed_up = None
+    _files_num_to_be_backed_up = None
+    _pre_calc_thread = None
+    _request_exit = None
 
-    _bytes_total = None
-    _files_num_total = None
-
-    def __init__(self, backup_set):
+    def __init__(self, backup_set, backup_source):
         self._backup_set = backup_set
-        self._sources = backup_set.backup_sources
+        self._backup_source = backup_source
+
         self._targets = backup_set.backup_targets
         self._tmp_dir = tempfile.TemporaryDirectory()
-
-        self._bytes_total = {}
-        self._files_num_total = {}
-
-    @property
-    def bytes_total(self):
-        """ *
-        Calculates total number of bytes to be backed up (new/changed data).
-        """
-        # check: all sources have been pre-computed
-        for backup_source in self._backup_set.backup_sources:
-            if backup_source not in self._bytes_total.keys():
-                self.backup_exec(backup_source, simulate=True)
-        return self._bytes_total
+        self._bytes_to_be_backed_up = 0
+        self._files_num_to_be_backed_up = 0
+        self._request_exit = False
 
     @property
-    def files_num_total(self):
-        """ *
-        Calculates total number of bytes to be backed up (new/changed data).
-        """
-        if not self._files_num_total:
-            self.backup_exec(simulate=True)
-        return self._files_num_total
+    def bytes_to_be_backed_up(self):
+        return self._bytes_to_be_backed_up
+
+    @property
+    def files_num_to_be_backed_up(self):
+        return self._files_num_to_be_backed_up
 
     def _update_db(self, conn):
         """ *
@@ -311,7 +302,7 @@ class BackupCtrl(object):
         except:
             raise
 
-    def backup_exec(self, backup_source, simulate=False):
+    def backup_exec(self, simulate=False):
         """ *
         Main backup-exec: Runs through a set of sources, applying filters,
         determining the state of an entity, throwing warnings accordingly and
@@ -329,12 +320,17 @@ class BackupCtrl(object):
         conn = sqlite3.connect(self._backup_set.set_db_path)
         if not simulate:
             new_column_name = self._update_db(conn)
-        self._bytes_total[backup_source] = 0
-        self._files_num_total[backup_source] = 0
         time_start = time.time()
-        backup_source_path = backup_source.source_path
+        backup_source_path = self._backup_source.source_path
+        self._bytes_to_be_backed_up = 0
+        self._files_num_to_be_backed_up = 0
         for folder_path, folders, files in os.walk(backup_source_path):
             for file in files:
+                # exit thread prematurely on request
+                if self._request_exit:
+                    self._bytes_to_be_backed_up = 0
+                    self._files_num_to_be_backed_up = 0
+                    return False
                 # create file object
                 file_obj = BackupFileCtrl(self._backup_set,
                                       os.path.join(folder_path, file),
@@ -364,8 +360,8 @@ class BackupCtrl(object):
                                             (file_obj.sha512, )).fetchall()) == 0:
                             # BACKUP
                             file_obj.backup()
-                            self._bytes_total[backup_source] += file_obj.size
-                            self._files_num_total[backup_source] += 1
+                            self._bytes_to_be_backed_up += file_obj.size
+                            self._files_num_to_be_backed_up += 1
                         # UPDATE DB
                         self._update_data_in_db(conn,
                                                 new_column_name,
@@ -381,8 +377,8 @@ class BackupCtrl(object):
                     else:
                         if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
                                             (file_obj.sha512, )).fetchall()) == 0:
-                            self._bytes_total[backup_source] += file_obj.size
-                            self._files_num_total[backup_source] += 1
+                            self._bytes_to_be_backed_up += file_obj.size
+                            self._files_num_to_be_backed_up += 1
                 # existing path
                 elif len(entity_datas) == 1:
                     entity_id = entity_datas[0][0]
@@ -552,8 +548,8 @@ class BackupCtrl(object):
                                                     entity_id=entity_id,
                                                     file_ctime=file_obj.ctime,
                                                     file_atime=file_obj.atime)
-                        self._bytes_total[backup_source] += file_obj.size
-                        self._files_num_total[backup_source] += 1
+                        self._bytes_to_be_backed_up += file_obj.size
+                        self._files_num_to_be_backed_up += 1
                     if combinations == "10110":
                         # ERROR: inode same but ctime changed
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -586,8 +582,8 @@ class BackupCtrl(object):
                                                     file_size=file_obj.size,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_total[backup_source] += file_obj.size
-                        self._files_num_total[backup_source] += 1
+                        self._bytes_to_be_backed_up += file_obj.size
+                        self._files_num_to_be_backed_up += 1
                     if combinations == "11001":
                         # OK: mtime and atime changed, rest same
                         logging.info("%s: OK: %s: %s"
@@ -607,8 +603,8 @@ class BackupCtrl(object):
                                                     file_atime=file_obj.atime,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_total[backup_source] += file_obj.size
-                        self._files_num_total[backup_source] += 1
+                        self._bytes_to_be_backed_up += file_obj.size
+                        self._files_num_to_be_backed_up += 1
                     if combinations == "11010":
                         # OK: regular edit, mtime, size changed, rest same
                         logging.info("%s: OK: %s: %s"
@@ -628,8 +624,8 @@ class BackupCtrl(object):
                                                     file_size=file_obj.size,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_total[backup_source] += file_obj.size
-                        self._files_num_total[backup_source] += 1
+                        self._bytes_to_be_backed_up += file_obj.size
+                        self._files_num_to_be_backed_up += 1
                     if combinations == "11011":
                         # OK: only mtime changed. size same
                         logging.info("%s: OK: %s: %s"
@@ -648,8 +644,8 @@ class BackupCtrl(object):
                                                     file_mtime=file_obj.mtime,
                                                     file_sha512=file_obj.sha512,
                                                     backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_total[backup_source] += file_obj.size
-                        self._files_num_total[backup_source] += 1
+                        self._bytes_to_be_backed_up += file_obj.size
+                        self._files_num_to_be_backed_up += 1
                     if combinations == "11100":
                         # ERROR: size and only atime have changed
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -679,13 +675,38 @@ class BackupCtrl(object):
                             self._update_data_in_db(conn,
                                                     new_column_name,
                                                     entity_id=entity_id)
-#                 if self._files_num_total[backup_source] % 1 == 0:
-#                     print("%i files/s | %i bytes total" % (self._files_num_total[backup_source] / (time.time() - time_start - 0.001),
-#                                                            self._bytes_total[backup_source]))
-                if self._files_num_total[backup_source] % 1000 == 0:
+                if self._files_num_to_be_backed_up % 1000 == 0:
                     conn.commit()
         conn.commit()
         conn.close()
+        return True
+
+    def pre_process_data(self, force_refresh=False):
+        """ *
+        Starts a new thread that cumulates the total capacity (in bytes) to be
+        backed up.
+        It returns the processing thread to monitor the progress externally.
+        """
+        # (re-)calculate capacity and return
+        if force_refresh or not self._bytes_to_be_backed_up:
+            if not self._pre_calc_thread or\
+                not self._pre_calc_thread.is_alive():
+                simulate = True
+                self._pre_calc_thread = threading.Thread(target=self.backup_exec,
+                                                         args=(simulate, ))
+                self._pre_calc_thread.start()
+        return self._pre_calc_thread
+
+    def request_exit(self):
+        """ * """
+        self._request_exit = True
+        while True:
+            if not self._pre_calc_thread or\
+                not self._pre_calc_thread.is_alive():
+                break
+            else:
+                time.sleep(0.1)
+        self._request_exit = False
         return True
 
 
