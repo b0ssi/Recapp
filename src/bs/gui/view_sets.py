@@ -150,7 +150,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     _bs_source_widgets = None
     _bs_filter_widgets = None
     _bs_target_widgets = None
-    _arrow_widgets = None
+    _bs_arrow_widgets = None
     _bs_arrow_carrier = None  # This is where the temporary arrow's carrier is held when interactively connecting nodes. Initialized on node's connectins socket
     _mouse_press_global_pos = None
 
@@ -164,7 +164,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         self._bs_source_widgets = []
         self._bs_filter_widgets = []
         self._bs_target_widgets = []
-        self._arrow_widgets = []
+        self._bs_arrow_widgets = []
 
         self._init_ui()
         self.lower()
@@ -182,11 +182,25 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         return self._bs_target_widgets
 
     @property
-    def arrow_widgets(self):
-        return self._arrow_widgets
+    def bs_arrow_widgets(self):
+        return self._bs_arrow_widgets
+
+    @property
+    def bs_arrow_btn_del_widgets(self):
+        return [x for x in self.children() if isinstance(x, bs.gui.lib.BSArrowBtnDel)]
 
     def _init_ui(self):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+
+    def restack(self):
+        """ *
+        Restacks children in correct order so they don't overlap
+        inappropriately.
+        """
+        for widget in self.bs_arrow_btn_del_widgets:
+            widget.lower()
+        for widget in self.bs_arrow_widgets:
+            widget.lower()
 
     def empty_canvas(self):
         """ *
@@ -204,9 +218,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for bs_target_widget in self._bs_target_widgets:
             bs_target_widget.deleteLater()
         self._bs_target_widgets = []
-        for arrow_widget in self._arrow_widgets:
-            arrow_widget.deleteLater()
-        self._arrow_widgets = []
+        while len(self._bs_arrow_widgets) > 0:
+            self._bs_arrow_widgets[0].delete()
+        self._bs_arrow_widgets = []
         # arrow_tmp_carrier_widget
         if self._bs_arrow_carrier:
             # unregister old carrier's signals
@@ -253,21 +267,21 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             backup_source_ass = backup_source.backup_source_ass
             if backup_source_ass[self._bs.backup_set_current] == backup_set.backup_targets:
                 widget = bs.gui.lib.BSArrow(bs_source_widget, self._bs_target_widgets[0])
-#                 self._arrow_widgets.append(widget)
+#                 self._bs_arrow_widgets.append(widget)
             else:
                 for bs_filter_widget in self._bs_filter_widgets:
                     backup_filter = bs_filter_widget.backup_filter
                     if backup_filter == backup_source_ass[self._bs.backup_set_current]:
                         # we have source and filter widget now. Connect!
                         widget = bs.gui.lib.BSArrow(bs_source_widget, bs_filter_widget)
-#                         self._arrow_widgets.append(widget)
+#                         self._bs_arrow_widgets.append(widget)
         # filters - filters/targets
         for bs_filter_widget_a in self._bs_filter_widgets:
             backup_filter_a = bs_filter_widget_a.backup_filter
             backup_filter_a_ass = backup_filter_a.backup_filter_ass
             if backup_filter_a_ass[self._bs.backup_set_current] == backup_set.backup_targets:
                 widget = bs.gui.lib.BSArrow(bs_filter_widget_a, self._bs_target_widgets[0])
-#                 self._arrow_widgets.append(widget)
+#                 self._bs_arrow_widgets.append(widget)
             else:
                 for bs_filter_widget_b in self._bs_filter_widgets:
                     backup_filter_b = bs_filter_widget_b.backup_filter
@@ -275,7 +289,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
                         backup_filter_b != backup_filter_a:
                         # we have both associated filters now. Connect!
                         widget = bs.gui.lib.BSArrow(bs_filter_widget_a, bs_filter_widget_b)
-#                         self._arrow_widgets.append(widget)
+#                         self._bs_arrow_widgets.append(widget)
         # LAY-OUT NODES
         # sources
         for bs_source_widget in self._bs_source_widgets:

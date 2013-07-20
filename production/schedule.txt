@@ -170,6 +170,7 @@
 				[ ]	Arrows
 					[.] Implement support to connect multiple arrows to multiple nodes
 						[.]	Del button on arrow
+					[ ]	bug: on reconnect: scrolling canvas causes canvas rush
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
 		[ ]	implement consistent scheme for passing object-references into classes

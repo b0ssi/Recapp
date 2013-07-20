@@ -270,7 +270,7 @@ class BSArrow(QtGui.QWidget):
         self._target.assign_to_arrow_as_target(self)
 
         # associate with parent (canvas)
-        self.parent().arrow_widgets.append(self)
+        self.parent().bs_arrow_widgets.append(self)
         # style set-up
         self._stroke_width = 3
         self._stroke_style = QtCore.Qt.SolidLine
@@ -280,7 +280,7 @@ class BSArrow(QtGui.QWidget):
         self.lower()
         self.show()
         # Delete button
-        self._btn_del = BSArrowBtnDel(self)
+        self._btn_del = BSArrowBtnDel(self, self.parent())
 
     @property
     def source(self):
@@ -306,7 +306,8 @@ class BSArrow(QtGui.QWidget):
         # unassign arrow from source, target
         self._source.unassign_from_arrow(self)
         self._target.unassign_from_arrow(self)
-        self.parent().arrow_widgets.pop(self.parent().arrow_widgets.index(self))
+        self.parent().bs_arrow_widgets.pop(self.parent().bs_arrow_widgets.index(self))
+        self._btn_del.deleteLater()
         self.deleteLater()
 
     def paintEvent(self, e=None):
@@ -351,8 +352,12 @@ class BSArrow(QtGui.QWidget):
         painter.drawPath(path)
         # del button
         side_len = 12
-        self._btn_del.setGeometry(p1a.x() + (p2a.x() - p1a.x()) / 2 - side_len / 2,
-                                  p1a.y() + (p2a.y() - p1a.y()) / 2 - side_len / 2,
+        btn_del_pos = self.mapToParent(QtCore.QPoint(p1a.x() + (p2a.x() - p1a.x()) / 2 - side_len / 2,
+                                                     p1a.y() + (p2a.y() - p1a.y()) / 2 - side_len / 2
+                                                     )
+                                       )
+        self._btn_del.setGeometry(btn_del_pos.x(),
+                                  btn_del_pos.y(),
                                   side_len,
                                   side_len)
 
@@ -380,13 +385,15 @@ class BSArrow(QtGui.QWidget):
 class BSArrowBtnDel(BSFrame):
     """ * """
     _bs_arrow = None
+    _bs_canvas = None
 
     _mouse_press_global_pos = None
 
-    def __init__(self, bs_arrow):
-        super(BSArrowBtnDel, self).__init__(bs_arrow)
+    def __init__(self, bs_arrow, bs_canvas):
+        super(BSArrowBtnDel, self).__init__(bs_canvas)
 
         self._bs_arrow = bs_arrow
+        self._bs_canvas = bs_canvas
 
         self._init_ui()
 
@@ -394,8 +401,9 @@ class BSArrowBtnDel(BSFrame):
         css = "BSFrame {background: #C7C7FF; border-radius: 6px}"
         css += "BSFrame:hover {background: #FF0000}"
         self.setStyleSheet(css)
+        self.setGeometry(0, 0, 0, 0)  # will display at default initial widget size in canvas' origin if drawing arrow is out of screen space otherwise
         self.show()
-        self.raise_()
+        self._bs_canvas.restack()
 
     def mouseMoveEvent(self, e):
         """ * """
@@ -406,7 +414,7 @@ class BSArrowBtnDel(BSFrame):
     def mouseReleaseEvent(self, e):
         if self._mouse_press_global_pos == e.globalPos():
             if e.button() & QtCore.Qt.MouseButton.LeftButton:
-                print("Del!!!")
+                self._bs_arrow.delete()
 
 
 class BSArrowCarrier(BSDraggable):
@@ -570,16 +578,10 @@ class BSArrowCarrier(BSDraggable):
         self._reset()
 
     def connect_cancel(self):
-        # remove association
-        if isinstance(self._source, bs.gui.view_sets.BSSource):
-            self._source.backup_source.backup_source_ass[self._bs.backup_set_current] = None
-        elif isinstance(self._source, bs.gui.view_sets.BSFilter):
-            self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current] = None
         # delete arrow
         self._arrow_inbound.delete()
         # re-initialize self
         self._reset()
-        self._bs.set_modified()
 
     def assign_to_arrow_as_target(self, arrow):
         """ * """
@@ -699,10 +701,16 @@ class BSNode(BSDraggable):
         """ *
         Unassigns `arrow` from this widget.
         """
+        # remove association
+        if isinstance(self, bs.gui.view_sets.BSSource):
+            self.backup_source.backup_source_ass[self._bs.backup_set_current] = None
+        elif isinstance(self, bs.gui.view_sets.BSFilter):
+            self.backup_filter.backup_filter_ass[self._bs.backup_set_current] = None
         if arrow in self._arrows_inbound:
             self._arrows_inbound.pop(self._arrows_inbound.index(arrow))
         elif arrow is self._arrow_outbound:
             self._arrow_outbound = None
+        self._bs.set_modified()
 
     def draw_arrows(self):
         """ * """
