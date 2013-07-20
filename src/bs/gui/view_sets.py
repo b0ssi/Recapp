@@ -265,30 +265,28 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for bs_source_widget in self._bs_source_widgets:
             backup_source = bs_source_widget.backup_source
             backup_source_ass = backup_source.backup_source_ass
-            if backup_source_ass[self._bs.backup_set_current] == backup_set.backup_targets:
-                widget = bs.gui.lib.BSArrow(bs_source_widget, self._bs_target_widgets[0])
+            if backup_set.backup_targets in backup_source_ass[self._bs.backup_set_current]:
+                widget = bs.gui.lib.BSArrow(self._bs, bs_source_widget, self._bs_target_widgets[0])
 #                 self._bs_arrow_widgets.append(widget)
-            else:
-                for bs_filter_widget in self._bs_filter_widgets:
-                    backup_filter = bs_filter_widget.backup_filter
-                    if backup_filter == backup_source_ass[self._bs.backup_set_current]:
-                        # we have source and filter widget now. Connect!
-                        widget = bs.gui.lib.BSArrow(bs_source_widget, bs_filter_widget)
+            for bs_filter_widget in self._bs_filter_widgets:
+                backup_filter = bs_filter_widget.backup_filter
+                if backup_filter in backup_source_ass[self._bs.backup_set_current]:
+                    # we have source and filter widget now. Connect!
+                    widget = bs.gui.lib.BSArrow(self._bs, bs_source_widget, bs_filter_widget)
 #                         self._bs_arrow_widgets.append(widget)
         # filters - filters/targets
         for bs_filter_widget_a in self._bs_filter_widgets:
             backup_filter_a = bs_filter_widget_a.backup_filter
             backup_filter_a_ass = backup_filter_a.backup_filter_ass
-            if backup_filter_a_ass[self._bs.backup_set_current] == backup_set.backup_targets:
-                widget = bs.gui.lib.BSArrow(bs_filter_widget_a, self._bs_target_widgets[0])
+            if backup_set.backup_targets in backup_filter_a_ass[self._bs.backup_set_current]:
+                widget = bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a, self._bs_target_widgets[0])
 #                 self._bs_arrow_widgets.append(widget)
-            else:
-                for bs_filter_widget_b in self._bs_filter_widgets:
-                    backup_filter_b = bs_filter_widget_b.backup_filter
-                    if backup_filter_b == backup_filter_a_ass[self._bs.backup_set_current] and\
-                        backup_filter_b != backup_filter_a:
-                        # we have both associated filters now. Connect!
-                        widget = bs.gui.lib.BSArrow(bs_filter_widget_a, bs_filter_widget_b)
+            for bs_filter_widget_b in self._bs_filter_widgets:
+                backup_filter_b = bs_filter_widget_b.backup_filter
+                if backup_filter_b in backup_filter_a_ass[self._bs.backup_set_current] and\
+                    backup_filter_b != backup_filter_a:
+                    # we have both associated filters now. Connect!
+                    widget = bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a, bs_filter_widget_b)
 #                         self._bs_arrow_widgets.append(widget)
         # LAY-OUT NODES
         # sources
@@ -447,14 +445,14 @@ class BSSetsCMenu(QtGui.QMenu):
     def _init_ui(self):
         self._menu_sources = BSSetsCMenuSub("Sources",
                                             self,
-                                            self._bs_sets_canvas._bs.session_gui.session.backup_sources.sources,
+                                            self._bs_sets_canvas._bs.session_gui.session.backup_sources.backup_sources,
                                             self._bs_sets_canvas._bs.backup_set_current.backup_sources,
                                             self._bs_sets_canvas,
                                             self._backup_set_current,
                                             self._c_menu_main_global_pos)
         self._menu_filters = BSSetsCMenuSub("Filters",
                                             self,
-                                            self._bs_sets_canvas._bs.session_gui.session.backup_filters.filters,
+                                            self._bs_sets_canvas._bs.session_gui.session.backup_filters.backup_filters,
                                             self._bs_sets_canvas._bs.backup_set_current.backup_filters,
                                             self._bs_sets_canvas,
                                             self._backup_set_current,

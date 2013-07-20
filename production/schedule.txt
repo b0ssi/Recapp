@@ -169,7 +169,7 @@
 					[ ]	think about: ?ability to measure/visualize the space left on the target?
 				[ ]	Arrows
 					[.] Implement support to connect multiple arrows to multiple nodes
-						[.]	Del button on arrow
+						[X]	Del button on arrow
 					[ ]	bug: on reconnect: scrolling canvas causes canvas rush
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme

@@ -253,6 +253,7 @@ class BSCanvas(BSDraggable):
 
 class BSArrow(QtGui.QWidget):
     """ * """
+    _bs = None
     _source = None
     _target = None
 
@@ -261,9 +262,10 @@ class BSArrow(QtGui.QWidget):
     _join_style = None
     _btn_del = None
 
-    def __init__(self, source, target):
+    def __init__(self, bs, source, target):
         super(BSArrow, self).__init__(source.parent())
 
+        self._bs = bs
         self._source = source
         self._target = target
         self._source.assign_to_arrow_as_source(self)
@@ -303,6 +305,25 @@ class BSArrow(QtGui.QWidget):
         Removes the arrow from associated objects (source, target) and deletes
         the widget.
         """
+        # remove association
+        if isinstance(self._target, bs.gui.view_sets.BSTarget):
+            if isinstance(self._source, bs.gui.view_sets.BSSource):
+                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].pop(self._source.backup_source.backup_source_ass[self._bs.backup_set_current].index(self._target.backup_targets))
+            if isinstance(self._source, bs.gui.view_sets.BSFilter):
+                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].pop(self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].index(self._target.backup_targets))
+        if isinstance(self._target, bs.gui.view_sets.BSFilter):
+            if isinstance(self._source, bs.gui.view_sets.BSSource):
+                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].pop(self._source.backup_source.backup_source_ass[self._bs.backup_set_current].index(self._target.backup_filter))
+            if isinstance(self._source, bs.gui.view_sets.BSFilter):
+                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].pop(self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].index(self._target.backup_filter))
+
+
+
+
+#         if isinstance(self, bs.gui.view_sets.BSSource):
+#             self.backup_source.backup_source_ass[self._bs.backup_set_current].pop(self.backup_source.backup_source_ass[self._bs.backup_set_current].index(arrow.target.backup_source))
+#         elif isinstance(self, bs.gui.view_sets.BSFilter):
+#             self.backup_filter.backup_filter_ass[self._bs.backup_set_current].pop(self.backup_filter.backup_filter_ass[self._bs.backup_set_current].index(arrow.target.backup_filter))
         # unassign arrow from source, target
         self._source.unassign_from_arrow(self)
         self._target.unassign_from_arrow(self)
@@ -504,38 +525,26 @@ class BSArrowCarrier(BSDraggable):
             if widget_node and\
                 isinstance(widget_node, bs.gui.lib.BSNode):
                 # BUILDING LOGIC CHECKS
-                # start node
-                is_allowed_start_node = False
-                needs_reconnect = False
-                if isinstance(widget_node, bs.gui.view_sets.BSSource) or\
-                   isinstance(widget_node, bs.gui.view_sets.BSFilter):
-                    if not widget_node.arrow_outbound:
-                        is_allowed_start_node = True
-                    else:
-                        needs_reconnect = True
                 # finalize node
                 is_allowed_finalize_node = False
                 if isinstance(widget_node, bs.gui.view_sets.BSFilter) or\
                    isinstance(widget_node, bs.gui.view_sets.BSTarget):
                     is_allowed_finalize_node = True
-                node_to_test = widget_node
-                while node_to_test.arrow_outbound:
-                    node_to_test = node_to_test.arrow_outbound.target
-                    if node_to_test == self._source:
-                        is_allowed_finalize_node = False
-                        break
-                    # if reconnecting and target is the carrier itself, abort
-                    if isinstance(node_to_test, bs.gui.lib.BSArrowCarrier):
-                        is_allowed_finalize_node = False
-                        break
+#                 node_to_test = widget_node
+#                 while node_to_test.arrows_outbound:
+#                     node_to_test = node_to_test.arrows_outbound.target
+#                     if node_to_test == self._source:
+#                         is_allowed_finalize_node = False
+#                         break
+#                     # if reconnecting and target is the carrier itself, abort
+#                     if isinstance(node_to_test, bs.gui.lib.BSArrowCarrier):
+#                         is_allowed_finalize_node = False
+#                         break
                 # EXECUTE ACTION BASED ON CONTEXT
                 # if start action
                 if not self._source:
                     if widget_aux:
-                        if is_allowed_start_node:
-                            self.connect_start(widget_node)
-                        elif needs_reconnect:
-                            self.connect_reconnect(widget_node)
+                        self.connect_start(widget_node)
                 # else if connection action
                 else:
                     if is_allowed_finalize_node:
@@ -547,7 +556,7 @@ class BSArrowCarrier(BSDraggable):
     def connect_start(self, source):
         """ * """
         self._source = source
-        self._arrow_inbound = BSArrow(self._source, self)
+        self._arrow_inbound = BSArrow(self._bs, self._source, self)
 
     def connect_reconnect(self, source):
         self._source = source
@@ -561,15 +570,15 @@ class BSArrowCarrier(BSDraggable):
         if isinstance(self._source, bs.gui.view_sets.BSSource):
             # re-associate with new backup_filter/backup_target
             if isinstance(target, bs.gui.view_sets.BSTarget):
-                self._source.backup_source.backup_source_ass[self._bs.backup_set_current] = target.backup_targets
+                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].append(target.backup_targets)
             else:
-                self._source.backup_source.backup_source_ass[self._bs.backup_set_current] = target.backup_filter
+                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].append(target.backup_filter)
         if isinstance(self._source, bs.gui.view_sets.BSFilter):
             # re-associate with new backup_filter/backup_target
             if isinstance(target, bs.gui.view_sets.BSTarget):
-                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current] = target.backup_targets
+                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].append(target.backup_targets)
             else:
-                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current] = target.backup_filter
+                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].append(target.backup_filter)
         # trigger modified signal
         self._bs.set_modified()
         target.assign_to_arrow_as_target(self._arrow_inbound)
@@ -613,7 +622,7 @@ class BSNode(BSDraggable):
     _layout = None
     _title = None
     _arrows_inbound = None
-    _arrow_outbound = None
+    _arrows_outbound = None
     _title_size = None
     _conn_pad = None
     _custom_contents_container = None # used by custom nodes to place custom contents into
@@ -628,6 +637,7 @@ class BSNode(BSDraggable):
         self._app = app
 
         self._arrows_inbound = []
+        self._arrows_outbound = []
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
         # title
@@ -662,12 +672,12 @@ class BSNode(BSDraggable):
         self._title.setText(text)
 
     @property
-    def arrow_inbound(self):
+    def arrows_inbound(self):
         return self._arrows_inbound
 
     @property
-    def arrow_outbound(self):
-        return self._arrow_outbound
+    def arrows_outbound(self):
+        return self._arrows_outbound
 
     @property
     def title_size(self):
@@ -689,8 +699,8 @@ class BSNode(BSDraggable):
 
     def assign_to_arrow_as_source(self, arrow):
         """ * """
-        if arrow is not self._arrow_outbound:
-            self._arrow_outbound = arrow
+        if arrow is not self._arrows_outbound:
+            self._arrows_outbound.append(arrow)
 
     def assign_to_arrow_as_target(self, arrow):
         """ * """
@@ -701,24 +711,21 @@ class BSNode(BSDraggable):
         """ *
         Unassigns `arrow` from this widget.
         """
-        # remove association
-        if isinstance(self, bs.gui.view_sets.BSSource):
-            self.backup_source.backup_source_ass[self._bs.backup_set_current] = None
-        elif isinstance(self, bs.gui.view_sets.BSFilter):
-            self.backup_filter.backup_filter_ass[self._bs.backup_set_current] = None
+        # pop from in- outbound list
         if arrow in self._arrows_inbound:
             self._arrows_inbound.pop(self._arrows_inbound.index(arrow))
-        elif arrow is self._arrow_outbound:
-            self._arrow_outbound = None
+        elif arrow in self._arrows_outbound:
+            self._arrows_outbound.pop(self._arrows_outbound.index(arrow))
         self._bs.set_modified()
 
     def draw_arrows(self):
         """ * """
-        if not len(self._arrows_inbound) == 0:
+        if not self._arrows_inbound == []:
             for arrow_inbound in self._arrows_inbound:
                 arrow_inbound.refresh()
-        if self._arrow_outbound:
-            self._arrow_outbound.refresh()
+        if not self._arrows_outbound == []:
+            for arrow_outbound in self._arrows_outbound:
+                arrow_outbound.refresh()
 
     def mousePressEvent(self, e):
         """ * """
@@ -757,8 +764,9 @@ class BSNode(BSDraggable):
             while len(self._arrows_inbound) > 0:
                 arrow_inbound = self._arrows_inbound[0]
                 arrow_inbound.delete()
-            if self._arrow_outbound:
-                self._arrow_outbound.delete()
+            while len(self._arrows_outbound) > 0:
+                arrow_outbound = self._arrows_outbound[0]
+                arrow_outbound.delete()
             self._bs.set_modified()
         else:
             logging.warning("%s: Node could net be removed as active threads"\

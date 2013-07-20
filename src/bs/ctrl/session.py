@@ -487,6 +487,8 @@ class BackupSourceCtrl(bs.model.models.Sources):
                             self._source_path, ))
             self._backup_source_id = res.lastrowid
 
+        self._backup_source_ass = []
+
     def __repr__(self):
         return "Source #%d <%s>" % (self._backup_source_id, self.__class__.__name__, )
 
@@ -544,7 +546,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
     def backup_source_ass(self):
         """ *
         Returns an associative array (dictionary) in the following format:
-        {<set>:<filter>} or
+        {<set>:<source>} or
         {<set>:<target>}
         """
         if not self._backup_source_ass:
@@ -557,26 +559,25 @@ class BackupSourceCtrl(bs.model.models.Sources):
                 set_id = dataset[0]
                 source_ass_dict = json.loads(dataset[1])
                 # get set object
-                backup_set_obj = None
-                for backup_set_obj_iter in self._session.backup_sets.sets:
-                    if backup_set_obj_iter.backup_set_id == set_id:
-                        backup_set_obj = backup_set_obj_iter
+                backup_set_obj = [x for x in self._session.backup_sets.sets if x.backup_set_id == set_id][0]
                 # run through associations in set
                 for backup_source_id in source_ass_dict:
                     if self.backup_source_id == int(backup_source_id):
-                        # this can be either -1 for the set's target set or a natural number as a filter id
-                        ass_id = source_ass_dict[backup_source_id]
-                        # target set associated
-                        if ass_id == -1:
-                            backup_source_ass[backup_set_obj] = backup_set_obj.backup_targets
-                        # filter associated
-                        else:
-                            # get filter object with id that was found
-                            backup_filter_obj = None
-                            for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
-                                if backup_filter_obj_iter.backup_filter_id == ass_id:
-                                    backup_filter_obj = backup_filter_obj_iter
-                            backup_source_ass[backup_set_obj] = backup_filter_obj
+                        # list to store associations for set in
+                        if not backup_set_obj in backup_source_ass.keys():
+                            backup_source_ass[backup_set_obj] = []
+                        # this can be either -1 for the set's target set or a natural number as a source id
+                        ass_ids = source_ass_dict[backup_source_id]
+                        for ass_id in ass_ids:
+                            # target set associated
+                            if ass_id == -1:
+                                backup_source_ass[backup_set_obj].append(backup_set_obj.backup_targets)
+                            # source associated
+                            else:
+                                # get source object with id that was found
+                                for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
+                                    if backup_filter_obj_iter.backup_filter_id == ass_id:
+                                        backup_source_ass[backup_set_obj].append(backup_filter_obj_iter)
             self._backup_source_ass = backup_source_ass
         return self._backup_source_ass
 
@@ -584,7 +585,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
 class BackupSourcesCtrl(bs.model.models.Sources):
     """ * """
     _session = None
-    _sources = None
+    _backup_sources = None
 
     def __init__(self, session):
         """
@@ -593,18 +594,18 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         super(BackupSourcesCtrl, self).__init__()
         self._session = session
 
-        self._sources = []
+        self._backup_sources = []
 
     def __repr__(self):
         return "Sources <%s>" % (self.__class__.__name__, )
 
     @property
-    def sources(self):
+    def backup_sources(self):
         """ *
-        Returns all source objects referenced in self._sources.
+        Returns all source objects referenced in self._backup_sources.
         """
         # sources list is empty, load from db
-        if not len(self._sources):
+        if not len(self._backup_sources):
             res = self._get("id, source_name, source_path",
                             (("user_id", "=", self._session.user.id, ), ))
             for data_set in res:
@@ -615,8 +616,8 @@ class BackupSourcesCtrl(bs.model.models.Sources):
                                                   source_id,
                                                   source_name,
                                                   source_path)
-                self._sources.append(new_source_obj)
-        return self._sources
+                self._backup_sources.append(new_source_obj)
+        return self._backup_sources
 
     # OVERLOADS
     @property
@@ -686,7 +687,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
                                           source_id,
                                           source_name,
                                           source_path)
-        self._sources.append(new_source_obj)
+        self._backup_sources.append(new_source_obj)
         logging.info("%s: Source successfully added: '%s' (%s)"
                         % (self.__class__.__name__, source_name, source_path))
         # out
@@ -706,7 +707,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         # remove data from database
         self._remove((("id", "=", source_obj._source_id, ), ))
         # delete obj
-        self._sources.pop(self._sources.index(source_obj))
+        self._backup_sources.pop(self._backup_sources.index(source_obj))
         # out
         logging.info("%s: Source has been successfully deleted: %s"
                      % (self.__class__.__name__, source_obj, ))
@@ -966,6 +967,8 @@ class BackupFilterCtrl(bs.model.models.Filters):
                              self._backup_filter_pattern))
             self._backup_filter_id = res.lastrowid
 
+        self._backup_filter_ass = []
+
     def __repr__(self):
         return "Filter #%d <%s>" % (self._backup_filter_id, self.__class__.__name__, )
 
@@ -1016,26 +1019,25 @@ class BackupFilterCtrl(bs.model.models.Filters):
                 set_id = dataset[0]
                 filter_ass_dict = json.loads(dataset[1])
                 # get set object
-                backup_set_obj = None
-                for backup_set_obj_iter in self._session.backup_sets.sets:
-                    if backup_set_obj_iter.backup_set_id == set_id:
-                        backup_set_obj = backup_set_obj_iter
+                backup_set_obj = [x for x in self._session.backup_sets.sets if x.backup_set_id == set_id][0]
                 # run through associations in set
                 for backup_filter_id in filter_ass_dict:
                     if self.backup_filter_id == int(backup_filter_id):
+                        # list to store associations for set in
+                        if not backup_set_obj in backup_filter_ass.keys():
+                            backup_filter_ass[backup_set_obj] = []
                         # this can be either -1 for the set's target set or a natural number as a filter id
-                        ass_id = filter_ass_dict[backup_filter_id]
-                        # target set associated
-                        if ass_id == -1:
-                            backup_filter_ass[backup_set_obj] = backup_set_obj.backup_targets
-                        # filter associated
-                        else:
-                            # get filter object with id that was found
-                            backup_filter_obj = None
-                            for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
-                                if backup_filter_obj_iter.backup_filter_id == ass_id:
-                                    backup_filter_obj = backup_filter_obj_iter
-                            backup_filter_ass[backup_set_obj] = backup_filter_obj
+                        ass_ids = filter_ass_dict[backup_filter_id]
+                        for ass_id in ass_ids:
+                            # target set associated
+                            if ass_id == -1:
+                                backup_filter_ass[backup_set_obj].append(backup_set_obj.backup_targets)
+                            # filter associated
+                            else:
+                                # get filter object with id that was found
+                                for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
+                                    if backup_filter_obj_iter.backup_filter_id == ass_id:
+                                        backup_filter_ass[backup_set_obj].append(backup_filter_obj_iter)
             self._backup_filter_ass = backup_filter_ass
         return self._backup_filter_ass
 
@@ -1344,7 +1346,7 @@ class BackupSetCtrl(bs.model.models.Sets):
             self.backup_sources.append(backup_source)
         # add set association to backup_source
         if not self in backup_source.backup_source_ass.keys():
-            backup_source.backup_source_ass[self] = None
+            backup_source.backup_source_ass[self] = []
         # add backup_ctrl for new source
         if backup_source not in self._backup_ctrls.keys():
             self._backup_ctrls[backup_source] = bs.ctrl.backup.BackupCtrl(self,
@@ -1359,7 +1361,7 @@ class BackupSetCtrl(bs.model.models.Sets):
             self.backup_filters.append(backup_filter)
         # add set association to backup_filter
         if not self in backup_filter.backup_filter_ass.keys():
-            backup_filter.backup_filter_ass[self] = None
+            backup_filter.backup_filter_ass[self] = []
 
     def remove_backup_source(self, backup_source):
         """ *
@@ -1387,34 +1389,42 @@ class BackupSetCtrl(bs.model.models.Sets):
         # source_ass
         source_ass = {}
         for backup_source in self.backup_sources:
-            associated_obj = backup_source.backup_source_ass[self]
-            # if ass: filter
-            if isinstance(associated_obj, BackupFilterCtrl):
-                associated_obj_id = associated_obj.backup_filter_id
-            # if ass: targets
-            elif isinstance(associated_obj, list) and\
-                isinstance(associated_obj[0], BackupTargetCtrl):
-                associated_obj_id = -1
+            associated_objs = backup_source.backup_source_ass[self]
+            associated_obj_ids = []
+            for associated_obj in associated_objs:
+                if associated_obj:
+                    # if ass: filter
+                    if isinstance(associated_obj, BackupFilterCtrl):
+                        associated_obj_id = associated_obj.backup_filter_id
+                    # if ass: targets
+                    elif isinstance(associated_obj, list) and\
+                        isinstance(associated_obj[0], BackupTargetCtrl):
+                        associated_obj_id = -1
+                    associated_obj_ids.append(associated_obj_id)
             # if ass: None
-            elif not associated_obj:
-                associated_obj_id = None
-            source_ass[str(backup_source.backup_source_id)] = associated_obj_id
+            if associated_objs == []:
+                associated_obj_ids = []
+            source_ass[str(backup_source.backup_source_id)] = associated_obj_ids
         self._update((("source_ass", json.dumps(source_ass)), ), (("id", "=", self.backup_set_id, ), ))
         # filter_ass
         filter_ass = {}
         for backup_filter in self.backup_filters:
-            associated_obj = backup_filter.backup_filter_ass[self]
-            # if ass: filter
-            if isinstance(associated_obj, BackupFilterCtrl):
-                associated_obj_id = associated_obj.backup_filter_id
-            # if ass: targets
-            elif isinstance(associated_obj, list) and\
-                isinstance(associated_obj[0], BackupTargetCtrl):
-                associated_obj_id = -1
+            associated_objs = backup_filter.backup_filter_ass[self]
+            associated_obj_ids = []
+            for associated_obj in associated_objs:
+                if associated_obj:
+                    # if ass: filter
+                    if isinstance(associated_obj, BackupFilterCtrl):
+                        associated_obj_id = associated_obj.backup_filter_id
+                    # if ass: targets
+                    elif isinstance(associated_obj, list) and\
+                        isinstance(associated_obj[0], BackupTargetCtrl):
+                        associated_obj_id = -1
+                    associated_obj_ids.append(associated_obj_id)
             # if ass: None
-            elif not associated_obj:
-                associated_obj_id = None
-            filter_ass[str(backup_filter.backup_filter_id)] = associated_obj_id
+            if associated_objs == []:
+                associated_obj_ids = []
+            filter_ass[str(backup_filter.backup_filter_id)] = associated_obj_ids
         self._update((("filter_ass", json.dumps(filter_ass)), ), (("id", "=", self.backup_set_id, ), ))
         logging.debug("%s: gui_data successfully saved to db." % (self.__class__.__name__, ))
         return True
@@ -1467,9 +1477,9 @@ class BackupSetsCtrl(bs.model.models.Sets):
                 source_objs = []
                 for source_id in json.loads(data_set[5]):
                     source_id = int(source_id)
-                    for source_obj in self._session.backup_sources.sources:
-                        if source_obj.backup_source_id == source_id:
-                            source_objs.append(source_obj)
+                    for backup_source_obj in self._session.backup_sources.backup_sources:
+                        if backup_source_obj.backup_source_id == source_id:
+                            source_objs.append(backup_source_obj)
                 filter_objs = []
                 for filter_id in json.loads(data_set[6]):
                     filter_id = int(filter_id)

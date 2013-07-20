@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-20
+- [WIP] implemented multiple-outgoing connections per (source, filter) node
+	- objects' data-structure changes (outgoing references were singular references, all changed to lists)
+	- conn./disconn. code all changed
+	- database serialization updated accordingly
+
 2013-07-19
 - started thinking about logics behind filters: nodes need to be able to connect to multiple other nodes
 	- started implementing del button on arrow
