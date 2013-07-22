@@ -241,7 +241,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             logging.warning("%s: Canvas could not be emptied." % (self.__class__.__name__, ))
             return False
         # arrow_carrier
-        self._bs_arrow_carrier = bs.gui.lib.BSArrowCarrier(self, self._app, self._bs)
+        self._bs_arrow_carrier = bs.gui.lib.BSArrowCarrier(self,
+                                                           self._app,
+                                                           self._bs)
 
     def load_set(self, backup_set):
         """ *
@@ -255,46 +257,41 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for backup_source in backup_set.backup_sources:
             self.add_node(backup_source, backup_set)
         # load backup-filters
-        for backup_filter in backup_set.backup_filters:
-            self.add_node(backup_filter, backup_set)
+        for backup_entity in backup_set.backup_filters:
+            self.add_node(backup_entity, backup_set)
         # load target set
         if backup_set.backup_targets:
             self.add_node(backup_set.backup_targets, backup_set)
         # CONNECT NODES
         # sources - filters/targets
         for bs_source_widget in self._bs_source_widgets:
-            backup_source = bs_source_widget.backup_source
-            backup_source_ass = backup_source.backup_source_ass
-            if backup_set.backup_targets in backup_source_ass[self._bs.backup_set_current]:
+            backup_entity_ass = bs_source_widget.backup_entity.backup_entity_ass[self._bs.backup_set_current]
+            if backup_set.backup_targets in backup_entity_ass:
                 widget = bs.gui.lib.BSArrow(self._bs, bs_source_widget, self._bs_target_widgets[0])
-#                 self._bs_arrow_widgets.append(widget)
             for bs_filter_widget in self._bs_filter_widgets:
-                backup_filter = bs_filter_widget.backup_filter
-                if backup_filter in backup_source_ass[self._bs.backup_set_current]:
+                backup_entity = bs_filter_widget.backup_entity
+                if backup_entity in backup_entity_ass:
                     # we have source and filter widget now. Connect!
                     widget = bs.gui.lib.BSArrow(self._bs, bs_source_widget, bs_filter_widget)
-#                         self._bs_arrow_widgets.append(widget)
         # filters - filters/targets
         for bs_filter_widget_a in self._bs_filter_widgets:
-            backup_filter_a = bs_filter_widget_a.backup_filter
-            backup_filter_a_ass = backup_filter_a.backup_filter_ass
-            if backup_set.backup_targets in backup_filter_a_ass[self._bs.backup_set_current]:
+            backup_filter_a = bs_filter_widget_a.backup_entity
+            backup_filter_a_ass = backup_filter_a.backup_entity_ass[self._bs.backup_set_current]
+            if backup_set.backup_targets in backup_filter_a_ass:
                 widget = bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a, self._bs_target_widgets[0])
-#                 self._bs_arrow_widgets.append(widget)
             for bs_filter_widget_b in self._bs_filter_widgets:
-                backup_filter_b = bs_filter_widget_b.backup_filter
-                if backup_filter_b in backup_filter_a_ass[self._bs.backup_set_current] and\
+                backup_filter_b = bs_filter_widget_b.backup_entity
+                if backup_filter_b in backup_filter_a_ass and\
                     backup_filter_b != backup_filter_a:
                     # we have both associated filters now. Connect!
                     widget = bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a, bs_filter_widget_b)
-#                         self._bs_arrow_widgets.append(widget)
         # LAY-OUT NODES
         # sources
         for bs_source_widget in self._bs_source_widgets:
             # get pos data
             gui_data = backup_set.gui_data
             try:
-                pos = gui_data["nodes"]["bs_source_widgets"][str(bs_source_widget.backup_source.backup_source_id)]["pos"]
+                pos = gui_data["nodes"]["bs_source_widgets"][str(bs_source_widget.backup_entity.backup_source_id)]["pos"]
             except:
                 pos = [self.width() / 2, self.height() / 2]
             x_c = pos[0]
@@ -309,7 +306,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             # get pos data
             gui_data = backup_set.gui_data
             try:
-                pos = gui_data["nodes"]["bs_filter_widgets"][str(bs_filter_widget.backup_filter.backup_filter_id)]["pos"]
+                pos = gui_data["nodes"]["bs_filter_widgets"][str(bs_filter_widget.backup_entity.backup_filter_id)]["pos"]
             except:
                 pos = [self.width() / 2, self.height() / 2]
             x_c = pos[0]
@@ -493,7 +490,7 @@ class BSSetsCMenuSub(QtGui.QMenu):
             if isinstance(backup_entity, bs.ctrl.session.BackupSourceCtrl):
                 name = backup_entity.source_name
             elif isinstance(backup_entity, bs.ctrl.session.BackupFilterCtrl):
-                name = backup_entity.backup_filter_pattern
+                name = backup_entity.backup_filter_name
             action = BSSetsCMenuAction(name,
                                        self,
                                        self._bs_sets_canvas,
@@ -845,7 +842,7 @@ class BSSource(bs.gui.lib.BSNode):
     """ * """
     _bs = None
     _bs_sets_canvas = None
-    _backup_source = None
+    _backup_entity = None
     _backup_set = None
     _app = None
 
@@ -862,24 +859,24 @@ class BSSource(bs.gui.lib.BSNode):
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
-        self._backup_source = backup_source
+        self._backup_entity = backup_source
         self._backup_set = backup_set
         self._app = app
 
         self._init_ui()
 
     @property
-    def backup_source(self):
-        return self._backup_source
+    def backup_entity(self):
+        return self._backup_entity
 
     def _init_ui(self):
         # css
         self.setStyleSheet("BSSource {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
         # title
-        self.title_text = self._backup_source.source_name
+        self.title_text = self._backup_entity.source_name
         self.title_size = 13
         # populate with item
-        self._bs_source_item = BSSourceItem(self, self._backup_source, self._backup_set)
+        self._bs_source_item = BSSourceItem(self, self._backup_entity, self._backup_set)
         self._custom_contents_container._layout.addWidget(self._bs_source_item, self._layout.count(), 0, 1, 1)
 #         self._layout.addWidget(self._bs_source_item, self._layout.count(), 0, 1, 1)
         self.show()
@@ -907,20 +904,20 @@ class BSSource(bs.gui.lib.BSNode):
         except:
             gui_data["nodes"]["bs_source_widgets"] = {}
         try:
-            x = gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.backup_source_id)]
+            x = gui_data["nodes"]["bs_source_widgets"][str(self._backup_entity.backup_source_id)]
         except:
-            gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.backup_source_id)] = {}
+            gui_data["nodes"]["bs_source_widgets"][str(self._backup_entity.backup_source_id)] = {}
         # update dict
-        gui_data["nodes"]["bs_source_widgets"][str(self._backup_source.backup_source_id)]["pos"] = pos
+        gui_data["nodes"]["bs_source_widgets"][str(self._backup_entity.backup_source_id)]["pos"] = pos
 
     def remove_node(self):
         """ * """
         super(BSSource, self).remove_node()
 
         # unregister set-association
-        self._backup_source.backup_source_ass.pop(self._backup_set)
+        self._backup_entity.backup_entity_ass.pop(self._backup_set)
         # remove from set-ctrl
-        self._backup_set.backup_sources.pop(self._backup_set.backup_sources.index(self._backup_source))
+        self._backup_set.backup_sources.pop(self._backup_set.backup_sources.index(self._backup_entity))
         # remove from canvas
         self._bs_sets_canvas.bs_source_widgets.pop(self._bs_sets_canvas.bs_source_widgets.index(self))
         self.deleteLater()
@@ -950,7 +947,7 @@ class BSSource(bs.gui.lib.BSNode):
 class BSSourceItem(bs.gui.lib.BSNodeItem):
     """ * """
     _bs_source = None
-    _backup_source = None
+    _backup_entity = None
     _backup_set = None
 
     _update_thread = None
@@ -960,7 +957,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         super(BSSourceItem, self).__init__(bs_source)
 
         self._bs_source = bs_source
-        self._backup_source = backup_source
+        self._backup_entity = backup_source
         self._backup_set = backup_set
 
         self._request_exit = False
@@ -1023,12 +1020,12 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                     self._update_thread.start()
 
     def update(self):
-        pre_calc_thread = self._backup_set.backup_ctrls[self._backup_source].pre_process_data()
+        pre_calc_thread = self._backup_set.backup_ctrls[self._backup_entity].pre_process_data()
         while True:
-            bytes_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_source].bytes_to_be_backed_up
+            bytes_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_entity].bytes_to_be_backed_up
             if self._request_exit:
-                self._backup_set.backup_ctrls[self._backup_source].request_exit()
-            files_num_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_source].files_num_to_be_backed_up
+                self._backup_set.backup_ctrls[self._backup_entity].request_exit()
+            files_num_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_entity].files_num_to_be_backed_up
             self.title_text = "%s | %s files" % (bs.utils.format_data_size(bytes_to_be_backed_up),
                                                  files_num_to_be_backed_up, )
             if not pre_calc_thread.is_alive():
@@ -1054,7 +1051,7 @@ class BSFilter(bs.gui.lib.BSNode):
     """ * """
     _bs_sets_canvas = None
     _bs = None
-    _backup_filter = None
+    _backup_entity = None
     _backup_set = None
     _app = None
 
@@ -1063,29 +1060,32 @@ class BSFilter(bs.gui.lib.BSNode):
     def __init__(self,
                  bs_sets_canvas,
                  bs,
-                 backup_filter,
+                 backup_entity,
                  backup_set,
                  app):
         super(BSFilter, self).__init__(bs, bs_sets_canvas, app, True)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
-        self._backup_filter = backup_filter
+        self._backup_entity = backup_entity
         self._backup_set = backup_set
         self._app = app
 
         self._init_ui()
 
     @property
-    def backup_filter(self):
-        return self._backup_filter
+    def backup_entity(self):
+        return self._backup_entity
 
     def _init_ui(self):
         # css
         self.setStyleSheet("BSFilter {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
         # title
-        self.title_text = self._backup_filter.backup_filter_pattern
+        self.title_text = self._backup_entity.backup_filter_name
         self.title_size = 13
+        # backup-filter items
+        widget = BSFilterItem(self, self._backup_entity)
+        self._custom_contents_container._layout.addWidget(widget, 0, 0, 1, 1)
         self.show()
 
     def mousePressEvent(self, e):
@@ -1125,30 +1125,47 @@ class BSFilter(bs.gui.lib.BSNode):
         except:
             gui_data["nodes"]["bs_filter_widgets"] = {}
         try:
-            x = gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.backup_filter_id)]
+            x = gui_data["nodes"]["bs_filter_widgets"][str(self._backup_entity.backup_filter_id)]
         except:
-            gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.backup_filter_id)] = {}
+            gui_data["nodes"]["bs_filter_widgets"][str(self._backup_entity.backup_filter_id)] = {}
         # update dict
-        gui_data["nodes"]["bs_filter_widgets"][str(self._backup_filter.backup_filter_id)]["pos"] = pos
+        gui_data["nodes"]["bs_filter_widgets"][str(self._backup_entity.backup_filter_id)]["pos"] = pos
 
     def remove_node(self):
         """ * """
         super(BSFilter, self).remove_node()
 
         # unregister set-association
-        self._backup_filter.backup_filter_ass.pop(self._backup_set)
+        self._backup_entity.backup_entity_ass.pop(self._backup_set)
         # remove from set-ctrl
-        self._backup_set.backup_filters.pop(self._backup_set.backup_filters.index(self._backup_filter))
+        self._backup_set.backup_filters.pop(self._backup_set.backup_filters.index(self._backup_entity))
         # remove from canvas
         self._bs_sets_canvas.bs_filter_widgets.pop(self._bs_sets_canvas.bs_filter_widgets.index(self))
         self.deleteLater()
+
+
+class BSFilterItem(bs.gui.lib.BSNodeItem):
+    """ * """
+    _bs_filter = None
+    _backup_entity = None
+
+    def __init__(self, bs_filter, backup_entity):
+        super(BSFilterItem, self).__init__(bs_filter)
+
+        self._bs_filter = bs_filter
+        self._backup_entity = backup_entity
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self.title_text = self._backup_entity.backup_filter_pattern
 
 
 class BSTarget(bs.gui.lib.BSNode):
     """ * """
     _bs_sets_canvas = None
     _bs = None
-    _backup_targets = None
+    _backup_entity = None
     _backup_set = None
     _app = None
 
@@ -1157,22 +1174,22 @@ class BSTarget(bs.gui.lib.BSNode):
     def __init__(self,
                  bs_sets_canvas,
                  bs,
-                 backup_targets,
+                 backup_entity,
                  backup_set,
                  app):
         super(BSTarget, self).__init__(bs, bs_sets_canvas, app)
 
         self._bs_sets_canvas = bs_sets_canvas
         self._bs = bs
-        self._backup_targets = backup_targets
+        self._backup_entity = backup_entity
         self._backup_set = backup_set
         self._app = app
 
         self._init_ui()
 
     @property
-    def backup_targets(self):
-        return self._backup_targets
+    def backup_entity(self):
+        return self._backup_entity
 
     def _init_ui(self):
         # css
@@ -1767,7 +1784,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #class ViewSetsDetailsSource(QtGui.QFrame):
 #    """ * """
 #    _backup_set = None
-#    _backup_source = None
+#    _backup_entity = None
 #    _view_sets_details_sources = None
 #    _view_sets = None
 #    _list_widget = None
@@ -1779,7 +1796,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #        super(ViewSetsDetailsSource, self).__init__(view_sets_details_sources)
 #
 #        self._backup_set = backup_set
-#        self._backup_source = backup_source
+#        self._backup_entity = backup_source
 #        self._view_sets_details_sources = view_sets_details_sources
 #        self._view_sets = view_sets
 #
@@ -1795,7 +1812,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #        self._layout = QtGui.QGridLayout(self)
 #
 #        # title
-#        backup_source_name = self._backup_source.source_name
+#        backup_source_name = self._backup_entity.source_name
 #        title_widget = QtGui.QLabel(backup_source_name, self)
 #        title_widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 #        self._layout.addWidget(title_widget, 0, 0, 1, 1)
@@ -1804,7 +1821,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #
 #
 #        # path
-#        backup_source_path = self._backup_source.source_path
+#        backup_source_path = self._backup_entity.source_path
 #        path_widget = QtGui.QLabel(backup_source_path, self)
 #        path_widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 #        path_widget.setStyleSheet(".QLabel {border: 0px; color: #808080}")
@@ -1820,7 +1837,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #        """ *
 #        Removes this backup-source from the associated backup-set.
 #        """
-#        self._view_sets_details_sources.remove_backup_source(self._backup_source)
+#        self._view_sets_details_sources.remove_backup_source(self._backup_entity)
 #
 #    def mousePressEvent(self, e):
 #        """ * """
@@ -1895,7 +1912,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #class ViewSetsDetailsFilter(QtGui.QFrame):
 #    """ * """
 #    _view_sets_details_filters = None
-#    _backup_filter = None
+#    _backup_entity = None
 #
 #    _layout = None
 #
@@ -1903,7 +1920,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #        super(ViewSetsDetailsFilter, self).__init__(view_sets_details_filters)
 #
 #        self._view_sets_details_filters = view_sets_details_filters
-#        self._backup_filter = backup_filter
+#        self._backup_entity = backup_filter
 #
 #        self._init_ui()
 #
@@ -1912,7 +1929,7 @@ class BSTarget(bs.gui.lib.BSNode):
 #        self._layout = QtGui.QGridLayout(self)
 #
 #        # title
-#        backup_filter_name = self._backup_filter.filter_pattern
+#        backup_filter_name = self._backup_entity.filter_pattern
 #        title_widget = QtGui.QLabel(backup_filter_name, self)
 #        title_widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
 #        self._layout.addWidget(title_widget, 0, 0, 1, 1)

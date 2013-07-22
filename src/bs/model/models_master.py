@@ -5,7 +5,7 @@
 ###############################################################################
 ###############################################################################
 ##    Author:         Bossi                                                  ##
-##                    © 2013 All rights reserved                             ##
+##                    Â© 2013 All rights reserved                             ##
 ##                    www.isotoxin.de                                        ##
 ##                    frieder.czeschla@isotoxin.de                           ##
 ##    Creation Date:  Mar 16, 2013                                           ##

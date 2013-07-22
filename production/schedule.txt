@@ -150,26 +150,27 @@
 					[X] remove a source in use by current set
 					[X] remove a filter in use by current set
 			[.]	details widget to visualize/edit/execute etc. sets
-				[.]	sources
+				[X]	sources
 					[X]	ability to add a source
 					[X]	ability to remove a source
-					[.]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+					[X]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 						[(X)]	install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
 							> installed on each backup_source, so central location can iterate over all backup_sources to do a batch-process
-						[.]	implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
-							[ ]	look into Qt animations (wading throbber e.g. while scanning~)
 				[.]	filters
 					[X]	ability to add a filter
 					[X]	ability to remove a filter
-					[ ]	add name and use as title on node ("Files > 1GiB"/".pdf Files")
-					[ ]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
+					[X]	add name and use as title on node ("Files > 1GiB"/".pdf Files")
+					[.]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
+					[ ]	start writing filter-type classes (path, size, date, ...) and db serialization of said
+					[ ]	start implementing gui on filter node
 				[.]	targets
 					[ ]	ability to add a target
 					[ ]	ability to remove a target
 					[ ]	think about: ?ability to measure/visualize the space left on the target?
-				[ ]	Arrows
-					[.] Implement support to connect multiple arrows to multiple nodes
+				[X]	Arrows
+					[X] Implement support to connect multiple arrows to multiple nodes
 						[X]	Del button on arrow
+				[ ]	Canvas
 					[ ]	bug: on reconnect: scrolling canvas causes canvas rush
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
@@ -195,6 +196,13 @@
 		........................
 [ ]	File-Backup
 		[ ]	Implement sidecart-metadata files for backed-up datastreams
+[ ]		views:
+		[ ]	basic set-management view
+			[ ]	details widget to visualize/edit/execute etc. sets
+				[ ]	sources
+					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+						[ ]	implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
+							[ ]	look into Qt animations (wading throbber e.g. while scanning~)
 ................................
 [ ]		Q/A
 		........................

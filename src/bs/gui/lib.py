@@ -2,6 +2,7 @@
 from PySide import QtCore, QtGui
 import binascii
 import bs.config
+import bs.ctrl.session
 import bs.gui.view_sets
 import logging
 import re
@@ -282,7 +283,7 @@ class BSArrow(QtGui.QWidget):
         self.lower()
         self.show()
         # Delete button
-        self._btn_del = BSArrowBtnDel(self, self.parent())
+        self._btn_del = BSArrowBtnDel(self._bs, self, self.parent())
 
     @property
     def source(self):
@@ -305,25 +306,6 @@ class BSArrow(QtGui.QWidget):
         Removes the arrow from associated objects (source, target) and deletes
         the widget.
         """
-        # remove association
-        if isinstance(self._target, bs.gui.view_sets.BSTarget):
-            if isinstance(self._source, bs.gui.view_sets.BSSource):
-                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].pop(self._source.backup_source.backup_source_ass[self._bs.backup_set_current].index(self._target.backup_targets))
-            if isinstance(self._source, bs.gui.view_sets.BSFilter):
-                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].pop(self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].index(self._target.backup_targets))
-        if isinstance(self._target, bs.gui.view_sets.BSFilter):
-            if isinstance(self._source, bs.gui.view_sets.BSSource):
-                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].pop(self._source.backup_source.backup_source_ass[self._bs.backup_set_current].index(self._target.backup_filter))
-            if isinstance(self._source, bs.gui.view_sets.BSFilter):
-                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].pop(self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].index(self._target.backup_filter))
-
-
-
-
-#         if isinstance(self, bs.gui.view_sets.BSSource):
-#             self.backup_source.backup_source_ass[self._bs.backup_set_current].pop(self.backup_source.backup_source_ass[self._bs.backup_set_current].index(arrow.target.backup_source))
-#         elif isinstance(self, bs.gui.view_sets.BSFilter):
-#             self.backup_filter.backup_filter_ass[self._bs.backup_set_current].pop(self.backup_filter.backup_filter_ass[self._bs.backup_set_current].index(arrow.target.backup_filter))
         # unassign arrow from source, target
         self._source.unassign_from_arrow(self)
         self._target.unassign_from_arrow(self)
@@ -405,14 +387,16 @@ class BSArrow(QtGui.QWidget):
 
 class BSArrowBtnDel(BSFrame):
     """ * """
+    _bs = None
     _bs_arrow = None
     _bs_canvas = None
 
     _mouse_press_global_pos = None
 
-    def __init__(self, bs_arrow, bs_canvas):
+    def __init__(self, bs, bs_arrow, bs_canvas):
         super(BSArrowBtnDel, self).__init__(bs_canvas)
 
+        self._bs = bs
         self._bs_arrow = bs_arrow
         self._bs_canvas = bs_canvas
 
@@ -435,6 +419,10 @@ class BSArrowBtnDel(BSFrame):
     def mouseReleaseEvent(self, e):
         if self._mouse_press_global_pos == e.globalPos():
             if e.button() & QtCore.Qt.MouseButton.LeftButton:
+                # remove association
+                self._bs_arrow.source.backup_entity.disassociate(self._bs.backup_set_current,
+                                                                 self._bs_arrow.target.backup_entity)
+                # delete gui arrow
                 self._bs_arrow.delete()
 
 
@@ -527,19 +515,28 @@ class BSArrowCarrier(BSDraggable):
                 # BUILDING LOGIC CHECKS
                 # finalize node
                 is_allowed_finalize_node = False
-                if isinstance(widget_node, bs.gui.view_sets.BSFilter) or\
-                   isinstance(widget_node, bs.gui.view_sets.BSTarget):
-                    is_allowed_finalize_node = True
-#                 node_to_test = widget_node
-#                 while node_to_test.arrows_outbound:
-#                     node_to_test = node_to_test.arrows_outbound.target
-#                     if node_to_test == self._source:
-#                         is_allowed_finalize_node = False
-#                         break
-#                     # if reconnecting and target is the carrier itself, abort
-#                     if isinstance(node_to_test, bs.gui.lib.BSArrowCarrier):
-#                         is_allowed_finalize_node = False
-#                         break
+                if self._source:
+                    if widget_node.backup_entity not in self._source.backup_entity.backup_entity_ass[self._bs.backup_set_current] and\
+                        not isinstance(widget_node, bs.gui.view_sets.BSSource):
+                        is_allowed_finalize_node = True
+                    # check for illegal round-trip connection-attempt
+                    if not isinstance(widget_node.backup_entity, list):
+                        objects_to_test = [x for x in widget_node.backup_entity.backup_entity_ass[self._bs.backup_set_current]]
+                        objects_tested = []
+                        while len(objects_to_test) > 0:
+                            # get get associations from next object in list
+                            if not isinstance(objects_to_test[0], list):
+                                print(objects_to_test[0].backup_entity_ass)
+                                for obj in objects_to_test[0].backup_entity_ass[self._bs.backup_set_current]:
+                                    if obj not in (objects_to_test + objects_tested) and\
+                                        not isinstance(obj, list):
+                                        objects_to_test.append(obj)
+                            # check: is start object
+                            if objects_to_test[0] == self._source.backup_entity:
+                                is_allowed_finalize_node = False
+                                break
+                            objects_tested.append(objects_to_test[0])
+                            objects_to_test.pop(0)
                 # EXECUTE ACTION BASED ON CONTEXT
                 # if start action
                 if not self._source:
@@ -567,18 +564,8 @@ class BSArrowCarrier(BSDraggable):
     def connect_finalize(self, target):
         """ * """
         # update data on controllers
-        if isinstance(self._source, bs.gui.view_sets.BSSource):
-            # re-associate with new backup_filter/backup_target
-            if isinstance(target, bs.gui.view_sets.BSTarget):
-                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].append(target.backup_targets)
-            else:
-                self._source.backup_source.backup_source_ass[self._bs.backup_set_current].append(target.backup_filter)
-        if isinstance(self._source, bs.gui.view_sets.BSFilter):
-            # re-associate with new backup_filter/backup_target
-            if isinstance(target, bs.gui.view_sets.BSTarget):
-                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].append(target.backup_targets)
-            else:
-                self._source.backup_filter.backup_filter_ass[self._bs.backup_set_current].append(target.backup_filter)
+        # re-associate with new backup_filter/backup_target
+        self._source.backup_entity.associate(self._bs.backup_set_current, target.backup_entity)
         # trigger modified signal
         self._bs.set_modified()
         target.assign_to_arrow_as_target(self._arrow_inbound)

@@ -2,6 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-21
+- started initial work on filter_item nodes and thoughts on object structures and organization of filters
+- refactored backup_source-/-filter-/-target_ctrl: _backup_source => _backup_entity, backup_filter => backup_entity, etc
+- multiple outbound connections: finalized all connection checks, bugs, etc., fully operational now.
+
 2013-07-20
 - [WIP] implemented multiple-outgoing connections per (source, filter) node
 	- objects' data-structure changes (outgoing references were singular references, all changed to lists)
