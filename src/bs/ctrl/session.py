@@ -964,23 +964,22 @@ class BackupFilterCtrl(bs.model.models.Filters):
     """ * """
     _session = None
     _backup_filter_id = None
-    _backup_filter_pattern = None
     _backup_filter_name = None
 
     _backup_entity_ass = None
+    _backup_filter_rules = None
 
-    def __init__(self, session_gui, backup_filter_id, backup_filter_pattern):
+    def __init__(self, session_gui, backup_filter_id):
         self._session = session_gui
         self._backup_filter_id = backup_filter_id
-        self._backup_filter_pattern = backup_filter_pattern
         # if flter_id == None, this is a new filter, add to database
         if not self._backup_filter_id:
-            res = self._add("user_id, filter_pattern",
-                            (self._session.user.id,
-                             self._backup_filter_pattern))
+            res = self._add("user_id",
+                            (self._session.user.id, ))
             self._backup_filter_id = res.lastrowid
 
         self._backup_entity_ass = []
+        self._backup_filter_rules = []
 
     def __repr__(self):
         return "Filter #%d <%s>" % (self._backup_filter_id, self.__class__.__name__, )
@@ -998,29 +997,66 @@ class BackupFilterCtrl(bs.model.models.Filters):
         return self._backup_filter_name
 
     @property
-    def backup_filter_pattern(self):
-        return self._backup_filter_pattern
+    def backup_filter_rules(self):
+        if not self._backup_filter_rules:
+            data_sets = self._get("filter_rules_data",
+                             (
+                              ("user_id", "=", self._session.user.id, ),
+                              ("id", "=", self._backup_filter_id),
+                              )
+                             )[0][0]
+            data_sets = json.loads(data_sets)
+            # extract data_set, generate filter_rule objects
+            for id in data_sets.keys():
+                id = id
+                category = data_sets[id]["category"]
+                file_folder = data_sets[id]["file_folder"]
+                include_subfolders = data_sets[id]["include_subfolders"]
+                # instantiate object
+                if category == BackupFilterRuleCtrl.category_size:
+                    obj = BackupFilterRuleSizeCtrl(id,
+                                                   category,
+                                                   file_folder,
+                                                   include_subfolders)
+                if category == BackupFilterRuleCtrl.category_path:
+                    obj = BackupFilterRulePathCtrl(id,
+                                                   category,
+                                                   file_folder,
+                                                   include_subfolders)
+                if category == BackupFilterRuleCtrl.category_date:
+                    obj = BackupFilterRuleDateCtrl(id,
+                                                   category,
+                                                   file_folder,
+                                                   include_subfolders)
+                if category == BackupFilterRuleCtrl.category_attributes:
+                    obj = BackupFilterRuleAttributesCtrl(id,
+                                                         category,
+                                                         file_folder,
+                                                         include_subfolders)
+                self._backup_filter_rules.append(obj)
+            self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
+        return self._backup_filter_rules
 
-    @backup_filter_pattern.setter
-    def backup_filter_pattern(self, backup_filter_pattern):
-        """ * """
-        # VALIDATE DATA
-        # backup_filter_pattern
-        if not re.match("$.*^", backup_filter_pattern):
-            logging.warning("%s: The backup_filter_pattern contains invalid "\
-                            "characters. It needs to start with an "\
-                            "alphabetic and contain alphanumerical "\
-                            "characters plus '\_\-\#' and space."
-                            % (self.__class__.__name__, ))
-            return False
-        # change data in db
-        self._update(
-                     ("filter_pattern", backup_filter_pattern, ),
-                     ("id", "=", self._backup_filter_id, ),
-                     )
-        self._backup_filter_pattern = backup_filter_pattern
-        # out
-        return True
+#     @backup_filter_rules.setter
+#     def backup_filter_rules(self, backup_filter_rules):
+#         """ * """
+#         # VALIDATE DATA
+#         # backup_filter_rules
+#         if not re.match("$.*^", backup_filter_rules):
+#             logging.warning("%s: The backup_filter_rules contains invalid "\
+#                             "characters. It needs to start with an "\
+#                             "alphabetic and contain alphanumerical "\
+#                             "characters plus '\_\-\#' and space."
+#                             % (self.__class__.__name__, ))
+#             return False
+#         # change data in db
+#         self._update(
+#                      ("filter_pattern", backup_filter_rules, ),
+#                      ("id", "=", self._backup_filter_id, ),
+#                      )
+#         self._backup_filter_rules = backup_filter_rules
+#         # out
+#         return True
 
     @property
     def backup_entity_ass(self):
@@ -1096,14 +1132,12 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         """
         # filter list is empty, load from db
         if len(self._backup_filters) == 0:
-            res = self._get("id, filter_pattern",
+            res = self._get("id",
                             (("user_id", "=", self._session.user.id), ))
             for data_set in res:
                 filter_id = data_set[0]
-                filter_pattern = data_set[1]
                 new_filter_obj = BackupFilterCtrl(self._session,
-                                                  filter_id,
-                                                  filter_pattern)
+                                                  filter_id)
                 self._backup_filters.append(new_filter_obj)
         return self._backup_filters
 
@@ -1175,6 +1209,137 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         self._backup_filters.pop(self._backup_filters.index(filter_obj))
         # out
         return True
+
+
+class BackupFilterRuleCtrl(object):
+    """ *
+    Represents a single rule that composes (together with other rules) to a
+    backup_filter.
+    """
+    _id = None
+    _category = None  # enum (self.category_size, ...
+    _file_folder = None  # enum (file/file_folder/folder)
+    _include_subfolders = None
+
+    # enums
+    category_size = "category_size"
+    category_path = "category_path"
+    category_date = "category_date"
+    category_attributes = "category_attributes"
+    file_folder_file = "file_folder_file"
+    file_folder_file_folder = "file_folder_file_folder"
+    file_folder_folder = "file_folder_folder"
+
+    def __init__(self, id, category, file_folder, include_subfolders):
+        super(BackupFilterRuleCtrl, self).__init__()
+
+        self._id = id
+        self._category = category
+        self._file_folder = file_folder
+        self._include_subfolders = include_subfolders
+
+    def __repr__(self):
+        """ *
+        Building representational messages
+        """
+        out_subject = ""
+        out_object = ""
+        out_rest = ""
+        out_subfolders = ""
+
+        # file_folder
+        if self._file_folder == self.file_folder_file:
+            out_object = "File "
+        elif self._file_folder == self.file_folder_file_folder:
+            out_object = "File/Folder "
+        elif self._file_folder == self.file_folder_folder:
+            out_object = "Folder "
+        # include_subfolders
+        if self._include_subfolders:
+            out_subfolders += ", including all enclosed items"
+
+        # CATEGORY-SPECIFIC
+        if isinstance(self, BackupFilterRuleSizeCtrl):
+            out_subject = "Size of "
+            out_rest = "is larger than 7.2MiB"
+        elif isinstance(self, BackupFilterRulePathCtrl):
+            out_subject = "Path of "
+            out_rest = "matches C:\\Windows"
+        elif isinstance(self, BackupFilterRuleDateCtrl):
+            out_subject = "Date of "
+            out_rest = "lies before 2013-07-11, 17:40:12"
+        elif isinstance(self, BackupFilterRuleAttributesCtrl):
+            out_subject = "Attribute(s) of "
+            out_rest = "has hidden, system, archive flag(s) set"
+
+        out = out_subject + out_object + out_rest + out_subfolders
+        return out
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def category(self):
+        return self._category
+
+    @property
+    def file_folder(self):
+        return self._file_folder
+
+    @property
+    def include_subfolders(self):
+        return self._include_subfolders
+
+
+class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
+    """ *
+    Represents a single rule that composes (together with other rules) to a
+    backup_filter.
+    """
+    def __init__(self, id, category, file_folder, include_subfolders):
+        super(BackupFilterRuleSizeCtrl, self).__init__(id,
+                                                       category,
+                                                       file_folder,
+                                                       include_subfolders)
+
+
+class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
+    """ *
+    Represents a single rule that composes (together with other rules) to a
+    backup_filter.
+    """
+    _mode = None  # contains, starts with, ends with, ...
+
+    def __init__(self, id, category, file_folder, include_subfolders):
+        super(BackupFilterRulePathCtrl, self).__init__(id,
+                                                       category,
+                                                       file_folder,
+                                                       include_subfolders)
+
+
+class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
+    """ *
+    Represents a single rule that composes (together with other rules) to a
+    backup_filter.
+    """
+    def __init__(self, id, category, file_folder, include_subfolders):
+        super(BackupFilterRuleDateCtrl, self).__init__(id,
+                                                       category,
+                                                       file_folder,
+                                                       include_subfolders)
+
+
+class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
+    """ *
+    Represents a single rule that composes (together with other rules) to a
+    backup_filter.
+    """
+    def __init__(self, id, category, file_folder, include_subfolders):
+        super(BackupFilterRuleAttributesCtrl, self).__init__(id,
+                                                             category,
+                                                             file_folder,
+                                                             include_subfolders)
 
 
 class BackupSetCtrl(bs.model.models.Sets):

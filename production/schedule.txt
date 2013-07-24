@@ -161,8 +161,8 @@
 					[X]	ability to remove a filter
 					[X]	add name and use as title on node ("Files > 1GiB"/".pdf Files")
 					[.]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
-					[ ]	start writing filter-type classes (path, size, date, ...) and db serialization of said
-					[ ]	start implementing gui on filter node
+					[.]	start writing filter-type classes (path, size, date, ...) and db serialization of said
+					[.]	start implementing gui on filter node
 				[.]	targets
 					[ ]	ability to add a target
 					[ ]	ability to remove a target

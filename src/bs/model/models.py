@@ -52,7 +52,7 @@ class Targets(bs.model.models_master.BSModel):
 class Filters(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
-    filter_pattern = ["TEXT"]
+    filter_rules_data = ["TEXT"]
     name = ["TEXT"]
 
     def __init__(self):

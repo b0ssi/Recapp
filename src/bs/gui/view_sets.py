@@ -1084,8 +1084,10 @@ class BSFilter(bs.gui.lib.BSNode):
         self.title_text = self._backup_entity.backup_filter_name
         self.title_size = 13
         # backup-filter items
-        widget = BSFilterItem(self, self._backup_entity)
-        self._custom_contents_container._layout.addWidget(widget, 0, 0, 1, 1)
+        for backup_filter_rule in self._backup_entity.backup_filter_rules:
+            widget = BSFilterItem(self, backup_filter_rule)
+            self._custom_contents_container._layout.addWidget(widget, self._custom_contents_container._layout.count(), 0,
+                                                              1, 1)
         self.show()
 
     def mousePressEvent(self, e):
@@ -1147,18 +1149,18 @@ class BSFilter(bs.gui.lib.BSNode):
 class BSFilterItem(bs.gui.lib.BSNodeItem):
     """ * """
     _bs_filter = None
-    _backup_entity = None
+    _backup_filter_rule = None
 
-    def __init__(self, bs_filter, backup_entity):
+    def __init__(self, bs_filter, backup_filter_rule):
         super(BSFilterItem, self).__init__(bs_filter)
 
         self._bs_filter = bs_filter
-        self._backup_entity = backup_entity
+        self._backup_filter_rule = backup_filter_rule
 
         self._init_ui()
 
     def _init_ui(self):
-        self.title_text = self._backup_entity.backup_filter_pattern
+        self.title_text = self._backup_filter_rule
 
 
 class BSTarget(bs.gui.lib.BSNode):

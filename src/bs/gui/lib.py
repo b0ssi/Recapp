@@ -526,7 +526,6 @@ class BSArrowCarrier(BSDraggable):
                         while len(objects_to_test) > 0:
                             # get get associations from next object in list
                             if not isinstance(objects_to_test[0], list):
-                                print(objects_to_test[0].backup_entity_ass)
                                 for obj in objects_to_test[0].backup_entity_ass[self._bs.backup_set_current]:
                                     if obj not in (objects_to_test + objects_tested) and\
                                         not isinstance(obj, list):
@@ -747,6 +746,9 @@ class BSNode(BSDraggable):
         """
         # request exits
         if self.request_exit():
+            # remove association
+            for arrow_inbound in self._arrows_inbound:
+                arrow_inbound.source.backup_entity.disassociate(self._bs.backup_set_current, self.backup_entity)
             # delete arrows
             while len(self._arrows_inbound) > 0:
                 arrow_inbound = self._arrows_inbound[0]
