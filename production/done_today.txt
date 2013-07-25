@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-25
+- finished writing filter_rules: size, path, date, attributes
+
 2013-07-24
 - started writing backup_filter_rules, including representations and object-serialization structure for DB
 - blocked out essential structure/architecture of backup_filter_rules

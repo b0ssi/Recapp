@@ -37,7 +37,6 @@ import win32file
 """ * """
 
 
-
 class SessionsCtrl(object):
     """
     Stores and manages sessions for all is_unlocked users.
@@ -1014,25 +1013,45 @@ class BackupFilterCtrl(bs.model.models.Filters):
                 include_subfolders = data_sets[id]["include_subfolders"]
                 # instantiate object
                 if category == BackupFilterRuleCtrl.category_size:
+                    mode_size = data_sets[id]["mode_size"]
+                    size = data_sets[id]["size"]
                     obj = BackupFilterRuleSizeCtrl(id,
                                                    category,
                                                    file_folder,
-                                                   include_subfolders)
+                                                   include_subfolders,
+                                                   mode_size,
+                                                   size)
                 if category == BackupFilterRuleCtrl.category_path:
+                    mode_path = data_sets[id]["mode_path"]
+                    match_case = data_sets[id]["match_case"]
+                    path_pattern = data_sets[id]["path_pattern"]
                     obj = BackupFilterRulePathCtrl(id,
                                                    category,
                                                    file_folder,
-                                                   include_subfolders)
+                                                   include_subfolders,
+                                                   mode_path,
+                                                   match_case,
+                                                   path_pattern)
                 if category == BackupFilterRuleCtrl.category_date:
+                    timestamp_type = data_sets[id]["timestamp_type"]
+                    position = data_sets[id]["position"]
+                    reference_date = data_sets[id]["reference_date"]
+                    offset = data_sets[id]["offset"]
                     obj = BackupFilterRuleDateCtrl(id,
                                                    category,
                                                    file_folder,
-                                                   include_subfolders)
+                                                   include_subfolders,
+                                                   timestamp_type,
+                                                   position,
+                                                   reference_date,
+                                                   offset)
                 if category == BackupFilterRuleCtrl.category_attributes:
+                    attribute = data_sets[id]["attribute"]
                     obj = BackupFilterRuleAttributesCtrl(id,
                                                          category,
                                                          file_folder,
-                                                         include_subfolders)
+                                                         include_subfolders,
+                                                         attribute)
                 self._backup_filter_rules.append(obj)
             self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
         return self._backup_filter_rules
@@ -1213,7 +1232,7 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 
 class BackupFilterRuleCtrl(object):
     """ *
-    Represents a single rule that composes (together with other rules) to a
+    Represents a single rule that composes (together with other rules) into a
     backup_filter.
     """
     _id = None
@@ -1229,6 +1248,37 @@ class BackupFilterRuleCtrl(object):
     file_folder_file = "file_folder_file"
     file_folder_file_folder = "file_folder_file_folder"
     file_folder_folder = "file_folder_folder"
+    mode_size_smaller = "mode_size_smaller"
+    mode_size_smaller_equal = "mode_size_smaller_equal"
+    mode_size_equal = "mode_size_equal"
+    mode_size_larger_equal = "mode_size_larger_equal"
+    mode_size_larger = "mode_size_larger"
+    mode_path_match_pattern = "mode_path_match_pattern"
+    mode_path_starts_with = "mode_path_starts_with"
+    mode_path_ends_with = "mode_path_ends_with"
+    mode_path_contains = "mode_path_contains"
+    mode_path_matches = "mode_path_matches"
+    timestamp_type_cdate = "timestamp_type_cdate"
+    timestamp_type_ctime = "timestamp_type_ctime"
+    timestamp_type_mdate = "timestamp_type_mdate"
+    timestamp_type_mtime = "timestamp_type_mtime"
+    timestamp_type_adate = "timestamp_type_adate"
+    timestamp_type_atime = "timestamp_type_atime"
+    position_before = "position_before"
+    position_on = "position_on"
+    position_exactly = "position_exactly"
+    position_after = "position_after"
+    reference_date_current_date = "reference_date_current_date"
+    reference_date_file_backup = "reference_date_file_backup"
+    reference_date_folder_backup = "reference_date_folder_backup"
+    reference_date_volume_backup = "reference_date_volume_backup"
+    reference_date_fixed = "reference_date_fixed"
+    attribute_read_only = "attribute_read_only"
+    attribute_hidden = "attribute_hidden"
+    attribute_archive = "attribute_archive"
+    attribute_system = "attribute_system"
+    attribute_encrypted = "attribute_encrypted"
+    attribute_offline = "attribute_offline"
 
     def __init__(self, id, category, file_folder, include_subfolders):
         super(BackupFilterRuleCtrl, self).__init__()
@@ -1243,9 +1293,16 @@ class BackupFilterRuleCtrl(object):
         Building representational messages
         """
         out_subject = ""
+        out_mode = ""
+        out_size = ""
         out_object = ""
-        out_rest = ""
         out_subfolders = ""
+        out_match_case = ""
+        out_attribution = ""
+        out_position = ""
+        out_reference_date = ""
+        out_offset = ""
+        out_attribute = ""
 
         # file_folder
         if self._file_folder == self.file_folder_file:
@@ -1256,23 +1313,130 @@ class BackupFilterRuleCtrl(object):
             out_object = "Folder "
         # include_subfolders
         if self._include_subfolders:
-            out_subfolders += ", including all enclosed items"
+            out_subfolders += ", incl. all enclosed items"
 
         # CATEGORY-SPECIFIC
         if isinstance(self, BackupFilterRuleSizeCtrl):
             out_subject = "Size of "
-            out_rest = "is larger than 7.2MiB"
+            if self._mode_size == self.mode_size_smaller:
+                out_mode = "< "
+            if self._mode_size == self.mode_size_smaller_equal:
+                out_mode = "<= "
+            if self._mode_size == self.mode_size_equal:
+                out_mode = "= "
+            if self._mode_size == self.mode_size_larger_equal:
+                out_mode = ">= "
+            if self._mode_size == self.mode_size_larger:
+                out_mode = "> "
+            out_size = bs.utils.format_data_size(self._size)
         elif isinstance(self, BackupFilterRulePathCtrl):
             out_subject = "Path of "
-            out_rest = "matches C:\\Windows"
+            if self._mode_path == self.mode_path_match_pattern:
+                out_mode = "matches pattern "
+            if self._mode_path == self.mode_path_starts_with:
+                out_mode = "starts with "
+            if self._mode_path == self.mode_path_ends_with:
+                out_mode = "ends with "
+            if self._mode_path == self.mode_path_contains:
+                out_mode = "contains "
+            if self._mode_path == self.mode_path_matches:
+                out_mode = "matches "
+            if self._match_case:
+                out_match_case = ", matching case"
+            out_attribution = self._path_pattern
         elif isinstance(self, BackupFilterRuleDateCtrl):
-            out_subject = "Date of "
-            out_rest = "lies before 2013-07-11, 17:40:12"
+            if self._timestamp_type == self.timestamp_type_cdate:
+                out_subject = "Creation date of "
+            elif self._timestamp_type == self.timestamp_type_ctime:
+                out_subject = "Creation time of "
+            elif self._timestamp_type == self.timestamp_type_mdate:
+                out_subject = "Modification date of "
+            elif self._timestamp_type == self.timestamp_type_mtime:
+                out_subject = "Modification time of "
+            elif self._timestamp_type == self.timestamp_type_adate:
+                out_subject = "Access date of "
+            elif self._timestamp_type == self.timestamp_type_atime:
+                out_subject = "Access time of "
+            if self._position == self.position_before:
+                out_position = "is before "
+            elif self._position == self.position_on:
+                out_position = "is on "
+            elif self._position == self.position_exactly:
+                out_position = "is exactly "
+            elif self._position == self.position_after:
+                out_position = "is after "
+            if self._reference_date == self.reference_date_current_date:
+                out_reference_date = "current date "
+            elif self._reference_date == self.reference_date_file_backup:
+                out_reference_date = "file backup "
+            elif self._reference_date == self.reference_date_folder_backup:
+                out_reference_date = "folder backup "
+            elif self._reference_date == self.reference_date_volume_backup:
+                out_reference_date = "volume backup "
+            elif self._reference_date == self.reference_date_fixed:
+                out_reference_date = "fixed date "
+            # offset
+            if self._offset[1] == 1:
+                out_offset += "%s year" % (self._offset[1], )
+            elif self._offset[1] > 1:
+                out_offset += "%s years" % (self._offset[1], )
+            if self._offset[2] == 1:
+                out_offset += ", %s month" % (self._offset[2], )
+            elif self._offset[2] > 1:
+                out_offset += ", %s months" % (self._offset[2], )
+            if self._offset[3] == 1:
+                out_offset += ", %s week" % (self._offset[3], )
+            elif self._offset[3] > 1:
+                out_offset += ", %s weeks" % (self._offset[3], )
+            if self._offset[4] == 1:
+                out_offset += ", %s day" % (self._offset[4], )
+            elif self._offset[4] > 1:
+                out_offset += ", %s days" % (self._offset[4], )
+            if self._offset[5] == 1:
+                out_offset += ", %s hour" % (self._offset[5], )
+            elif self._offset[5] > 1:
+                out_offset += ", %s hours" % (self._offset[5], )
+            if self._offset[6] == 1:
+                out_offset += ", %s minute" % (self._offset[6], )
+            elif self._offset[6] > 1:
+                out_offset += ", %s minutes" % (self._offset[6], )
+            if self._offset[7] == 1:
+                out_offset += ", %s second" % (self._offset[7], )
+            elif self._offset[7] > 1:
+                out_offset += ", %s seconds" % (self._offset[7], )
+            if out_offset != "":
+                if self._offset[0] == "+":
+                    out_offset += " subsequent to "
+                if self._offset[0] == "-":
+                    out_offset += " prior to "
         elif isinstance(self, BackupFilterRuleAttributesCtrl):
-            out_subject = "Attribute(s) of "
-            out_rest = "has hidden, system, archive flag(s) set"
+            if self._attribute == self.attribute_read_only:
+                out_attribute_tmp = "read only "
+            elif self._attribute == self.attribute_hidden:
+                out_attribute_tmp = "hidden "
+            elif self._attribute == self.attribute_archive:
+                out_attribute_tmp = "archive "
+            elif self._attribute == self.attribute_system:
+                out_attribute_tmp = "system "
+            elif self._attribute == self.attribute_encrypted:
+                out_attribute_tmp = "encrypted "
+            elif self._attribute == self.attribute_offline:
+                out_attribute_tmp = "offline "
+            out_attribute = "has "
+            out_attribute += out_attribute_tmp
+            out_attribute += "flag set"
 
-        out = out_subject + out_object + out_rest + out_subfolders
+        out = out_subject
+        out += out_object
+        out += out_position
+        out += out_offset
+        out += out_reference_date
+        out += out_mode
+        out += out_size
+        out += out_attribution
+        out += out_attribute
+        out += out_match_case
+        out += out_subfolders
         return out
 
     @property
@@ -1293,53 +1457,110 @@ class BackupFilterRuleCtrl(object):
 
 
 class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
-    """ *
-    Represents a single rule that composes (together with other rules) to a
-    backup_filter.
-    """
-    def __init__(self, id, category, file_folder, include_subfolders):
+    """ * """
+    _mode_size = None  # >, >=, =, <=, <
+    _size = None  # int bytes
+
+    def __init__(self, id, category, file_folder, include_subfolders, mode_size, size):
         super(BackupFilterRuleSizeCtrl, self).__init__(id,
                                                        category,
                                                        file_folder,
                                                        include_subfolders)
 
+        self._mode_size = mode_size
+        self._size = size
+
+    @property
+    def mode_size(self):
+        return self._mode_size
+
+    @property
+    def size(self):
+        return self._size
+
 
 class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
-    """ *
-    Represents a single rule that composes (together with other rules) to a
-    backup_filter.
-    """
-    _mode = None  # contains, starts with, ends with, ...
+    """ * """
+    _mode_path = None  # contains, starts with, ends with, ...
+    _match_case = None  # bool
+    _path_pattern = None  # pattern, path, regex, ...
 
-    def __init__(self, id, category, file_folder, include_subfolders):
+    def __init__(self, id, category, file_folder, include_subfolders,
+                 mode_path, match_case, path_pattern):
         super(BackupFilterRulePathCtrl, self).__init__(id,
                                                        category,
                                                        file_folder,
                                                        include_subfolders)
 
+        self._mode_path = mode_path
+        self._match_case = match_case
+        self._path_pattern = path_pattern
+
+    @property
+    def mode_path(self):
+        return self._mode_path
+
+    @property
+    def match_case(self):
+        return self._match_case
+
+    @property
+    def path_pattern(self):
+        return self._path_pattern
+
 
 class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
-    """ *
-    Represents a single rule that composes (together with other rules) to a
-    backup_filter.
-    """
-    def __init__(self, id, category, file_folder, include_subfolders):
+    """ * """
+    _timestamp_type = None  # cdate, ctime, mdate, mtime, ...
+    _position = None  # before, on, after, exactly
+    _reference_date = None  # current date, file, folder, volume backup, fixed date, ...
+    _offset = None  # [years, months, weeks, days, hours, minutes, seconds]
+
+    def __init__(self, id, category, file_folder, include_subfolders,
+                 timestamp_type, position, reference_date, offset):
         super(BackupFilterRuleDateCtrl, self).__init__(id,
                                                        category,
                                                        file_folder,
                                                        include_subfolders)
 
+        self._timestamp_type = timestamp_type
+        self._position = position
+        self._reference_date = reference_date
+        self._offset = offset
+
+    @property
+    def timestamp_type(self):
+        return self._timestamp_type
+
+    @property
+    def position(self):
+        return self._position
+
+    @property
+    def reference_date(self):
+        return self._reference_date
+
+    @property
+    def offset(self):
+        return self._offset
+
 
 class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
-    """ *
-    Represents a single rule that composes (together with other rules) to a
-    backup_filter.
-    """
-    def __init__(self, id, category, file_folder, include_subfolders):
+    """ * """
+    _attribute = None
+
+    def __init__(self, id, category, file_folder, include_subfolders,
+                 attribute):
         super(BackupFilterRuleAttributesCtrl, self).__init__(id,
                                                              category,
                                                              file_folder,
                                                              include_subfolders)
+
+        self._attribute = attribute
+
+    @property
+    def attribute(self):
+        return self._attribute
 
 
 class BackupSetCtrl(bs.model.models.Sets):

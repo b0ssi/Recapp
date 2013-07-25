@@ -160,8 +160,9 @@
 					[X]	ability to add a filter
 					[X]	ability to remove a filter
 					[X]	add name and use as title on node ("Files > 1GiB"/".pdf Files")
-					[.]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
+					[X]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
 					[.]	start writing filter-type classes (path, size, date, ...) and db serialization of said
+						[ ]	implement and/or association amon filter rules
 					[.]	start implementing gui on filter node
 				[.]	targets
 					[ ]	ability to add a target
