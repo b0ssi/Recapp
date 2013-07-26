@@ -6,6 +6,7 @@ import bs.ctrl.session
 import bs.gui.view_sets
 import logging
 import re
+import time
 
 ###############################################################################
 ##    bs.gui.nodes                                                           ##
@@ -472,15 +473,19 @@ class BSArrowCarrier(BSDraggable):
 
     def move_to(self, e):
         """ * """
-#        super(BSArrowCarrier, self).mouseMoveEvent(e)
-        # coordinates in parent's space
-        x = self.parent().mapFromGlobal(e.globalPos()).x()
-        y = self.parent().mapFromGlobal(e.globalPos()).y()
-        self.setGeometry(x + 5,
-                         y + 5,
-                         self.width(),
-                         self.height())
-        self.draw_arrows()
+        # only move when no button pressed:
+        # when button pressed and connection arrow is active, canvas would
+        # move this carrier plus global mouseMove signal this carrier as well
+        # incl. the arrow, leading to polarized jumps of canvas.
+        if e.buttons() == QtCore.Qt.MouseButton.NoButton:
+            # coordinates in parent's space
+            x = self.parent().mapFromGlobal(e.globalPos()).x()
+            y = self.parent().mapFromGlobal(e.globalPos()).y()
+            self.setGeometry(x + 5,
+                             y + 5,
+                             self.width(),
+                             self.height())
+            self.draw_arrows()
 
     def record_mouse_pos(self, widget, e):
         """ *
@@ -591,12 +596,6 @@ class BSArrowCarrier(BSDraggable):
         """ * """
         if self._arrow_inbound:
             self._arrow_inbound.refresh()
-
-    def mouseMoveEvent(self, e):
-        """ *
-        Override.
-        """
-        pass
 
 
 class BSNode(BSDraggable):

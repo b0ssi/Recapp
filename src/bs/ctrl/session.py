@@ -1306,122 +1306,123 @@ class BackupFilterRuleCtrl(object):
 
         # file_folder
         if self._file_folder == self.file_folder_file:
-            out_object = "File "
+            out_object = "<b>File</b> "
         elif self._file_folder == self.file_folder_file_folder:
-            out_object = "File/Folder "
+            out_object = "<b>File/Folder</b> "
         elif self._file_folder == self.file_folder_folder:
-            out_object = "Folder "
+            out_object = "<b>Folder</b> "
         # include_subfolders
         if self._include_subfolders:
             out_subfolders += ", incl. all enclosed items"
 
         # CATEGORY-SPECIFIC
         if isinstance(self, BackupFilterRuleSizeCtrl):
-            out_subject = "Size of "
+            out_subject = "<b>Size of</b> "
             if self._mode_size == self.mode_size_smaller:
-                out_mode = "< "
+                out_mode = "<b><</b> "
             if self._mode_size == self.mode_size_smaller_equal:
-                out_mode = "<= "
+                out_mode = "<b><=</b> "
             if self._mode_size == self.mode_size_equal:
-                out_mode = "= "
+                out_mode = "<b>=</b> "
             if self._mode_size == self.mode_size_larger_equal:
-                out_mode = ">= "
+                out_mode = "<b>>=</b> "
             if self._mode_size == self.mode_size_larger:
-                out_mode = "> "
-            out_size = bs.utils.format_data_size(self._size)
+                out_mode = "<b>></b> "
+            out_size = "<b>%s</b>" % (bs.utils.format_data_size(self._size), )
         elif isinstance(self, BackupFilterRulePathCtrl):
-            out_subject = "Path of "
+            out_subject = "<b>Path</b> of "
             if self._mode_path == self.mode_path_match_pattern:
-                out_mode = "matches pattern "
+                out_mode = "<b>matches pattern</b> "
             if self._mode_path == self.mode_path_starts_with:
-                out_mode = "starts with "
+                out_mode = "<b>starts with</b> "
             if self._mode_path == self.mode_path_ends_with:
-                out_mode = "ends with "
+                out_mode = "<b>ends with</b> "
             if self._mode_path == self.mode_path_contains:
-                out_mode = "contains "
+                out_mode = "<b>contains</b> "
             if self._mode_path == self.mode_path_matches:
-                out_mode = "matches "
+                out_mode = "<b>matches</b> "
             if self._match_case:
                 out_match_case = ", matching case"
-            out_attribution = self._path_pattern
+            out_attribution = "<b>%s</b>" % (self._path_pattern, )
         elif isinstance(self, BackupFilterRuleDateCtrl):
             if self._timestamp_type == self.timestamp_type_cdate:
-                out_subject = "Creation date of "
+                out_subject = "<b>Creation date</b> of "
             elif self._timestamp_type == self.timestamp_type_ctime:
-                out_subject = "Creation time of "
+                out_subject = "<b>Creation time</b> of "
             elif self._timestamp_type == self.timestamp_type_mdate:
-                out_subject = "Modification date of "
+                out_subject = "<b>Modification date</b> of "
             elif self._timestamp_type == self.timestamp_type_mtime:
-                out_subject = "Modification time of "
+                out_subject = "<b>Modification time</b> of "
             elif self._timestamp_type == self.timestamp_type_adate:
-                out_subject = "Access date of "
+                out_subject = "<b>Access date</b> of "
             elif self._timestamp_type == self.timestamp_type_atime:
-                out_subject = "Access time of "
+                out_subject = "<b>Access time</b> of "
             if self._position == self.position_before:
-                out_position = "is before "
+                out_position = "is <b>before</b> "
             elif self._position == self.position_on:
-                out_position = "is on "
+                out_position = "is <b>on</b> "
             elif self._position == self.position_exactly:
-                out_position = "is exactly "
+                out_position = "is <b>exactly</b> "
             elif self._position == self.position_after:
-                out_position = "is after "
+                out_position = "is <b>after</b> "
             if self._reference_date == self.reference_date_current_date:
-                out_reference_date = "current date "
+                out_reference_date = "<b>current date</b> "
             elif self._reference_date == self.reference_date_file_backup:
-                out_reference_date = "file backup "
+                out_reference_date = "<b>file backup</b> "
             elif self._reference_date == self.reference_date_folder_backup:
-                out_reference_date = "folder backup "
+                out_reference_date = "<b>folder backup</b> "
             elif self._reference_date == self.reference_date_volume_backup:
-                out_reference_date = "volume backup "
+                out_reference_date = "<b>volume backup</b> "
             elif self._reference_date == self.reference_date_fixed:
-                out_reference_date = "fixed date "
+                out_reference_date = "<b>fixed date</b> "
             # offset
             if self._offset[1] == 1:
-                out_offset += "%s year" % (self._offset[1], )
+                out_offset += ", <b>%s year</b>" % (self._offset[1], )
             elif self._offset[1] > 1:
-                out_offset += "%s years" % (self._offset[1], )
+                out_offset += ", <b>%s years</b>" % (self._offset[1], )
             if self._offset[2] == 1:
-                out_offset += ", %s month" % (self._offset[2], )
+                out_offset += ", <b>%s month</b>" % (self._offset[2], )
             elif self._offset[2] > 1:
-                out_offset += ", %s months" % (self._offset[2], )
+                out_offset += ", <b>%s months</b>" % (self._offset[2], )
             if self._offset[3] == 1:
-                out_offset += ", %s week" % (self._offset[3], )
+                out_offset += ", <b>%s week</b>" % (self._offset[3], )
             elif self._offset[3] > 1:
-                out_offset += ", %s weeks" % (self._offset[3], )
+                out_offset += ", <b>%s weeks</b>" % (self._offset[3], )
             if self._offset[4] == 1:
-                out_offset += ", %s day" % (self._offset[4], )
+                out_offset += ", <b>%s day</b>" % (self._offset[4], )
             elif self._offset[4] > 1:
-                out_offset += ", %s days" % (self._offset[4], )
+                out_offset += ", <b>%s days</b>" % (self._offset[4], )
             if self._offset[5] == 1:
-                out_offset += ", %s hour" % (self._offset[5], )
+                out_offset += ", <b>%s hour</b>" % (self._offset[5], )
             elif self._offset[5] > 1:
-                out_offset += ", %s hours" % (self._offset[5], )
+                out_offset += ", <b>%s hours</b>" % (self._offset[5], )
             if self._offset[6] == 1:
-                out_offset += ", %s minute" % (self._offset[6], )
+                out_offset += ", <b>%s minute</b>" % (self._offset[6], )
             elif self._offset[6] > 1:
-                out_offset += ", %s minutes" % (self._offset[6], )
+                out_offset += ", <b>%s minutes</b>" % (self._offset[6], )
             if self._offset[7] == 1:
-                out_offset += ", %s second" % (self._offset[7], )
+                out_offset += ", <b>%s second</b>" % (self._offset[7], )
             elif self._offset[7] > 1:
-                out_offset += ", %s seconds" % (self._offset[7], )
+                out_offset += ", <b>%s seconds</b>" % (self._offset[7], )
             if out_offset != "":
+                out_offset = out_offset[2:]
                 if self._offset[0] == "+":
-                    out_offset += " subsequent to "
+                    out_offset += " <b>subsequent</b> to "
                 if self._offset[0] == "-":
-                    out_offset += " prior to "
+                    out_offset += " <b>prior</b> to "
         elif isinstance(self, BackupFilterRuleAttributesCtrl):
             if self._attribute == self.attribute_read_only:
-                out_attribute_tmp = "read only "
+                out_attribute_tmp = "<b>read only</b> "
             elif self._attribute == self.attribute_hidden:
-                out_attribute_tmp = "hidden "
+                out_attribute_tmp = "<b>hidden</b> "
             elif self._attribute == self.attribute_archive:
-                out_attribute_tmp = "archive "
+                out_attribute_tmp = "<b>archive</b> "
             elif self._attribute == self.attribute_system:
-                out_attribute_tmp = "system "
+                out_attribute_tmp = "<b>system</b> "
             elif self._attribute == self.attribute_encrypted:
-                out_attribute_tmp = "encrypted "
+                out_attribute_tmp = "<b>encrypted</b> "
             elif self._attribute == self.attribute_offline:
-                out_attribute_tmp = "offline "
+                out_attribute_tmp = "<b>offline</b> "
             out_attribute = "has "
             out_attribute += out_attribute_tmp
             out_attribute += "flag set"

@@ -162,17 +162,19 @@
 					[X]	add name and use as title on node ("Files > 1GiB"/".pdf Files")
 					[X]	display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
 					[.]	start writing filter-type classes (path, size, date, ...) and db serialization of said
-						[ ]	implement and/or association amon filter rules
+						[ ]	implement and/or association among filter rules
+						[ ]	(better implicit that explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)__repr__: hide properties that are irrelevant for given combination or even contradictory/confusing
+						[ ]	filterRule: implement "is/is not" per rule
 					[.]	start implementing gui on filter node
 				[.]	targets
-					[ ]	ability to add a target
-					[ ]	ability to remove a target
+					[ ]	ability to add a target (will require full mirroring of existing target backup data onto new target)
+					[ ]	ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
 					[ ]	think about: ?ability to measure/visualize the space left on the target?
 				[X]	Arrows
 					[X] Implement support to connect multiple arrows to multiple nodes
 						[X]	Del button on arrow
-				[ ]	Canvas
-					[ ]	bug: on reconnect: scrolling canvas causes canvas rush
+				[X]	Canvas
+					[X]	bug: on reconnect: scrolling canvas causes canvas rush
 				[ ]	execution-panel...
 		[ ]	refactor object reference names, implement consistent scheme
 		[ ]	implement consistent scheme for passing object-references into classes

@@ -2,6 +2,10 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-26
+- bug-fix: jumping canvas when dragging with active connection-arrow on carrier
+- added filter_rule representation formatting (bold text for key data)
+
 2013-07-25
 - finished writing filter_rules: size, path, date, attributes
 

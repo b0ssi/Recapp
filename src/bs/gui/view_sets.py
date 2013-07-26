@@ -1078,6 +1078,7 @@ class BSFilter(bs.gui.lib.BSNode):
         return self._backup_entity
 
     def _init_ui(self):
+        self.setMaximumWidth(400)
         # css
         self.setStyleSheet("BSFilter {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
         # title
@@ -1161,6 +1162,41 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
 
     def _init_ui(self):
         self.title_text = self._backup_filter_rule
+        # CSS
+        self.css = ((self,
+                     "",
+                     "background: #%s",
+                     (
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      )
+                     ),
+                     (self.title,
+                      "",
+                      "color: #%s",
+                      (
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                      )
+                     )
+                    )
+        self._title.setDisabled(True)
+        self._title.setWordWrap(True)
+        self._layout.setContentsMargins(self._layout.contentsMargins().left(),
+                                        5,
+                                        self._layout.contentsMargins().right(),
+                                        5)
+
+    def mouseMoveEvent(self, e):
+        self.parent().mouseMoveEvent(e)
 
 
 class BSTarget(bs.gui.lib.BSNode):
