@@ -2,6 +2,10 @@
 ## DONE TODAY ##################
 ################################
 
+2013-07-28
+- BBSTargetItem: displays path and, if offline, offline status
+- BSTarget: nests separate BSTargetItem's now.
+
 2013-07-26
 - bug-fix: jumping canvas when dragging with active connection-arrow on carrier
 - added filter_rule representation formatting (bold text for key data)

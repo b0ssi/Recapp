@@ -801,13 +801,15 @@ class BackupTargetCtrl(bs.model.models.Targets):
             logging.critical("%s: More than one drive carry the same ID. "\
                             "Please make sure there are no duplicates on the "\
                             "system: %s" % (self.__class__.__name__,
-                                            out))
+                                            out, ))
             raise SystemExit
         elif len(out) == 0:
-            logging.critical("%s: The physical location of this target could "\
-                             "not be found (target_device_id: %s)" % (self.__class__.__name__,
-                                                                      self._target_device_id))
-            raise SystemExit
+            logging.warning("%s: The physical location of this target could "\
+                            "not be found. The volume is probably offline "\
+                            " (target_device_id: %s)"
+                            % (self.__class__.__name__,
+                               self._target_device_id, ))
+            return "Volume Offline"
         else:
             return out[0]
 

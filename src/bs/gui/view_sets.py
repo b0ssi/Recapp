@@ -257,8 +257,8 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for backup_source in backup_set.backup_sources:
             self.add_node(backup_source, backup_set)
         # load backup-filters
-        for backup_entity in backup_set.backup_filters:
-            self.add_node(backup_entity, backup_set)
+        for backup_filter in backup_set.backup_filters:
+            self.add_node(backup_filter, backup_set)
         # load target set
         if backup_set.backup_targets:
             self.add_node(backup_set.backup_targets, backup_set)
@@ -1230,6 +1230,12 @@ class BSTarget(bs.gui.lib.BSNode):
         return self._backup_entity
 
     def _init_ui(self):
+        # targetItems
+        for backup_target in self._backup_entity:
+            widget = BSTargetItem(self, backup_target)
+            self._custom_contents_container._layout.addWidget(widget,
+                                   self._custom_contents_container._layout.count(),
+                                   0, 1, 1)
         # css
         self.setStyleSheet("BSTarget {border: 1px solid #%s}" % (bs.config.PALETTE[2], ))
         # title
@@ -1284,6 +1290,52 @@ class BSTarget(bs.gui.lib.BSNode):
         """ *
         Override
         """
+
+
+class BSTargetItem(bs.gui.lib.BSNodeItem):
+    """ * """
+    _bs_target = None
+    _backup_target = None
+
+    def __init__(self, bs_target, backup_target):
+        super(BSTargetItem, self).__init__(bs_target)
+
+        self._bs_target = bs_target
+        self._backup_target = backup_target
+
+        self._init_ui()
+
+    def _init_ui(self):
+        target_name = self._backup_target.target_name
+        target_path = self._backup_target.target_path
+        self.title_text = "%s (%s)" % (target_name,
+                                       target_path, )
+        # CSS
+        self.css = ((self,
+                     "",
+                     "background: #%s",
+                     (
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      )
+                     ),
+                     (self.title,
+                      "",
+                      "color: #%s",
+                      (
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                      )
+                     )
+                    )
 
 #class ViewSets(QtGui.QWidget):
 #    """ * """

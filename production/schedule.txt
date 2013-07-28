@@ -167,8 +167,8 @@
 						[ ]	filterRule: implement "is/is not" per rule
 					[.]	start implementing gui on filter node
 				[.]	targets
-					[ ]	ability to add a target (will require full mirroring of existing target backup data onto new target)
-					[ ]	ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
+					[X]	Nest all targets in targets main node~
+					[.]	BackupTargetCtrl: status-check method (online, offline, locked/in use, etc.)
 					[ ]	think about: ?ability to measure/visualize the space left on the target?
 				[X]	Arrows
 					[X] Implement support to connect multiple arrows to multiple nodes
@@ -206,6 +206,9 @@
 					[ ]	ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 						[ ]	implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
 							[ ]	look into Qt animations (wading throbber e.g. while scanning~)
+				[ ]	targets
+					[ ]	ability to add a target (will require full mirroring of existing target backup data onto new target)
+					[ ]	ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
 ................................
 [ ]		Q/A
 		........................
