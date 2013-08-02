@@ -56,8 +56,7 @@ class SessionsCtrl(object):
         # gui stuff
         if self._gui_mode:
             self._app = bs.gui.window_main.Application("asdf")
-            self._app.setWindowIcon(QtGui.QIcon("img/favicon.png"))
-            self.add_session_gui(self._app)
+            self.add_session_gui()
             self._app.exec_()
 
     def __repr__(self):
@@ -138,11 +137,11 @@ class SessionsCtrl(object):
             logging.warning("%s: The session does not exist: %s"
                             % (self.__class__.__name__, session, ))
 
-    def add_session_gui(self, app):
+    def add_session_gui(self):
         """ *
         Adds a new UI instance to host a separate is_unlocked session.
         """
-        session_gui = SessionGuiCtrl(self, app)
+        session_gui = SessionGuiCtrl(self, self._app)
         self._guis.append(session_gui)
         return session_gui
 
@@ -306,6 +305,9 @@ class SessionCtrl(object):
     def log_out(self):
         """ * """
         if self.is_logged_in:
+            # save sets
+            for backup_set in self._backup_sets.sets:
+                backup_set.save_to_db()
             self.is_unlocked = False
             self.is_logged_in = False
             logging.info("%s: Session successfully logged out."
@@ -731,6 +733,10 @@ class BackupTargetCtrl(bs.model.models.Targets):
     _target_id = None
     _target_name = None
     _target_device_id = None
+    # enums
+    status_online = "status_online"
+    status_offline = "status_offline"
+    status_in_use = "status_in_use"
 
     def __init__(self, session_gui, target_id, target_name, target_device_id):
         self._session = session_gui
@@ -804,12 +810,12 @@ class BackupTargetCtrl(bs.model.models.Targets):
                                             out, ))
             raise SystemExit
         elif len(out) == 0:
-            logging.warning("%s: The physical location of this target could "\
+            logging.info("%s: The physical location of this target could "\
                             "not be found. The volume is probably offline "\
                             " (target_device_id: %s)"
                             % (self.__class__.__name__,
                                self._target_device_id, ))
-            return "Volume Offline"
+            return ""
         else:
             return out[0]
 

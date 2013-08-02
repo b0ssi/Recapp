@@ -136,6 +136,21 @@ class BS(QtGui.QFrame):
 #            logging.debug("%s: No set saved: No set loaded."
 #                          % (self.__class__.__name__, ))
 
+    def request_exit(self):
+        """ *
+        Hook-method called by window manager before changing view.
+        Close any view-specific processes here. Events, save set, etc.
+        """
+        # !!! REQUEST THREAD EXITS !!!
+        try:
+            if self._backup_set_current:
+                self._backup_set_current.save_to_db()
+            return True
+        except:
+            logging.warning("%s: Sets view could not be closed."
+                            % (self.__class__.__name__, ))
+            return False
+
     def resizeEvent(self, e):
         """ * """
         self.resizeSignal.emit(e)
@@ -1308,6 +1323,8 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
     def _init_ui(self):
         target_name = self._backup_target.target_name
         target_path = self._backup_target.target_path
+        if target_path == "":
+            target_path = "Target Offline"
         self.title_text = "%s (%s)" % (target_name,
                                        target_path, )
         # CSS

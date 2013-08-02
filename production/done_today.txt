@@ -2,6 +2,10 @@
 ## DONE TODAY ##################
 ################################
 
+2013-08-02
+- fine-tuned main-menu updates
+- implemented conditional set/session-exit handling on close/exit and warnings if other sessions active
+
 2013-07-28
 - BBSTargetItem: displays path and, if offline, offline status
 - BSTarget: nests separate BSTargetItem's now.

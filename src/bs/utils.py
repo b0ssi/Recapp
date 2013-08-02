@@ -70,11 +70,18 @@ class Signal(object):
                 logging.debug("%s: Handler %s successfully called."
                               % (self.__class__.__name__,
                                  handler, ))
-            except:
+            except RuntimeError as e:
+                self.disconnect(handler)
+                logging.debug("%s: Handler has thrown a RuntimeError and has "\
+                              "been disconnected from event (%s): %s"
+                              % (self.__class__.__name__,
+                              handler,
+                              e))
+            except Exception as e:
                 logging.warning("%s: Handler emission error: %s" %
                                 (self.__class__.__name__,
                                  handler, ))
-                raise
+                raise e
         # disconnect
         for handler_to_disconnect in handlers_to_disconnect:
             self.disconnect(handler_to_disconnect)

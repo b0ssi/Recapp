@@ -35,15 +35,16 @@ logging.basicConfig(format="--------------- "\
                            "(%(funcName)s)\r"\
                            "%(levelname)s      \t"\
                            "%(message)s",
-                    level=logging.WARNING)
+                           level=logging.WARNING)
 
 
 if __name__ == '__main__':
     """ * """
     # extract sys.argv
     gui_mode = False
-  
+
     for arg in sys.argv:
+        arg = "gui=True"
         if re.match("^gui\=True$", arg):
             gui_mode = True
     # sync db
@@ -51,7 +52,6 @@ if __name__ == '__main__':
     sync_db.sync()
     # init sessions
     sessions = bs.ctrl.session.SessionsCtrl(gui_mode)
-
 
 # # PREP
 # # sync db if necessary

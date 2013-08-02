@@ -47,23 +47,28 @@ class Application(QtGui.QApplication):
         font = QtGui.QFont()
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.setFont(font)
+        # window-icon
+        self.setWindowIcon(QtGui.QIcon("img/recapp_emblem_noname.png"))
 
-    def notify(self, receiver, e):
-        if e.type() == QtCore.QEvent.KeyPress or\
-            e.type() == QtCore.QEvent.MouseMove and\
-            self.idle_1s_timer.isActive():
-            self.idle_1s_timer.start()
-        # global_mouse_pos
-        if e.type() == QtCore.QEvent.Type.MouseMove:
-            self.global_mouse_pos_signal.emit(e)
-        # global_mouse_press
-        if e.type() == QtCore.QEvent.Type.MouseButtonPress:
-            self.global_mouse_press_signal.emit(receiver, e)
-        # global_mouse_release
-        if e.type() == QtCore.QEvent.Type.MouseButtonRelease:
-            self.global_mouse_release_signal.emit(receiver, e)
-
-        return QtGui.QApplication.notify(self, receiver, e)
+    def notify(self, *args, **kwargs):
+        receiver = args[0]
+        e = args[1]
+        if isinstance(e, QtCore.QEvent):
+            if e.type() == QtCore.QEvent.KeyPress or\
+                e.type() == QtCore.QEvent.MouseMove and\
+                self.idle_1s_timer.isActive():
+                self.idle_1s_timer.start()
+            # global_mouse_pos
+            if e.type() == QtCore.QEvent.Type.MouseMove:
+                self.global_mouse_pos_signal.emit(e)
+            # global_mouse_press
+            if e.type() == QtCore.QEvent.Type.MouseButtonPress:
+                self.global_mouse_press_signal.emit(receiver, e)
+            # global_mouse_release
+            if e.type() == QtCore.QEvent.Type.MouseButtonRelease:
+                self.global_mouse_release_signal.emit(receiver, e)
+            return QtGui.QApplication.notify(self, *args, **kwargs)
+        return True
 
 
 class WindowMain(QtGui.QMainWindow):
@@ -72,8 +77,8 @@ class WindowMain(QtGui.QMainWindow):
     _session_gui = None
     _app = None
 
-    _default_width = 640
-    _default_height = 480
+    _default_width = 800
+    _default_height = 600
     _menu_bar = None
     # references to all other windows. They are most likely initialized in
     # other classes but all referenced here for easy access
@@ -91,8 +96,9 @@ class WindowMain(QtGui.QMainWindow):
         self._init_ui()
         self.setMouseTracking(True)
 
-    def mouseMoveEvent(self, e):
-        print(e)
+    @property
+    def session_gui(self):
+        return self._session_gui
 
     @property
     def window_about(self):
@@ -106,12 +112,9 @@ class WindowMain(QtGui.QMainWindow):
             logging.warning("%s: The first argument needs to be of type `WindowAbout`"
                             % (self.__class__.__name__, ))
 
-    def keyPressEvent(self, e):
-        """ * """
-        if isinstance(e, QtGui.QKeyEvent):
-            # Ctrl + O
-            if e.key() == QtCore.Qt.Key_O and (e.modifiers() & QtCore.Qt.ControlModifier):
-                print("Nothing to open!")
+    @property
+    def view(self):
+        return self._view
 
     def _init_ui(self):
         """ * """
@@ -148,12 +151,9 @@ class WindowMain(QtGui.QMainWindow):
         """
         # clear layout
         for i in range(self._layout.count()):
-            self._layout.itemAt(i).widget().deleteLater()
-        # delete last active view widget (this should be the same as above in _layout
-#        try:
-#            self._view.deleteLate()
-#        except:
-#            pass
+            widget = self._layout.itemAt(i).widget()
+            self._layout.removeWidget(widget)
+            widget.deleteLater()
         if view == "login":
             # ui: set
             self._view = bs.gui.view_login.ViewLogin(self._sessions,
@@ -163,7 +163,6 @@ class WindowMain(QtGui.QMainWindow):
         elif view == "x":
             self._view = bs.gui.view_sets.BS(self, self._session_gui, self._app)
             self._layout.addWidget(self._view, 0, 0, 1, 1)
-        # update menu
         self._menu_bar.update()
 
     def lock(self):
@@ -171,7 +170,7 @@ class WindowMain(QtGui.QMainWindow):
         Locks the current session, returning the user back to the login-view.
         Keeps any active processes running.
         """
-        # log-out user
+        # lock session
         self._session_gui.session.lock()
         # detach session from GUI
         self._session_gui.session = None
@@ -185,27 +184,66 @@ class WindowMain(QtGui.QMainWindow):
         from logging out if so.
         """
         # check for any active processes
-        # ...
-        # log-out user
-        self._session_gui.session.log_out()
-        # detach session from GUI
-        self._session_gui.session = None
-        # return to login-view
-        self._session_gui.main_window.set_view("login")
+        if self._view.request_exit():
+            # log-out user
+            self._session_gui.session.log_out()
+            # detach session from GUI
+            self._session_gui.session = None
+            # return to login-view
+            self.set_view("login")
+            return True
+        return False
 
     def exit(self):
         """ *
         Exits the application.
         """
-        self._sessions.app.exit()
+        if self.check_if_exit_legal():
+            while len(self._sessions.guis) > 0:
+                gui = self._sessions.guis[0]
+                if gui.main_window.view.request_exit():
+#                     self._sessions.remove_session_gui(gui)
+                    gui.main_window.close()
+
+    def check_if_exit_legal(self):
+        """ *
+        Checks, if application can be exited. That means that there is no
+        logged in session with the optional exception of the current window's
+        session that will be automatically requested to exit.
+        """
+        # check if other users are currently logged on
+        for session in self._sessions.sessions:
+            if session != self._session_gui.session:
+                if session.is_logged_in:
+                    window_msg = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
+                                                   "Cannot Exit",
+                                                   "Other sessions are "\
+                                                   "active. %s can only exit "\
+                                                   "once all other sessions "\
+                                                   "are logged out."
+                                                   % (bs.config.PROJECT_NAME, ))
+                    window_msg.exec_()
+                    return False
+        return True
 
     def closeEvent(self, e):
         """ * """
-        # log-out session
-        if self._session_gui.session:
-            self._session_gui.session.log_out()
-        # remove reference from _guis list
+        if len(self._sessions.guis) <= 1:
+            if not self.check_if_exit_legal():
+                e.ignore()
+                return False
+        if isinstance(self._view, bs.gui.view_sets.BS):
+            if not self.log_out():
+                e.ignore()
+                return False
         self._sessions.remove_session_gui(self._session_gui)
+
+    def keyPressEvent(self, e):
+        """ * """
+        if isinstance(e, QtGui.QKeyEvent):
+            # Ctrl + O
+            if e.key() == QtCore.Qt.Key_O and (e.modifiers() & QtCore.Qt.ControlModifier):
+                print("Nothing to open!")
 
 
 class WindowMainMenu(QtGui.QMenuBar):
@@ -224,7 +262,7 @@ class WindowMainMenu(QtGui.QMenuBar):
         self._session_gui = session_gui
 
         self._menu_file = WindowMainMenuFile(self, self._sessions, self._main_window)
-        self._menu_user = WindowMainMenuUser(self, self._session_gui)
+        self._menu_user = WindowMainMenuUser(self, self._main_window, self._session_gui)
         self._init_ui()
 
     @property
@@ -266,32 +304,8 @@ class WindowMainMenu(QtGui.QMenuBar):
         self._session_gui.main_window.window_about = bs.gui.window_about.WindowAbout(self._session_gui)
 
     def update(self):
-        """ *
-        Updates the menu_bar with  all its sub-menus.
-        """
-        # If logged in and session unlocked
-        if self._session_gui.session and \
-            self._session_gui.session.is_logged_in and \
-            self._session_gui.session.is_unlocked:
-            # MENU_FILE
-            self.menu_file.action_lock.setDisabled(False)
-            self.menu_file.action_logout.setDisabled(False)
-            # MENU_USER
-            self._menu_user.setDisabled(False)
-            self._menu_user.setTitle(self._session_gui.session.user.username)
-            # update menu
-            self._menu_user.clear()
-            menu_user_point1 = QtGui.QAction("&Whaaazupppp", self._menu_user)
-            self._menu_user.addAction(menu_user_point1)
-        # If session logged out or locked
-        else:
-            # MENU_FILE
-            self._menu_file.action_lock.setDisabled(True)
-            self._menu_file.action_logout.setDisabled(True)
-            # MENU_USER
-            self._menu_user.setTitle("-")
-            self._menu_user.clear()
-            self._menu_user.setDisabled(True)
+        self._menu_file.update()
+        self._menu_user.update()
 
 
 class WindowMainMenuFile(QtGui.QMenu):
@@ -338,31 +352,81 @@ class WindowMainMenuFile(QtGui.QMenu):
         self._action_new_window.setShortcut("Ctrl+N")
         self.addAction(self._action_new_window)
         self.addSeparator()
+        # lock
         self._action_lock = QtGui.QAction("&Lock", self)
         self._action_lock.triggered.connect(self._main_window.lock)
-        self._action_lock.setShortcut("Ctrl+L")
         self.addAction(self._action_lock)
+        # logout
         self._action_logout = QtGui.QAction("Log-&Out", self)
         self._action_logout.triggered.connect(self._main_window.log_out)
-        self._action_logout.setShortcut("Ctrl+U")
         self.addAction(self._action_logout)
+        self.addSeparator()
+        # close
         self._action_close = QtGui.QAction("&Close", self)
         self._action_close.triggered.connect(self._main_window.close)
-        self._action_close.setShortcut("Ctrl+W")
         self.addAction(self._action_close)
+        # exit
         self._action_exit = QtGui.QAction("E&xit", self)
         self._action_exit.triggered.connect(self._main_window.exit)
         self._action_exit.setShortcut("Ctrl+Q")
         self.addAction(self._action_exit)
 
+    def showEvent(self, *args, **kwargs):
+        self.update()
+
+        return QtGui.QMenu.showEvent(self, *args, **kwargs)
+
+    def update(self):
+        """ * """
+        # reset all dynamic actions to default
+        self._action_lock.setDisabled(False)
+        self._action_lock.setShortcut("Ctrl+L")
+        self._action_logout.setDisabled(False)
+        self._action_logout.setShortcut("Ctrl+U")
+        self._action_close.setDisabled(False)
+        self._action_close.setShortcut("Ctrl+W")
+        if len(self._sessions.guis) <= 1:
+            self._action_close.setDisabled(True)
+        # case-sensitive handling
+        if isinstance(self._main_window.view, bs.gui.view_login.ViewLogin):
+            self._action_lock.setDisabled(True)
+            self._action_lock.setShortcut("")
+            self._action_logout.setDisabled(True)
+            self._action_logout.setShortcut("")
+            self._action_close.setShortcut("")
+        elif isinstance(self._main_window.view, bs.gui.view_sets.BS):
+            pass
+
 
 class WindowMainMenuUser(QtGui.QMenu):
     """ * """
-    _menu_bar = None
-    _session = None
+    _window_main_menu = None
+    _window_main = None
 
-    def __init__(self, owner, session_gui):
-        super(WindowMainMenuUser, self).__init__("-", owner)
+    _session_gui = None
 
-        self._session = session_gui
-        self._menu_bar = owner
+    def __init__(self, window_main_menu, window_main, session_gui):
+        super(WindowMainMenuUser, self).__init__("", window_main_menu)
+
+        self._window_main_menu = window_main_menu
+        self._window_main = window_main
+        self._session_gui = session_gui
+
+    def update(self):
+        if self._window_main.session_gui.session:
+            self.setDisabled(False)
+            self.setTitle(self._window_main.session_gui.session.user.username)
+        else:
+            self.setDisabled(True)
+
+    def setEnabled(self, *args, **kwargs):
+        if not args[0]:
+            self.setTitle("")
+
+        return QtGui.QMenu.setEnabled(self, *args, **kwargs)
+
+    def setDisabled(self, *args, **kwargs):
+        if args[0]:
+            self.setTitle("")
+
+        return QtGui.QMenu.setDisabled(self, *args, **kwargs)

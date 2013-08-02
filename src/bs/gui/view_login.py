@@ -50,13 +50,17 @@ class ViewLogin(QtGui.QWidget):
         self._layout.setColumnMinimumWidth(1, 200)
         self._layout.setColumnMinimumWidth(2, 10)
         self._layout.setColumnMinimumWidth(3, 200)
-        self._layout.setColumnStretch(0, 50)
-        self._layout.setColumnStretch(4, 50)
+        self._layout.setColumnStretch(0, 40)
+        self._layout.setColumnStretch(2, 20)
+        self._layout.setColumnStretch(4, 40)
         self.setLayout(self._layout)
 
         # login-form
         self._view_login_form = ViewLoginForm(self, self._sessions)
         self._layout.addWidget(self._view_login_form, 0, 1, 1, 1)
+
+        # emblem
+        self._layout.addWidget(ViewLoginEmblem(), 0, 3, 1, 1)
 
     def unlock(self, username, password):
         """ * """
@@ -82,6 +86,13 @@ class ViewLogin(QtGui.QWidget):
             self._session_gui.session = session
             # set view
             self._session_gui.main_window.set_view('x')
+
+    def request_exit(self):
+        """ *
+        Hook-method called by window manager before changing view.
+        Close any view-specific processes here. Events, etc.
+        """
+        return True
 
 
 class ViewLoginForm(QtGui.QWidget):
@@ -204,3 +215,18 @@ class ViewLoginForm(QtGui.QWidget):
             self._btn_login.setText(text)
             self._input_username.setStyleSheet("background: #FFFFFF")
             self._input_password.setStyleSheet("background: #FFFFFF")
+
+
+class ViewLoginEmblem(QtGui.QLabel):
+    """ * """
+
+    _layout = None
+
+    def __init__(self):
+        super(ViewLoginEmblem, self).__init__()
+
+        self._init_ui()
+
+    def _init_ui(self):
+        pm = QtGui.QPixmap("img\\recapp_emblem.png")
+        self.setPixmap(pm)

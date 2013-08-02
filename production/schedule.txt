@@ -169,6 +169,7 @@
 				[.]	targets
 					[X]	Nest all targets in targets main node~
 					[.]	BackupTargetCtrl: status-check method (online, offline, locked/in use, etc.)
+					[ ]	BS: request_exit: request exit from active threads!
 					[ ]	think about: ?ability to measure/visualize the space left on the target?
 				[X]	Arrows
 					[X] Implement support to connect multiple arrows to multiple nodes
