@@ -2,6 +2,14 @@
 ## DONE TODAY ##################
 ################################
 
+2013-08-04 - 05
+- implemented basic preliminary checks for database validity + gui/log error output
+- Figured out how to generate CA/SPC certificates and digitally sign a MSI installer
+- Fully set-up (basic) MSI installer, verified to work on all platforms (except Win8 so far), fixed all issues
+
+2013-08-03
+- Changed project name globally to "Recapp"
+
 2013-08-02
 - fine-tuned main-menu updates
 - implemented conditional set/session-exit handling on close/exit and warnings if other sessions active

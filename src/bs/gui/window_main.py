@@ -133,7 +133,8 @@ class WindowMain(QtGui.QMainWindow):
         self.statusBar().showMessage("Welcome to %s!"
                                      % (bs.config.PROJECT_NAME, ))
         self.statusBar().setDisabled(True)
-        self.setWindowTitle("%s" % (bs.config.PROJECT_NAME, ))
+        self.setWindowTitle("%s [%s]" % (bs.config.PROJECT_NAME,
+                                         bs.config.VERSION))
         # central widget layout
         widget = QtGui.QWidget()
         self._layout = QtGui.QGridLayout()
@@ -387,13 +388,13 @@ class WindowMainMenuFile(QtGui.QMenu):
         self._action_close.setShortcut("Ctrl+W")
         if len(self._sessions.guis) <= 1:
             self._action_close.setDisabled(True)
+            self._action_close.setShortcut("")
         # case-sensitive handling
         if isinstance(self._main_window.view, bs.gui.view_login.ViewLogin):
             self._action_lock.setDisabled(True)
             self._action_lock.setShortcut("")
             self._action_logout.setDisabled(True)
             self._action_logout.setShortcut("")
-            self._action_close.setShortcut("")
         elif isinstance(self._main_window.view, bs.gui.view_sets.BS):
             pass
 

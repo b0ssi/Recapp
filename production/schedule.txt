@@ -176,9 +176,9 @@
 						[X]	Del button on arrow
 				[X]	Canvas
 					[X]	bug: on reconnect: scrolling canvas causes canvas rush
-				[ ]	execution-panel...
+		[ ]	window_about: Fill with simple info
 		[ ]	refactor object reference names, implement consistent scheme
-		[ ]	implement consistent scheme for passing object-references into classes
+		[X]	implement consistent scheme for passing object-references into classes
 [X]		controllers:
 		[X]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
 ................................
@@ -210,6 +210,7 @@
 				[ ]	targets
 					[ ]	ability to add a target (will require full mirroring of existing target backup data onto new target)
 					[ ]	ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
+				[ ]	execution-panel...
 ................................
 [ ]		Q/A
 		........................

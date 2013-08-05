@@ -55,7 +55,7 @@ class SessionsCtrl(object):
         self._guis = []
         # gui stuff
         if self._gui_mode:
-            self._app = bs.gui.window_main.Application("asdf")
+            self._app = bs.gui.window_main.Application("recapp")
             self.add_session_gui()
             self._app.exec_()
 

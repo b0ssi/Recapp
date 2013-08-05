@@ -18,16 +18,25 @@
 """ * """
 
 import os
+import winreg
 
-PROJECT_NAME = "Backupshizzle"
+PROJECT_NAME = "Recapp"
+VERSION = "0.0.3.1"
+
+COPYRIGHT_TIMEFRAME = "2012-2013"
+COPYRIGHT_HOLDER = "Frieder Czeschla"
+MANUFACTURER = "Isotoxin"
 
 # create config dir
-CONFIG_PATH = os.path.normcase(os.path.join(os.path.expanduser('~'),
-                                            ".backupshizzle"))
+# true for Win >= Vista
+CONFIG_PATH = os.path.join(os.getenv("PROGRAMDATA"), MANUFACTURER, PROJECT_NAME)
+if not os.path.isdir(CONFIG_PATH):
+    # Cater for WinXP
+    CONFIG_PATH = os.path.join(os.getenv("ALLUSERSPROFILE"), "Application Data", MANUFACTURER, PROJECT_NAME)
 
 LOGFILE_PATH = os.path.join(CONFIG_PATH, "log.log")
 CONFIGDB_PATH = os.path.join(CONFIG_PATH, "globalConfig.sqlite")
-BT_BASEDIR_PATH = "backupshizzle"
+BT_BASEDIR_PATH = "%s" % (PROJECT_NAME.lower(), )
 BT_METAFILE_NAME = "config.conf"
 USERID = int(-1)
 LOGFILE = os.path.join(CONFIG_PATH, 'log.log')
