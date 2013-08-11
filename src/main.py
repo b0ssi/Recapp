@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 
 ###############################################################################
 ##    main                                                                   ##
@@ -23,7 +24,10 @@ import sys
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+""" *
+.. autoclass:: Noodle
+
+"""
 
 
 
@@ -45,13 +49,10 @@ if dev_mode:
     logging_level = logging.WARNING
     logging_filename = False
 #logger = logging.Logger('root')
-logging.basicConfig(format="--------------- "\
-                           "%(module)s: %(lineno)s "\
-                           "(%(funcName)s)\r"\
-                           "%(levelname)s      \t"\
-                           "%(message)s",
-                           level=logging_level,
-                           filename=logging_filename)
+logging.basicConfig(format="%(asctime)s %(levelname)s: \t%(message)s [Module: %(module)s, Line: %(lineno)s, Method: %(funcName)s]",
+                    level=logging_level,
+                    filename=logging_filename,
+                    datefmt="%Y-%m-%d %H:%M:%S")
 
 
 if __name__ == '__main__':
@@ -67,14 +68,12 @@ if __name__ == '__main__':
                 error_msg = "The file is not a valid SQLite3 database: "\
                             "%s" % (bs.config.CONFIGDB_PATH, )
                 errors_acc.append(error_msg)
-                logging.critical("%s: %s" % (__file__,
-                                             error_msg, ))
+                logging.critical("%s" % (error_msg, ))
         else:
             error_msg = "No application-database was found at %s." \
                         % (bs.config.CONFIGDB_PATH, )
             errors_acc.append(error_msg)
-            logging.critical("%s: %s" % (__file__,
-                                         error_msg, ))
+            logging.critical("%s" % (error_msg, ))
         if len(errors_acc) > 0:
             app = QtGui.QApplication("preliminary_check")
             out = "Error(s) were detected when initializing %s:\n\n" \

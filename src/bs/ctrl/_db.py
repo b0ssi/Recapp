@@ -15,8 +15,12 @@
 ##                                                                           ##
 ###############################################################################
 
-""" *
-Manages and maintains the database(s) (config database, backup-set databases).
+"""
+This package manages and maintains the application's database(s). Current \
+    categories of databases are:
+    - Application configuration database (one instance per \
+    installation/computer)
+    - Backup-set database(s) (one instance per backup-set)
 """
 
 import bs.config
@@ -31,17 +35,20 @@ import time
 
 
 class SyncDb(object):
+    """
+    Synchronizes and maintains schema-structure with the application's \
+    database-structure.
+
+    :param str schema_module_path: The path to the package containing the \
+    model-classes to be introspected and synchronized with the database.
+    """
+
     _models_module = None
 
-    """
-    Synchronizes schema-structure with db-structure.
-    `schema_module_path` is the module-path to the module to use relative to
-    the `PYTHONPATH`
-    """
     # scan models modules and extract structural
-    def __init__(self, schema_module_path):
+    def __init__(self, schema_package_path):
         try:
-            self._models_module = importlib.import_module(str(schema_module_path))
+            self._models_module = importlib.import_module(str(schema_package_path))
         except SyntaxError as e:
             logging.critical("The models schema contains errors, %s needs to "\
                              "quit: %s" % (bs.config.PROJECT_NAME, e))
@@ -52,11 +59,12 @@ class SyncDb(object):
         """
         Scans all classes in the passed models_module and returns data in the
         following format:
-        ["<classname>": ["<attributename>": [<attributevalues>], ...], ...],
+        {"<classname>": ["<attributename>": [<attributevalues>], ...], ...},
         where <attributename> would be only a custom attribute (none of the
         built-in and/or inherited attributes such as "__doc__")
         and <attributevalues> would always have to be a (2)-list.
         """
+
         out = {}
         for member_name, member_object in sorted(inspect.getmembers(self._models_module),
                                                                     key=lambda x: x[0]):
@@ -83,11 +91,12 @@ class SyncDb(object):
     @property
     def _db_datas(self):
         """
-        Calls db metadata and returns it in a multi-dimensional dictionary:
-        {table: {column: datatype, column: datatype}, ... }
+        A dictionary containing the configuration-database's \
+        metadata in the following format: \
+        *{table: {column: datatype, column: datatype}, ... }*
         """
+        out = {}
         try:
-            out = {}
             conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
             sql_call = "SELECT `name` FROM `sqlite_master` WHERE type='table'"
             db_table_names = [x[0] for x in conn.execute(sql_call).fetchall()]
@@ -123,8 +132,11 @@ class SyncDb(object):
 
     def sync(self, execute=True):
         """
-        Main class-function: Runs all methods in this class to syncronize
-        and clean-up the database.
+        Synchronizes the database with the *model-schema* and runs necessary
+        cleans-up routines.
+
+        :param bool execute: Indicates whether or not physical \
+        database-synchronization is executed or not (and only simulated).
         """
         logging.info("## Synchronizing database-structure with Schema... #############")
         compact_db = False
@@ -335,7 +347,7 @@ class SyncDb(object):
         Checks db for
         - any inconsistency in existing columns between db <-> schema
         - any inconsistency in column specifications and data types between
-          db <-> schema
+        db <-> schema
         and call self.rebuild_table to rebuild the whole table incl. data as
         SQLite does not support changing these attributes subsequently.
         """

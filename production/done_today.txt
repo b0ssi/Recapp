@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2013-08-12
+- Documented (Sphinx) bs.ctrl.backup and all modules and packages
+
 2013-08-04 - 05
 - implemented basic preliminary checks for database validity + gui/log error output
 - Figured out how to generate CA/SPC certificates and digitally sign a MSI installer

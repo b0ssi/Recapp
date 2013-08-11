@@ -24,6 +24,7 @@ import bs.gui.view_login
 import bs.gui.view_sets
 import bs.gui.window_about
 import logging
+import platform
 import time
 
 
@@ -133,8 +134,7 @@ class WindowMain(QtGui.QMainWindow):
         self.statusBar().showMessage("Welcome to %s!"
                                      % (bs.config.PROJECT_NAME, ))
         self.statusBar().setDisabled(True)
-        self.setWindowTitle("%s [%s]" % (bs.config.PROJECT_NAME,
-                                         bs.config.VERSION))
+        self.setWindowTitle("%s" % (bs.config.PROJECT_NAME, ))
         # central widget layout
         widget = QtGui.QWidget()
         self._layout = QtGui.QGridLayout()

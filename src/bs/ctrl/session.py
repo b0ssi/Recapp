@@ -34,8 +34,6 @@ import sqlite3
 import time
 import win32file
 
-""" * """
-
 
 class SessionsCtrl(object):
     """
@@ -728,7 +726,9 @@ class BackupSourcesCtrl(bs.model.models.Sources):
 
 
 class BackupTargetCtrl(bs.model.models.Targets):
-    """ * """
+    """ **
+    INSERT INFO HERE
+    """
     _session = None
     _target_id = None
     _target_name = None

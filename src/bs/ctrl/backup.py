@@ -15,7 +15,10 @@
 ##                                                                           ##
 ###############################################################################
 
-""" Hosts all backup- and restore-logics and procedures. """
+"""
+Hosts all backup- and restore-logics and procedures.
+"""
+
 import Crypto.Cipher.AES
 import Crypto.Protocol.KDF
 import Crypto.Random
@@ -35,10 +38,13 @@ import zipfile
 import zlib
 
 
-
 class BackupCtrl(object):
-    """ *
-    Manages and runs a backup-session.
+    """ ..
+
+    :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* to handle.
+    :param bs.ctrl.session.BackupSourceCtrl backukp_source: The *backup-source* to handle.
+
+    Manages and runs a backup-job.
     """
     _backup_set = None
     _backup_source = None
@@ -62,14 +68,25 @@ class BackupCtrl(object):
 
     @property
     def bytes_to_be_backed_up(self):
+        """
+        :type: *int*
+
+        The accumulated data in bytes that is due for backup. [#f1]_
+        """
         return self._bytes_to_be_backed_up
 
     @property
     def files_num_to_be_backed_up(self):
+        """
+        :type: *int*
+
+        The number of files pending to be backed up. [#f1]_
+        """
         return self._files_num_to_be_backed_up
 
     def _update_db(self, conn):
-        """ *
+        """ ..
+
         (Re-)creates the structure of the database; adds/alters any new
         elements that might have changed (in the datas schema e.g.).
         """
@@ -128,7 +145,8 @@ class BackupCtrl(object):
         return new_column_name
 
     def _update_data_in_db(self, conn, new_column_name, **kwargs):
-        """ *
+        """ ..
+
         Updates a specific entity-dataset in database during backup procedure.
         Depending on what values are passed in, updates corresponding tables in
         backup-set database.
@@ -303,10 +321,18 @@ class BackupCtrl(object):
             raise
 
     def backup_exec(self, simulate=False):
-        """ *
+        """ ..
+
+        :param bool simulate: Flag to limit the job-run to a simulation only. \
+        This will read file-system data but won't execute any database and/or \
+        backup-set actions.
+        :rtype: *bool*
+
         Main backup-exec: Runs through a set of sources, applying filters,
-        determining the state of an entity, throwing warnings accordingly and
-        backing up those that change has been detected in.
+        determining the state of an entity and backing up those that change \
+        has been detected in.
+
+        Will log error messages for entities of unknown state.
         """
         # check if set is encrypted and request authorization status if so.
         # If not authorized, abort.
@@ -682,7 +708,13 @@ class BackupCtrl(object):
         return True
 
     def pre_process_data(self, force_refresh=False):
-        """ *
+        """ ..
+
+        :param bool force_refresh: If *True*, forces a rescan of the \
+        associated source. Always scans sources on its first run to aquire \
+        an initial data-set.
+        :rtype: *threading.Thread*
+
         Starts a new thread that cumulates the total capacity (in bytes) to be
         backed up.
         It returns the processing thread to monitor the progress externally.
@@ -698,7 +730,13 @@ class BackupCtrl(object):
         return self._pre_calc_thread
 
     def request_exit(self):
-        """ * """
+        """ ..
+
+        :rtype: *bool*
+
+        Requests any threads running on the object to exit and returns *True* \
+        when done so.
+        """
         self._request_exit = True
         while True:
             if not self._pre_calc_thread or\
@@ -711,8 +749,26 @@ class BackupCtrl(object):
 
 
 class BackupFileCtrl(object):
-    """ *
-    Representation of a backup-file in its specific state.
+    """ ..
+
+    :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* \
+    assocaited with this backup-file instance.
+
+    :param str file_path: This file's absolute *file-path* on the file-system.
+
+    :param list targets: The *list* of \
+    :class:`bs.ctrl.session.BackupTargetCtrl` s that are associated with this \
+    *session's* :class:`bs.ctrl.session.BackupTargetsCtrl`
+
+    :param tempfile.TemporaryDirectory tmp_dir: A temporary location on disk \
+    to use as temporary storage location for compression- and encryption \
+    purposes.
+
+    :param str key_hash_32: A valid 256-bit/32byte hex-key used as encryption \
+    key for the associated *backup-targets*. If an invalid key is given, \
+    backup to the target(s) will fail.
+
+    Representation of a backup-file during a backup-job execution.
     """
     _backup_set = None
     _path = None
@@ -753,30 +809,66 @@ class BackupFileCtrl(object):
 
     @property
     def path(self):
+        """
+        :type: *str*
+
+        This backup-file's absolute path on the file-system.
+        """
         return self._path
 
     @property
     def ctime(self):
+        """
+        :type: *float*
+
+        This file's *creation time stamp*.
+        """
         return self._ctime
 
     @property
     def mtime(self):
+        """
+        :type: *float*
+
+        This backup-file's *modification time*
+        """
         return self._mtime
 
     @property
     def atime(self):
+        """
+        :type: *float*
+
+        The file's *access time stamp*.
+        """
         return self._atime
 
     @property
     def inode(self):
+        """
+        :type: *int*
+
+        This backup-file's *inode* value.
+        """
         return self._inode
 
     @property
     def size(self):
+        """
+        :type: *int*
+
+        This backup-file's *physical size* in bytes.
+        """
         return self._size
 
     @property
     def sha512(self):
+        """
+        :type: *str*
+
+        This backup-file's *SHA512 hexadecimal hash-value*. This is a \
+        lazy property.
+        """
         if self._sha512:
             return self._sha512
         else:
@@ -785,7 +877,15 @@ class BackupFileCtrl(object):
 
     @property
     def current_backup_archive_name(self):
-        """ * """
+        """ ..
+
+        :type: *str*
+
+        The name of the latest archive-file found in the targets that will be \
+        used to backup this file to. If a soft-limit on backup-archive \
+        file-size is set, this is necessary to find the last archive-file \
+        that has not yet reached its soft-limit.
+        """
         if self._current_backup_archive_name:
             return self._current_backup_archive_name
         else:
@@ -873,7 +973,12 @@ class BackupFileCtrl(object):
             return self._current_backup_archive_name
 
     def backup(self):
-        """ * """
+        """ ..
+
+        :rtype: *void*
+
+        Executes the backup of this *backup-file*.
+        """
         self._compress_zlib_encrypt_aes()
 
     def _remove_tmp_file(self):
@@ -972,7 +1077,22 @@ class BackupFileCtrl(object):
 
 
 class BackupRestoreCtrl(object):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.BackupSetCtrl set_obj: The *backup-set* to restore \
+    from.
+
+    :param list entity_ids: The *list of entity-IDs* of the files to restore.
+
+    :param str restore_location: The absolute path to the location on the \
+    file-system to restore to.
+
+    :param int snapshot_to_restore_tstamp: The *snapshot-ID* to restore from.
+
+    Restores a set of files, given by their *file-IDs* from a given
+    *snapshot-ID* and their associated *backup-set* to a given
+    *backup-location* on the computer's file-system.
+    """
     _set_obj = None
     _entity_ids = None
     _restore_location = None
@@ -991,6 +1111,14 @@ class BackupRestoreCtrl(object):
 
     @property
     def key_hashed_32(self):
+        """ ..
+
+        :type: *str*
+
+        The valid 256-bit/32byte hex-key the backup-target(s) is/are \
+        encrypted with. If an invalid key is given, the extraction from the \
+        backup-target will fail.
+        """
         if not self._key_hash_32:
             while not self._key_hash_32:
                 key_raw = getpass.getpass("This set is encrypted; please "\
@@ -1003,7 +1131,12 @@ class BackupRestoreCtrl(object):
                     return self._key_hash_32
 
     def start(self):
-        """ * """
+        """ ..
+
+        :rtype: *void*
+
+        Initiates the restore-process.
+        """
         for entity_id in self._entity_ids:
             # restore-file obj, provides all necessary metadata about entity
             backup_restore_file = BackupRestoreFileCtrl(self._set_obj,
@@ -1088,7 +1221,21 @@ class BackupRestoreCtrl(object):
 
 
 class BackupRestoreFileCtrl(object):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.BackupSetCtrl set_obj: The *backup-set* to restore \
+    from.
+
+    :param int entity_id: The *entity-ID* of the file to restore.
+
+    :param int snapshot_to_restore_tstamp: The *snapshot-ID* to restore from.
+
+    A single *restore-file instance* representing a backed-up file at its \
+    distinct stage in the *backup-target*.
+
+    This class is usually instantiated by :class:`BackupRestoreCtrl` and \
+    should not be accessed manually.
+    """
     _set_obj = None
     _entity_id = None
     _snapshot_to_restore_tstamp = None
@@ -1105,8 +1252,12 @@ class BackupRestoreFileCtrl(object):
 
     @property
     def backup_archive_path(self):
-        """ *
-        Returns a list of all available backup archive paths.
+        """ ..
+
+        :type: *list*
+
+        A list of all available backup archive paths that are currently \
+        online on the system.
         """
         if not self._backup_archive_paths:
             for target in self._set_obj.targets:
@@ -1119,13 +1270,25 @@ class BackupRestoreFileCtrl(object):
 
     @property
     def sha512_db(self):
+        """ ..
+
+        :type: *str*
+
+        This *backup-file*'s *SHA512 hexadecimal hash* as stored in the \
+        database.
+        """
         if not self._sha512_db:
-            self._sha512_db = self.get_latest_data_in_table("sha512")
+            self._sha512_db = self._get_latest_data_in_table("sha512")
         return self._sha512_db
 
     @property
     def backup_archive_name(self):
-        """ * """
+        """ ..
+
+        :type: *str*
+
+        The *backup-archive*'s filename the associated file is stored in.
+        """
         if not self._backup_archive_name:
             conn = sqlite3.connect(self._set_obj.set_db_path)
             res = conn.execute("SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?",
@@ -1136,7 +1299,12 @@ class BackupRestoreFileCtrl(object):
 
     @property
     def file_path(self):
-        """ * """
+        """ ..
+
+        :type: *str*
+
+        The *backup-file*'s absolute original *file-path* it was backuped from.
+        """
         if not self._file_name:
             conn = sqlite3.connect(self._set_obj.set_db_path)
             res = conn.execute("SELECT path FROM path WHERE id = ?",
@@ -1145,8 +1313,9 @@ class BackupRestoreFileCtrl(object):
             conn.close()
         return self._file_name
 
-    def get_latest_data_in_table(self, table_name):
-        """ *
+    def _get_latest_data_in_table(self, table_name):
+        """ ..
+
         Gets the file_id's data in db for the latest snapshot-column that has
         data on it.
         """
