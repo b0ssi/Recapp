@@ -26,7 +26,7 @@ import sqlite3
 
 
 class BSModel(object):
-    """ *
+    """ ..
     Structural superclass for all models.
     """
     def __init__(self):

@@ -124,14 +124,14 @@
 					bs.ctrl.backup.*
 					bs.gui
 					bs.model
-			> todo:	bs.ctrl.session
-					bs.gui.lib
-					bs.gui.view_login
-					bs.gui.view_sets
-					bs.gui.window_about
-					bs.gui.window_main
-					bs.model.models_master
-					bs.model.models
+			> todo:	bs.ctrl.session.*
+					bs.gui.lib.*
+					bs.gui.view_login.*
+					bs.gui.view_sets.*
+					bs.gui.window_about.*
+					bs.gui.window_main.*
+					bs.model.models_master.*
+					bs.model.models.*
 		[ ]	validate user-input
 		[ ]	write test/test
 		[ ]	manage conditional exception-handling

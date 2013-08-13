@@ -1,13 +1,4 @@
 # -*- coding: utf-8 -*-
-from PySide import QtGui
-import bs.ctrl._db
-import bs.ctrl.session
-import logging
-import os
-import re
-import sqlite3
-import sys
-import time
 
 ###############################################################################
 ##    main                                                                   ##
@@ -24,11 +15,15 @@ import time
 ##                                                                           ##
 ###############################################################################
 
-""" *
-.. autoclass:: Noodle
-
-"""
-
+from PySide import QtGui
+import bs.ctrl._db
+import bs.ctrl.session
+import logging
+import os
+import re
+import sqlite3
+import sys
+import time
 
 
 # extract sys.argv

@@ -15,6 +15,10 @@
 ##                                                                           ##
 ###############################################################################
 
+"""
+This is the *controller* package that contains the application's business logic.
+"""
+
 from PySide import QtCore, QtGui
 import binascii
 import bs.config
@@ -37,6 +41,10 @@ import win32file
 
 class SessionsCtrl(object):
     """
+    :param bool bui_mode: Indicated whether or not to run the application \
+    with a graphical user interface. If set to *False* it will be run from \
+    the console.
+
     Stores and manages sessions for all is_unlocked users.
     """
     _sessions = None  # holds currently is_unlocked sessions
@@ -465,7 +473,21 @@ class UserCtrl(bs.model.models.Users):
 
 
 class BackupSourceCtrl(bs.model.models.Sources):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The GUI controller \
+    associated with current session.
+
+    :param int backup_source_id: The *backup-source's* ID.
+
+    :param str source_name: The *backup-source's* name.
+
+    :param str source_path: The absolute folder-path that defines the \
+    *backup-source*.
+
+    This is the *backup-source* class that defines a single source in the \
+    file-system, which is usually a folder-location.
+    """
     _session = None
     _backup_source_id = None
     _source_name = None
@@ -493,10 +515,21 @@ class BackupSourceCtrl(bs.model.models.Sources):
 
     @property
     def backup_source_id(self):
+        """
+        :type: *int*
+
+        The *backup-source*'s ID.
+        """
         return self._backup_source_id
 
     @property
     def source_name(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The *backup-source*'s name.
+        """
         return self._source_name
 
     @source_name.setter
@@ -521,6 +554,12 @@ class BackupSourceCtrl(bs.model.models.Sources):
 
     @property
     def source_path(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The *backup_source*'s absolute folder-path in the file-system.
+        """
         return self._source_path
 
     @source_path.setter
@@ -543,10 +582,12 @@ class BackupSourceCtrl(bs.model.models.Sources):
 
     @property
     def backup_entity_ass(self):
-        """ *
-        Returns an associative array (dictionary) in the following format:
-        {<set>:<source>} or
-        {<set>:<target>}
+        """ ..
+        :type: *dict*
+
+        Returns an associative array (dictionary) in the following format: \
+        {:class:`BackupSetCtrl`::class:`BackupSourceCtrl`} or \
+        {:class:`BackupSetCtrl`::class:`BackupTargetCtrl`}.
         """
         if not self._backup_entity_ass:
             backup_entity_ass = {}
@@ -581,13 +622,31 @@ class BackupSourceCtrl(bs.model.models.Sources):
         return self._backup_entity_ass
 
     def associate(self, backp_set, backup_entity):
-        """ *
-        Associates entity with another backup_entity
+        """ ..
+        :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
+        which to associate the *backup-entity* with this *backup-source*.
+
+        :param bs.model.models_master.BSModel backup_entity: The \
+        *backup-entity* to associate with this *backup-source* on the \
+        *backup-set*. This is one of the following: \
+        :class:`BackupFilterCtrl`, :class:`BackupTargetsCtrl`
+
+        :rtype: *void*
+
+        Associates a *backup-entity* with this *backup-source*.
         """
         self._backup_entity_ass[backp_set].append(backup_entity)
 
     def disassociate(self, backup_set, backup_entity):
-        """ *
+        """ ..
+        :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
+        which to disassociate the *backup-entity* with this *backup-source*.
+
+        :param bs.model.models_master.BSModel backup_entity: The \
+        *backup-entity* to dissociate from this *backup-source*.
+
+        :rtype: *void*
+
         Breaks connection to a given backup_entity_ass
         """
         self._backup_entity_ass[backup_set].pop(self._backup_entity_ass[backup_set].index(backup_entity))
@@ -968,7 +1027,14 @@ class BackupTargetsCtrl(bs.model.models.Targets):
 
 
 class BackupFilterCtrl(bs.model.models.Filters):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The session's GUI controller.
+    :param int backup_filter_id: The filter's ID identifying it uniquely in \
+    the database.
+
+    The *BackupFilterCtrl* represents an instance of a backup-filter.
+    """
     _session = None
     _backup_filter_id = None
     _backup_filter_name = None
@@ -993,18 +1059,36 @@ class BackupFilterCtrl(bs.model.models.Filters):
 
     @property
     def backup_filter_id(self):
-        """ * """
+        """ ..
+
+        :type: *int*
+
+        The filter's *ID*.
+        """
         return self._backup_filter_id
 
     @property
     def backup_filter_name(self):
-        """ * """
+        """ ..
+
+        :type: *str*
+
+        The filter's *name*.
+        """
         if not self._backup_filter_name:
             self._backup_filter_name = self._get("name", (("id", "=", self._backup_filter_id, ), ), )[0][0]
         return self._backup_filter_name
 
     @property
     def backup_filter_rules(self):
+        """ ..
+
+        :type: *list*
+
+        A list of one or more \
+        :class:`bs.ctrl.session.BackupFilterRuleAttributesCtrl` that make up \
+        this filter.
+        """
         if not self._backup_filter_rules:
             data_sets = self._get("filter_rules_data",
                              (
@@ -1087,10 +1171,15 @@ class BackupFilterCtrl(bs.model.models.Filters):
 
     @property
     def backup_entity_ass(self):
-        """ *
+        """ ..
+
+        :type: *list*
+
         Returns an associative array (dictionary) in the following format:
-        {<set>:<filter>} or
-        {<set>:<target>}
+        {:class:`bs.ctrl.session.BackupSetCtrl`: <backup_entity>, ...: ...}, \
+        where *backup_entity* is one of the following: \
+        :class:`bs.ctrl.session.BackupFilterCtrl` \
+        :class:`bs.ctrl.session.BackupTargetCtrl`
         """
         if not self._backup_entity_ass:
             backup_entity_ass = {}
@@ -1125,20 +1214,41 @@ class BackupFilterCtrl(bs.model.models.Filters):
         return self._backup_entity_ass
 
     def associate(self, backp_set, backup_entity):
-        """ *
-        Associates entity with another backup_entity
+        """ ..
+
+        :param bs.ctrl.session.BackupSetCtrl backup_set:
+        :param bs.model.models_master.BSModel backup_entity: The \
+        *backup-entity* to associate with. This is one of the following: \
+        :class:`bs.ctrl.session.BackupSourceCtrl` \
+        :class:`bs.ctrl.session.BackupFilterCtrl` \
+        :class:`bs.ctrl.session.BackupTargetCtrl`
+        :rtype: *void*
+
+        Associates entity with another backup_entitys. This is done when \
+        connecting up nodes.
         """
         self._backup_entity_ass[backp_set].append(backup_entity)
 
     def disassociate(self, backup_set, backup_entity):
-        """ *
-        Breaks connection to a given backup_entity_ass
+        """ ..
+
+        :type: *void*
+
+        Breaks connection to a given :meth:`backup_entity_ass`
         """
         self._backup_entity_ass[backup_set].pop(self._backup_entity_ass[backup_set].index(backup_entity))
 
 
 class BackupFiltersCtrl(bs.model.models.Filters):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The session's \
+    :class:`SessionGuiCtrl`.
+
+    This class holds all :class:`BackupFilterCtrl` for the current \
+    :class:`SessionCtrl` and is used to create and delete filters on a \
+    session-level.
+    """
     _session = None
     _backup_filters = None
 
@@ -1154,8 +1264,12 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 
     @property
     def backup_filters(self):
-        """ *
-        Returns all filter objects saved in self._backup_filters.
+        """ ..
+
+        :type: *list*
+
+        A list of all :class:`BackupFilterCtrl` associated with the current \
+        set.
         """
         # filter list is empty, load from db
         if len(self._backup_filters) == 0:
@@ -1170,8 +1284,9 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 
     # OVERLOADS
     def _add_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
+        """ ..
+
+        Re-implemented from BSModel()
         """
         if self._session._is_logged_in:
             return True
@@ -1179,7 +1294,8 @@ class BackupFiltersCtrl(bs.model.models.Filters):
             return False
 
     def _get_is_permitted(self, *args, **kwargs):
-        """ *
+        """ ..
+
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1188,7 +1304,8 @@ class BackupFiltersCtrl(bs.model.models.Filters):
             return False
 
     def _remove_is_permitted(self, *args, **kwargs):
-        """ *
+        """ ..
+
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -1198,8 +1315,12 @@ class BackupFiltersCtrl(bs.model.models.Filters):
     # /OVERLOADS
 
     def create_backup_filter(self, filter_pattern):
-        """ *
-        Creates a new backup-filter.
+        """ ..
+
+        :param str filter_pattern: The regex pattern to be used.
+        :rtype: *bool*
+
+        Creates a new backup-filter and adds it to the set.
         """
         # VALIDATE DATA
         # filter
@@ -1221,7 +1342,11 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         return True
 
     def delete_backup_filter(self, filter_obj):
-        """ *
+        """ ..
+
+        :param bs.ctrl.session.BackupFilterCtrl filter_obj: The \
+        :class:`BackupFilterCtrl` to be deleted from the set.
+
         Deletes an existing backup-filter.
         """
         # VALIDATE DATA
@@ -1239,9 +1364,20 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 
 
 class BackupFilterRuleCtrl(object):
-    """ *
-    Represents a single rule that composes (together with other rules) into a
-    backup_filter.
+    """ ..
+
+    :param id: The filter-rule-attribute's ID.
+    :param category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+
+    This class is not to be instantiated directly but serves as an abstract
+    superclass to
+
+    * :class:`BackupFilterRuleAttributesCtrl`
+    * :class:`BackupFilterRuleDateCtrl`
+    * :class:`BackupFilterRulePathCtrl`
+    * :class:`BackupFilterRuleSizeCtrl`
     """
     _id = None
     _category = None  # enum (self.category_size, ...
@@ -1249,44 +1385,82 @@ class BackupFilterRuleCtrl(object):
     _include_subfolders = None
 
     # enums
+    #: ::
     category_size = "category_size"
+    #: ::
     category_path = "category_path"
+    #: ::
     category_date = "category_date"
+    #: ::
     category_attributes = "category_attributes"
+    #: ::
     file_folder_file = "file_folder_file"
+    #: ::
     file_folder_file_folder = "file_folder_file_folder"
+    #: ::
     file_folder_folder = "file_folder_folder"
+    #: ::
     mode_size_smaller = "mode_size_smaller"
+    #: ::
     mode_size_smaller_equal = "mode_size_smaller_equal"
+    #: ::
     mode_size_equal = "mode_size_equal"
+    #: ::
     mode_size_larger_equal = "mode_size_larger_equal"
+    #: ::
     mode_size_larger = "mode_size_larger"
+    #: ::
     mode_path_match_pattern = "mode_path_match_pattern"
+    #: ::
     mode_path_starts_with = "mode_path_starts_with"
+    #: ::
     mode_path_ends_with = "mode_path_ends_with"
+    #: ::
     mode_path_contains = "mode_path_contains"
+    #: ::
     mode_path_matches = "mode_path_matches"
+    #: ::
     timestamp_type_cdate = "timestamp_type_cdate"
+    #: ::
     timestamp_type_ctime = "timestamp_type_ctime"
+    #: ::
     timestamp_type_mdate = "timestamp_type_mdate"
+    #: ::
     timestamp_type_mtime = "timestamp_type_mtime"
+    #: ::
     timestamp_type_adate = "timestamp_type_adate"
+    #: ::
     timestamp_type_atime = "timestamp_type_atime"
+    #: ::
     position_before = "position_before"
+    #: ::
     position_on = "position_on"
+    #: ::
     position_exactly = "position_exactly"
+    #: ::
     position_after = "position_after"
+    #: ::
     reference_date_current_date = "reference_date_current_date"
+    #: ::
     reference_date_file_backup = "reference_date_file_backup"
+    #: ::
     reference_date_folder_backup = "reference_date_folder_backup"
+    #: ::
     reference_date_volume_backup = "reference_date_volume_backup"
+    #: ::
     reference_date_fixed = "reference_date_fixed"
-    attribute_read_only = "attribute_read_only"
-    attribute_hidden = "attribute_hidden"
+    #: ::
     attribute_archive = "attribute_archive"
-    attribute_system = "attribute_system"
+    #: ::
     attribute_encrypted = "attribute_encrypted"
+    #: ::
+    attribute_hidden = "attribute_hidden"
+    #: ::
     attribute_offline = "attribute_offline"
+    #: ::
+    attribute_read_only = "attribute_read_only"
+    #: ::
+    attribute_system = "attribute_system"
 
     def __init__(self, id, category, file_folder, include_subfolders):
         super(BackupFilterRuleCtrl, self).__init__()
@@ -1466,11 +1640,25 @@ class BackupFilterRuleCtrl(object):
 
 
 class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
-    """ * """
+    """ ..
+
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum mode_size: A *mode_size* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param int size: The *data-size* in bytes to be compared against.
+
+    This class represent a *file-/directory-size filter* that is set for a
+    :class:`bs.ctrl.session.BackupFilterCtrl`.
+
+    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    """
     _mode_size = None  # >, >=, =, <=, <
     _size = None  # int bytes
 
-    def __init__(self, id, category, file_folder, include_subfolders, mode_size, size):
+    def __init__(self, id, category, file_folder, include_subfolders,
+                 mode_size, size):
         super(BackupFilterRuleSizeCtrl, self).__init__(id,
                                                        category,
                                                        file_folder,
@@ -1481,15 +1669,40 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
 
     @property
     def mode_size(self):
+        """
+        :type: *enum*
+
+        The mode the size attribution is evaluated as.
+        """
         return self._mode_size
 
     @property
     def size(self):
+        """
+        :type: *int*
+
+        The size to be used as reference, in bytes.
+        """
         return self._size
 
 
 class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
-    """ * """
+    """ ..
+
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum mode_path: A *mode-path* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param bool match_case: If `True`, filter will be evaluated case-sensitively.
+    :param str path_pattern: The (file-/directory path-)pattern that is to be \
+    matched.
+
+    This class represent a *file-/directory-path filter* that is set for a
+    :class:`bs.ctrl.session.BackupFilterCtrl`.
+
+    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    """
     _mode_path = None  # contains, starts with, ends with, ...
     _match_case = None  # bool
     _path_pattern = None  # pattern, path, regex, ...
@@ -1507,19 +1720,49 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
 
     @property
     def mode_path(self):
+        """
+        :type: *enum*
+
+        The mode the :attr:`path_pattern` is evaluated as.
+        """
         return self._mode_path
 
     @property
     def match_case(self):
+        """
+        :type: *bool*
+
+        If `True`, file-/directory paths will be evaluated case-sensitively.
+        """
         return self._match_case
 
     @property
     def path_pattern(self):
+        """
+        :type: *str*
+
+        The (file-/directory path-)pattern that is to be matched.
+        """
         return self._path_pattern
 
 
 class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
-    """ * """
+    """ ..
+
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum timestamp_type: A *typestamp_type* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum position: A *position* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum reference_date: A *reference_date* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum offset: An *offset* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+
+    This class represent a *date filter* that is set for a
+    :class:`bs.ctrl.session.BackupFilterCtrl`.
+
+    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    """
     _timestamp_type = None  # cdate, ctime, mdate, mtime, ...
     _position = None  # before, on, after, exactly
     _reference_date = None  # current date, file, folder, volume backup, fixed date, ...
@@ -1539,23 +1782,55 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
 
     @property
     def timestamp_type(self):
+        """
+        :type: *enum*
+
+        The timestamp-type value set on this object.
+        """
         return self._timestamp_type
 
     @property
     def position(self):
+        """
+        :type: *enum*
+
+        The position value set on this object.
+        """
         return self._position
 
     @property
     def reference_date(self):
+        """
+        :type: *enum*
+
+        The reference-date value set on this object.
+        """
         return self._reference_date
 
     @property
     def offset(self):
+        """
+        :type: *enum*
+
+        The time-offset value set on this object.
+        """
         return self._offset
 
 
 class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
-    """ * """
+    """ ..
+
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum attribute: An *attribute* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+
+    This class represent a *file-attribute filter* that is set for a
+    :class:`bs.ctrl.session.BackupFilterCtrl`.
+
+    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    """
     _attribute = None
 
     def __init__(self, id, category, file_folder, include_subfolders,
@@ -1569,11 +1844,43 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
 
     @property
     def attribute(self):
+        """
+        :type: *enum*
+
+        The attribute value set on this object.
+        """
         return self._attribute
 
 
 class BackupSetCtrl(bs.model.models.Sets):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionCtrl session: The :class:`SessionCtrl` this set-controller \
+    is accessed in.
+
+    :param int set_id: The set's unique ID.
+
+    :param str set_uid: The set's UID. The UID is used as a unique identifier \
+    in *external* contexts (in contrast to internal identification such as \
+    the database) and will be used as a name for the parent-folder that \
+    groups all archive files belonging to the set.
+
+    :param str set_name: The set's name.
+
+    :param str salt_dk: The *derived key* to the set's encryption key as \
+    stored in the database e.g.
+
+    :param  str set_db_path: The set's database path.
+
+    :param list source_objs: A list of :class:`BackupSourceCtrl` associated \
+    with the set.
+
+    :param list filter_objs: A list of :class:`BackupFilterCtrl` associated \
+    with the set.
+
+    :param list target_objs: A list of :class:`BackupTargetCtrl` associated \
+    with the set.
+    """
     _session = None
     _backup_set_id = None
     _set_uid = None
@@ -1634,19 +1941,35 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def backup_set_id(self):
+        """
+        :type: *int*
+
+        The set's internal ID.
+        """
         return self._backup_set_id
 
     @property
     def set_uid(self):
+        """
+        :type: *str*
+
+        The set's UID.
+        """
         return self._set_uid
 
     @property
     def set_name(self):
+        """ ..
+
+        :type: *str*
+        :permissions: *read/write*
+
+        The set's name.
+        """
         return self._set_name
 
     @set_name.setter
     def set_name(self, set_name):
-        """ * """
         # VERIFY DATA
         # set name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
@@ -1665,10 +1988,21 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def salt_dk(self):
+        """
+        :type: *str*
+
+        The set's *derived key* used to en-/decrypt the set's data.
+        """
         return self._salt_dk
 
     @property
     def set_db_path(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The absolute file-system path that points to the set's database.
+        """
         if not os.path.isfile(self._set_db_path):
             self.set_db_path = self._set_db_path
         return self._set_db_path
@@ -1693,22 +2027,38 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def backup_sources(self):
-        """ * """
+        """ ..
+
+        :type: *list*
+
+        A list of :class:`BackupSourceCtrl` set for this set.
+        """
         return self._backup_sources
 
     @property
     def backup_filters(self):
-        """ * """
+        """ ..
+
+        :type: *list*
+
+        A list of :class:`BackupFilterCtrl` set for this set.
+        """
         return self._backup_filters
 
     @property
     def backup_targets(self):
-        """ * """
+        """ ..
+
+        :type: *list*
+        :permissions: *read/write*
+
+        A list of :class:`BackupTargetCtrl` set as *backup-targets* for \
+        this set.
+        """
         return self._backup_targets
 
     @backup_targets.setter
     def backup_targets(self, target_objs):
-        """ * """
         # VALIDATE DATA
         # set_objs
         check = False
@@ -1732,8 +2082,11 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def gui_data(self):
-        """ *
-        This associative array holds arbitrary gui-specific data such as
+        """ ..
+
+        :type: *list*
+
+        This associative array holds gui-specific data such as \
         node-coordinates and anything that might be added in the future.
         """
         if not self._gui_data:
@@ -1746,10 +2099,20 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def backup_ctrls(self):
+        """
+        :type: *list*
+
+        A list of :class:`bs.ctrl.backup.BackupCtrl` associated with the set.
+        """
         return self._backup_ctrls
 
     @property
     def is_authenticated(self):
+        """
+        :type: *bool*
+
+        If `True`, user is authenticated with the set.
+        """
         if self._is_authenticated:
             return True
         else:
@@ -1757,10 +2120,19 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def key_hash_32(self):
+        """
+        :type: *str*
+
+        If authenticated, this field stores the encryption key
+        that the set is encrypted with. Is derived from the set's password.
+        """
         return self._key_hash_32
 
     def add_backup_source(self, backup_source):
-        """ *
+        """ ..
+
+        :rtype: *void*
+
         Adds a backup-source to this backup-set.
         """
         # add backup_source as member to this set
@@ -1771,11 +2143,15 @@ class BackupSetCtrl(bs.model.models.Sets):
             backup_source.backup_entity_ass[self] = []
         # add backup_ctrl for new source
         if backup_source not in self._backup_ctrls.keys():
-            self._backup_ctrls[backup_source] = bs.ctrl.backup.BackupCtrl(self,
-                                                                          backup_source)
+            self._backup_ctrls[backup_source] = bs.ctrl.backup.BackupCtrl(self, backup_source)
 
     def add_backup_filter(self, backup_filter):
-        """ *
+        """ ..
+
+        :param bs.ctrl.session.BackupFilterCtrl backup_filter: The \
+        :class:`BackupFilterCtrl` to add to the set.
+        :rtype: *void*
+
         Adds a backup-filter to this backup-set.
         """
         # add backup_filter as member to this set
@@ -1786,7 +2162,12 @@ class BackupSetCtrl(bs.model.models.Sets):
             backup_filter.backup_entity_ass[self] = []
 
     def remove_backup_source(self, backup_source):
-        """ *
+        """ ..
+
+        :param bs.ctrl.session.BackupSourceCtrl: The \
+        :class:`BackupSourceCtrl` to remove from the set.
+        :rtype: *void*
+
         Removes a backup-source from this backup-set.
         """
         backup_source_id = backup_source.source_id
@@ -1801,9 +2182,11 @@ class BackupSetCtrl(bs.model.models.Sets):
         self._update((("sources", json.dumps(backup_sources_list_new), ), ), (("id", "=", self.backup_set_id, ), ))
 
     def save_to_db(self):
-        """ *
-        Explicitly saves specified fields to db that are only intermittendly
-        modified in memory during runtime.
+        """ ..
+
+        :rtype: *bool*
+
+        Explicitly commits the source's state to the database.
         """
         logging.debug("%s: Saving gui_data to db..." % (self.__class__.__name__, ))
         # gui_data
@@ -1852,8 +2235,12 @@ class BackupSetCtrl(bs.model.models.Sets):
         return True
 
     def authenticate(self, key_raw):
-        """ *
-        Authenticates user with backup_set.
+        """ ..
+
+        :param str key_raw: The set's password key.
+        :rtype: *void*
+
+        Authenticates user with the backup-set and unlocks it.
         """
         # Calculate PBKDF2 ciphers
         key_hash_32 = Crypto.Protocol.KDF.PBKDF2(key_raw,
@@ -1870,7 +2257,13 @@ class BackupSetCtrl(bs.model.models.Sets):
 
 
 class BackupSetsCtrl(bs.model.models.Sets):
-    """ * """
+    """ ..
+
+    :param SessionCtrl session: The session this these sets belong to.
+
+    Encapsulates all sets that are associated with a \
+    :class:`SessionCtrl`.
+    """
     _session = None
     _sets = None
 
@@ -1885,7 +2278,13 @@ class BackupSetsCtrl(bs.model.models.Sets):
 
     @property
     def sets(self):
-        """ * """
+        """ ..
+
+        :type: *list*
+
+        The list of :class:`BackupSetCtrl` that are associated with its
+        session.
+        """
         # sets list is empty, load from db
         if len(self._sets) == 0:
             res = self._get("id, set_uid, set_name, salt_dk, set_db_path, source_ass, filter_ass, targets",
@@ -1955,7 +2354,24 @@ class BackupSetsCtrl(bs.model.models.Sets):
     # /OVERLOADS
 
     def create_backup_set(self, set_name, key_raw, set_db_path, source_objs, filter_objs, target_objs):
-        """ *
+        """ ..
+
+        :param str set_name: The printed name for the new set.
+
+        :param str key_raw: The password used for encryption of the set.
+
+        :param str set_db_path: The absolute file-path where the \
+        *backup-set*'s database will be created.
+
+        :param list source_objs: A list of :class:`BackupSourceCtrl` to \
+        associate with the set.
+
+        :param list filter_objs: A list of :class:`BackupFilterCtrl` to \
+        associate with the set.
+
+        :param list target_objs: A list of :class:`BackupTargetCtrl` to \
+        associate with the set.
+
         Creates a new (empty) backup-set.
         """
         # VALIDATE DATA
@@ -2052,7 +2468,12 @@ class BackupSetsCtrl(bs.model.models.Sets):
         return True
 
     def delete_backup_set(self, backup_set):
-        """ *
+        """ ..
+
+        :param bs.ctrl.session.BackupSetCtrl backup_set: The \
+        :class:`BackupSetCtrl` to permanently delete.
+        :rtype: *bool*
+
         Deletes an existing backup-set.
         """
         # VALIDATE DATA

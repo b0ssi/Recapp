@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2013-08-13
+- Documented (Sphinx) more in bs.ctrl.session
+
 2013-08-12
 - Documented (Sphinx) bs.ctrl.backup and all modules and packages
 
