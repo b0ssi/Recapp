@@ -2,6 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2013-08-14 - 17
+
+- Documented (Sphinx) all of bs.model.models_master.*
+- Documented (Sphinx) rest of bs.ctrl.session
+
 2013-08-13
 - Documented (Sphinx) more in bs.ctrl.session
 

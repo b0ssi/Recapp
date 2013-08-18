@@ -16,7 +16,8 @@
 ###############################################################################
 
 """
-This is the *controller* package that contains the application's business logic.
+This is the *controller* package that contains the application's business \
+logic.
 """
 
 from PySide import QtCore, QtGui
@@ -70,18 +71,40 @@ class SessionsCtrl(object):
 
     @property
     def app(self):
+        """
+        :type: :class:`bs.gui.window_main.Application`
+
+        The central :class:`bs.gui.window_main.Application` hosting this \
+        application gui-instance.
+        """
         return self._app
 
     @property
     def guis(self):
+        """
+        :type: *list*
+
+        A list of :class:`SessionGuiCtrl` hosed by this session.
+        """
         return self._guis
 
     @property
     def sessions(self):
+        """
+        :type: :class:`SessionsCtrl`
+
+        The :class:`SessionsCtrl` this session is associated with.
+        """
         return self._sessions
 
     def add_session(self, username, password):
         """
+        :param str username: The username for the session to be created.
+
+        :param str password: The password for the user.
+
+        :rtype: :class:`SessionCtrl`
+
         If attributed credentials are valid, return logged on, unlocked session
         for user.
         Returns existing session if one was previously created (used) for user.
@@ -132,8 +155,14 @@ class SessionsCtrl(object):
                 return False
 
     def remove_session(self, session):
-        """ *
-        Removes an existing session including all of its associated objects.
+        """ ..
+
+        :param :class:`SessionCtrl` The :class:`SessionCtrl` to remove.
+
+        :rtype: *bool*
+
+        Removes an existing session including all of its associated objects. \
+        This is usually used when a user logs out and the session is destroyed.
         """
         if session:
             self._sessions.pop(self._sessions.index(session))
@@ -144,24 +173,43 @@ class SessionsCtrl(object):
                             % (self.__class__.__name__, session, ))
 
     def add_session_gui(self):
-        """ *
-        Adds a new UI instance to host a separate is_unlocked session.
+        """ ..
+
+        :rtype: :class:`SessionGuiCtrl`
+
+        Adds a new UI instance to host a separate *gui-session*.
         """
         session_gui = SessionGuiCtrl(self, self._app)
         self._guis.append(session_gui)
         return session_gui
 
     def remove_session_gui(self, session_gui):
-        """ *
-        Removes the session_gui instance from this Sessions.
+        """ ..
+
+        :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+        :class:`SessionGuiCtrl` to remove.
+
+        :rtype: *bool*
+
+        Removes the session_gui instance from this Sessions. This is usually \
+        done after a GUI window is being closed.
         """
         self._guis.pop(self._guis.index(session_gui))
         return True
 
 
 class SessionGuiCtrl(object):
-    """ *
-    Container for a GUI session
+    """ ..
+
+    :param bs.ctrl.session.SessionsCtrl sessions: The \
+    :class:`SessionsCtrl` to associate with this :class:`SessionGuiCtrl`.
+
+    :param bs.gui.window_main.Application app: The central \
+    :class:`bs.gui.window_main.Application` that is running this GUI \
+    instance.
+
+    This is a container that hosts a single GUI session. A unique instance is \
+    required for each GUI instance that is requested by the user.
     """
     _sessions = None
     _app = None
@@ -178,14 +226,31 @@ class SessionGuiCtrl(object):
 
     @property
     def main_window(self):
+        """
+        :type: :class:`bs.gui.window_main.WindowMain`
+
+        The :class:`bs.gui.window_main.WindowMain` associated with this
+        (*gui-*)*session*.
+        """
         return self._main_window
 
     @property
     def sessions(self):
+        """
+        :type: :class:`SessionsCtrl`
+
+        The central :class:`SessionsCtrl` managing this application instance.
+        """
         return self._sessions
 
     @property
     def session(self):
+        """
+        :type: :class:`SessionCtrl`
+        :permissions: *read/write*
+
+        The :class:`SessionCtrl` representing the current session.
+        """
         return self._session
 
     @session.setter
@@ -204,6 +269,9 @@ class SessionCtrl(object):
     """
     Stores and manages contents of a single session. user, sources, targets,
     filters, sets, etc..
+
+    This class is not to be instantiated directly.
+    :meth:`SessionsCtrl.add_session` should be used to add sessions.
     """
     _user = None
     _backup_sources = None
@@ -234,26 +302,57 @@ class SessionCtrl(object):
 
     @property
     def user(self):
+        """
+        :type: :class:`UserCtrl`
+
+        The :class:`UserCtrl` associated with this *backup-session*.
+        """
         return self._user
 
     @property
     def backup_sources(self):
+        """
+        :type: *list*
+
+        A list of *backup-sources* associated with this session.
+        """
         return self._backup_sources
 
     @property
     def backup_targets(self):
+        """
+        :type: *list*
+
+        A list of *backup-targets* associated with this session.
+        """
         return self._backup_targets
 
     @property
     def backup_filters(self):
+        """
+        :type: *list*
+
+        A list of *backup-filters* associated with this session.
+        """
         return self._backup_filters
 
     @property
     def backup_sets(self):
+        """
+        :type: *list*
+
+        A list of *backup-sets* associated with this session.
+        """
         return self._backup_sets
 
     @property
     def is_unlocked(self):
+        """
+        :type: *bool*
+        :permissions: *read/write*
+
+        `False`, if this session is locked, `True` if unlocked.
+        """
         return self._is_unlocked
 
     @is_unlocked.setter
@@ -268,6 +367,12 @@ class SessionCtrl(object):
 
     @property
     def is_logged_in(self):
+        """
+        :type: *bool*
+        :permissions: *read/write*
+
+        `True`, if this session's user is logged in, `False` if not.
+        """
         return self._is_logged_in
 
     @is_logged_in.setter
@@ -280,7 +385,14 @@ class SessionCtrl(object):
         return True
 
     def log_in(self, username, password):
-        """ * """
+        """ ..
+
+        :param str username: The user's username to log-in with.
+
+        :rtype str password: The user's password to log-in with.
+
+        Logs the user associated with this *backup-session* in.
+        """
         # VALIDATE DATA
         # username
         if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
@@ -309,7 +421,12 @@ class SessionCtrl(object):
             return False
 
     def log_out(self):
-        """ * """
+        """ ..
+
+        :rtype: *bool*
+
+        Logs the logged-in user out of this session.
+        """
         if self.is_logged_in:
             # save sets
             for backup_set in self._backup_sets.sets:
@@ -325,7 +442,12 @@ class SessionCtrl(object):
             return False
 
     def lock(self):
-        """ * """
+        """ ..
+
+        :rtype: *bool*
+
+        Locks the session.
+        """
         if self.is_logged_in:
             if self.is_unlocked:
                 self.is_unlocked = False
@@ -342,7 +464,12 @@ class SessionCtrl(object):
             return False
 
     def unlock(self, username, password):
-        """ * """
+        """ ..
+
+        :rtype: *bool*
+
+        Unlocks the session.
+        """
         # VALIDATE DATA
         # username
         if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
@@ -375,8 +502,13 @@ class SessionCtrl(object):
 
 
 class UserCtrl(bs.model.models.Users):
-    """ *
-    Represents an is_unlocked user.
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`SessionGuiCtrl` associated with the session this user is \
+    associated with.
+
+    Represents an user in the system.
     """
     _id = None
     _username = None
@@ -402,10 +534,20 @@ class UserCtrl(bs.model.models.Users):
 
     @property
     def id(self):
+        """
+        :type: *int*
+
+        The user's ID.
+        """
         return self._id
 
     @property
     def username(self):
+        """
+        :type: *str*
+
+        The user's username.
+        """
         return self._username
 
     # OVERLOADS
@@ -485,8 +627,8 @@ class BackupSourceCtrl(bs.model.models.Sources):
     :param str source_path: The absolute folder-path that defines the \
     *backup-source*.
 
-    This is the *backup-source* class that defines a single source in the \
-    file-system, which is usually a folder-location.
+    This class defines a single source in the file-system, which is usually a \
+    folder-location.
     """
     _session = None
     _backup_source_id = None
@@ -583,6 +725,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
     @property
     def backup_entity_ass(self):
         """ ..
+
         :type: *dict*
 
         Returns an associative array (dictionary) in the following format: \
@@ -623,6 +766,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
 
     def associate(self, backp_set, backup_entity):
         """ ..
+
         :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
         which to associate the *backup-entity* with this *backup-source*.
 
@@ -639,6 +783,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
 
     def disassociate(self, backup_set, backup_entity):
         """ ..
+
         :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
         which to disassociate the *backup-entity* with this *backup-source*.
 
@@ -653,7 +798,13 @@ class BackupSourceCtrl(bs.model.models.Sources):
 
 
 class BackupSourcesCtrl(bs.model.models.Sources):
-    """ * """
+    """ ..
+
+    :param SessionCtrl session: The :class:`SessionCtrl` these \
+    *backup-sources* are associated with.
+
+    This class groups and manages all *backup-sources* for one *session*.
+    """
     _session = None
     _backup_sources = None
 
@@ -671,8 +822,12 @@ class BackupSourcesCtrl(bs.model.models.Sources):
 
     @property
     def backup_sources(self):
-        """ *
-        Returns all source objects referenced in self._backup_sources.
+        """ ..
+
+        :type: *list*
+
+        Returns all source objects that are associated with this \
+        :class:`BackupSourcesCtrl` and :class:`SessionCtrl`.
         """
         # sources list is empty, load from db
         if not len(self._backup_sources):
@@ -692,8 +847,8 @@ class BackupSourcesCtrl(bs.model.models.Sources):
     # OVERLOADS
     @property
     def _add_is_permitted(self, *args, **kwargs):
-        """
-        *
+        """..
+
         Reimplemented from BSModel()
         """
         if self._session._is_logged_in:
@@ -725,8 +880,16 @@ class BackupSourcesCtrl(bs.model.models.Sources):
     # /OVERLOADS
 
     def create_backup_source(self, source_name, source_path):
-        """ *
-        Creates a new backup-source.
+        """ ..
+
+        :param str source_name: Name for the new *backup-source*.
+
+        :param str source_path: Absolute file-system folder-path pointing \
+        to the location to be defined as the new source.
+
+        :rtype: *bool*
+
+        Creates a new :class:`BackupSourceCtrl`.
         """
         # VALIDATE DATA
         # source_name
@@ -764,8 +927,14 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         return True
 
     def delete_backup_source(self, source_obj):
-        """ *
-        Deletes an existing backup-source.
+        """ ..
+
+        :param bs.ctrl.session.BackupSourceCtrl source_obj: The \
+        *backup-source* to be deleted.
+
+        :rtype: *bool*
+
+        Deletes an existing :class:`BackupSourceCtrl`.
         """
         # VALIDATE DATA
         # source_obj
@@ -785,16 +954,35 @@ class BackupSourcesCtrl(bs.model.models.Sources):
 
 
 class BackupTargetCtrl(bs.model.models.Targets):
-    """ **
-    INSERT INFO HERE
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`SessionGuiCtrl` associated with the :class:`SessionCtrl` this \
+    *backup-target* is associated with.
+
+    :param int target_id: The target's ID as used as a unique ID in the \
+    database.
+
+    :param str target_name: The target's literal name.
+
+    :param str target_device_id: The *device-id* this target uses to uniquely \
+    mark its location on the file-system. This decouples the target from the \
+    physical drive-letter and makes it resistant against changing \
+    drive-letters, which easily happens with removable storage e.g..
+
+    This class defines a single target in the file-system, which is usually \
+    needs to be the root of a drive that has valid backup-data on it.
     """
     _session = None
     _target_id = None
     _target_name = None
     _target_device_id = None
     # enums
+    #: ..
     status_online = "status_online"
+    #: ..
     status_offline = "status_offline"
+    #: ..
     status_in_use = "status_in_use"
 
     def __init__(self, session_gui, target_id, target_name, target_device_id):
@@ -815,6 +1003,12 @@ class BackupTargetCtrl(bs.model.models.Targets):
 
     @property
     def target_name(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The target's literal name.
+        """
         return self._target_name
 
     @target_name.setter
@@ -840,12 +1034,17 @@ class BackupTargetCtrl(bs.model.models.Targets):
 
     @property
     def target_path(self):
-        """ *
-        Gets physical path that currently points to target.
-        Scans all connected drives and looks for a backup folder with a
-        metadata file with target's target_device_id.
+        """ ..
 
-        Returns physical path to target.
+        :type: *str*
+
+        Gets physical path that currently points to target.
+
+        Scans all connected drives and looks for valid backup folders that \
+        contain the identifying metadata file with this target's \
+        *target-device-ID*.
+
+        Returns physical path that currently points to the target.
         """
         out = []
         for drive_root_path in bs.utils.get_drives((win32file.DRIVE_FIXED, )):
@@ -880,13 +1079,19 @@ class BackupTargetCtrl(bs.model.models.Targets):
 
 
 class BackupTargetsCtrl(bs.model.models.Targets):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`SessionCtrl` these *backup-targets* are associated with.
+
+    This class groups and manages all *backup-targets* for one *session*.
+    """
     _session = None
     _targets = None
 
-    def __init__(self, session_gui):
+    def __init__(self, session):
         super(BackupTargetsCtrl, self).__init__()
-        self._session = session_gui
+        self._session = session
 
         self._targets = []
 
@@ -895,8 +1100,11 @@ class BackupTargetsCtrl(bs.model.models.Targets):
 
     @property
     def targets(self):
-        """ *
-        Returns all targets objects saved in self._targets.
+        """ ..
+
+        :type: *list*
+
+        Returns a list of all targets objects.
         """
         # targets list is empty, load from db
         if len(self._targets) == 0:
@@ -946,8 +1154,16 @@ class BackupTargetsCtrl(bs.model.models.Targets):
     # /OVERLOADS
 
     def create_backup_target(self, target_name, target_path):
-        """ *
-        Creates a new backup-target.
+        """ ..
+
+        :param str target_name: The literal name to give to the new target.
+
+        :param str target_path: The absolute drive-letter-path of the drive \
+        to define the as the new target.
+
+        :rtype: *bool*
+
+        Creates a new *backup-target*.
         """
         # VERIFY DATA
         # target_name
@@ -1003,9 +1219,15 @@ class BackupTargetsCtrl(bs.model.models.Targets):
             return False
 
     def delete_backup_target(self, target_obj):
-        """ *
-        Deletes an existing backup-target.
-        Does *not* delete any file-system data.
+        """ ..
+
+        :param bs.ctrl.session.BackupTargetCtrl target_obj: The \
+        *backup-target* to delete.
+
+        :rtype: *bool*
+
+        Deletes an existing *backup-target*. Does **not** delete any \
+        file-system data.
         """
         # VALIDATE DATA
         # target_obj
@@ -1385,81 +1607,81 @@ class BackupFilterRuleCtrl(object):
     _include_subfolders = None
 
     # enums
-    #: ::
+    #: ..
     category_size = "category_size"
-    #: ::
+    #: ..
     category_path = "category_path"
-    #: ::
+    #: ..
     category_date = "category_date"
-    #: ::
+    #: ..
     category_attributes = "category_attributes"
-    #: ::
+    #: ..
     file_folder_file = "file_folder_file"
-    #: ::
+    #: ..
     file_folder_file_folder = "file_folder_file_folder"
-    #: ::
+    #: ..
     file_folder_folder = "file_folder_folder"
-    #: ::
+    #: ..
     mode_size_smaller = "mode_size_smaller"
-    #: ::
+    #: ..
     mode_size_smaller_equal = "mode_size_smaller_equal"
-    #: ::
+    #: ..
     mode_size_equal = "mode_size_equal"
-    #: ::
+    #: ..
     mode_size_larger_equal = "mode_size_larger_equal"
-    #: ::
+    #: ..
     mode_size_larger = "mode_size_larger"
-    #: ::
+    #: ..
     mode_path_match_pattern = "mode_path_match_pattern"
-    #: ::
+    #: ..
     mode_path_starts_with = "mode_path_starts_with"
-    #: ::
+    #: ..
     mode_path_ends_with = "mode_path_ends_with"
-    #: ::
+    #: ..
     mode_path_contains = "mode_path_contains"
-    #: ::
+    #: ..
     mode_path_matches = "mode_path_matches"
-    #: ::
+    #: ..
     timestamp_type_cdate = "timestamp_type_cdate"
-    #: ::
+    #: ..
     timestamp_type_ctime = "timestamp_type_ctime"
-    #: ::
+    #: ..
     timestamp_type_mdate = "timestamp_type_mdate"
-    #: ::
+    #: ..
     timestamp_type_mtime = "timestamp_type_mtime"
-    #: ::
+    #: ..
     timestamp_type_adate = "timestamp_type_adate"
-    #: ::
+    #: ..
     timestamp_type_atime = "timestamp_type_atime"
-    #: ::
+    #: ..
     position_before = "position_before"
-    #: ::
+    #: ..
     position_on = "position_on"
-    #: ::
+    #: ..
     position_exactly = "position_exactly"
-    #: ::
+    #: ..
     position_after = "position_after"
-    #: ::
+    #: ..
     reference_date_current_date = "reference_date_current_date"
-    #: ::
+    #: ..
     reference_date_file_backup = "reference_date_file_backup"
-    #: ::
+    #: ..
     reference_date_folder_backup = "reference_date_folder_backup"
-    #: ::
+    #: ..
     reference_date_volume_backup = "reference_date_volume_backup"
-    #: ::
+    #: ..
     reference_date_fixed = "reference_date_fixed"
-    #: ::
+    #: ..
     attribute_archive = "attribute_archive"
-    #: ::
+    #: ..
     attribute_encrypted = "attribute_encrypted"
-    #: ::
+    #: ..
     attribute_hidden = "attribute_hidden"
-    #: ::
+    #: ..
     attribute_offline = "attribute_offline"
-    #: ::
+    #: ..
     attribute_read_only = "attribute_read_only"
-    #: ::
+    #: ..
     attribute_system = "attribute_system"
 
     def __init__(self, id, category, file_folder, include_subfolders):

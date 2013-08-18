@@ -34,6 +34,9 @@ class Application(QtGui.QApplication):
     idle_1s_timer = None
 
     def __init__(self, name):
+        """ ..
+
+        """
         super(Application, self).__init__(name)
 
         # timers

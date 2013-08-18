@@ -1,12 +1,4 @@
 # -*- coding: utf-8 -*-
-from PySide import QtCore, QtGui
-import binascii
-import bs.config
-import bs.ctrl.session
-import bs.gui.view_sets
-import logging
-import re
-import time
 
 ###############################################################################
 ##    bs.gui.nodes                                                           ##
@@ -23,11 +15,27 @@ import time
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+from PySide import QtCore, QtGui
+import bs.config
+# import bs.gui.view_sets
+import logging
+import re
+
+""" ..
+
+This package contains all abstract *view-classes*.
+"""
 
 
 class BSFrame(QtGui.QFrame):
-    """ * """
+    """ ..
+
+    :param PySide.QtGui.QWidget parent:
+
+    This is a stylizable superclass that features a few extra methods for \
+    easy CSS stye management across multiple states/events, visual control \
+    of enabled/disabled node state etc.
+    """
 
     _css = None
     _css_enabled_default = None
@@ -40,11 +48,13 @@ class BSFrame(QtGui.QFrame):
 
     @property
     def css(self):
-        return self._css
+        """
+        :type: *tuple*
+        :permissions: *read/write*
 
-    @css.setter
-    def css(self, arg):
-        """ *
+        The CSS code assigned to the node. The format of this tuple is as \
+        follows:
+
         argument 1 needs to be of following format:
         (
          (object,
@@ -53,19 +63,49 @@ class BSFrame(QtGui.QFrame):
           (
            (dataset1),
            (dataset2),
-           ...
+           (dataset3),
+           (dataset4),
+           (dataset5),
+           (dataset6),
           )
          ),
          ...
         )
-        where `class_constraint` needs to be either ".", "" or `None`.
-        This decides whether the css is constrained to the object only/object
-        and all sub-types or to whole hierarchy.
-        "." will wrap the css definitions into `.classname {...}`: constrains to instances of class only
-        "" will wrap the css definitions into `classname {...}` constrains to any instance of class or subtype
-        `None` will not wrap the css definitions: only constrains to object hierarchy (leaving out
-        `[.]class {}` completely in css string).
+        where
+
+        - `class_constraint` needs to be either `"."`, `""` or `None`. This \
+        decides whether the css is constrained to the object only/object and \
+        all inheriting sub-types or to the object's hierarchy tree. `"."` \
+        will wrap the css definitions into `.classname {...}`: constrains to \
+        instances of class only, `""` will wrap the css definitions into \
+        `classname {...}` constrains to any instance of class or subtype \
+        `None` will not wrap the css definitions: only constrains to object \
+        hierarchy (leaving out `[.]class {}` completely in css string).
+
+        - `pattern` is a pattern-string that uses the six `dataset#` tuples \
+        to substitute its placeholders with corresponding data, e.g.: \
+
+            - Pattern: `"color: #%s, background: %s"`
+            - dataset1: `("012345", "3px solid green", )`
+            - dataset2: `...`
+
+        The six datasets represent the following states, respectively:
+
+        - normal (in enabled mode)
+        - hover (in enabled mode)
+        - active (in enabled mode)
+        - normal (in disabled mode)
+        - hover (in disabled mode)
+        - active (in disabled mode)
+
+        By the use of this method complex, object-state dependent styles can \
+        be easily defined so that multiple nested objects' styles can be \
+        controlled through the events of only the one top parent e.g.
         """
+        return self._css
+
+    @css.setter
+    def css(self, arg):
         out = []
         for dataset in arg:
             # extract data
@@ -89,7 +129,11 @@ class BSFrame(QtGui.QFrame):
         self.setEnabled(self.isEnabled())
 
     def enterEvent(self, e):
-        """ *
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
         Compiles CSS style code-string from self.css and sets css on all
         nodes saved in self.css.
         """
@@ -108,7 +152,11 @@ class BSFrame(QtGui.QFrame):
                     obj.setStyleSheet(css_definition)
 
     def leaveEvent(self, e):
-        """ *
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
         Compiles CSS style code-string from self.css and sets css on all
         nodes saved in self.css.
         """
@@ -127,7 +175,11 @@ class BSFrame(QtGui.QFrame):
                     obj.setStyleSheet(css_definition)
 
     def mousePressEvent(self, e):
-        """ *
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
         Compiles CSS style code-string from self.css and sets css on all
         nodes saved in self.css.
         """
@@ -142,7 +194,11 @@ class BSFrame(QtGui.QFrame):
             # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
 
     def mouseReleaseEvent(self, e):
-        """ *
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
         Compiles CSS style code-string from self.css and sets css on all
         nodes saved in self.css.
         """
@@ -157,9 +213,12 @@ class BSFrame(QtGui.QFrame):
             # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
 
     def setEnabled(self, mode=True):
-        """ *
-        Compiles CSS style code-string from self.css and sets css on all
-        nodes saved in self.css.
+        """ ..
+
+        :param bool mode:
+        :rtype: *void*
+
+        Overrides :meth:`PySide.QtGui.QWidget.setDisabled`; also sets CSS.
         """
         if self.css:
             if mode:
@@ -176,9 +235,12 @@ class BSFrame(QtGui.QFrame):
         super(BSFrame, self).setEnabled(mode)
 
     def setDisabled(self, mode=True):
-        """ *
-        Compiles CSS style code-string from self.css and sets css on all
-        nodes saved in self.css.
+        """ ..
+
+        :param bool mode:
+        :rtype: *void*
+
+        Overrides :meth:`PySide.QtGui.QWidget.setDisabled`; also sets CSS.
         """
         if self.css:
             if not mode:
@@ -196,7 +258,12 @@ class BSFrame(QtGui.QFrame):
 
 
 class BSDraggable(BSFrame):
-    """ * """
+    """ ..
+
+    :param PySide.QtGui.QWidget parent:
+
+    Superclass for all draggables in the project.
+    """
 
     _pos_offset = None  # stores local pos offset for drag-ability
 
@@ -204,11 +271,24 @@ class BSDraggable(BSFrame):
         super(BSDraggable, self).__init__(parent)
 
     def mousePressEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Records mouse position for cross-checking on other mouse events on \
+        this class.
+        """
         self._pos_offset = e.pos()
 
     def mouseMoveEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Performs the actual drag on mouse moves.
+        """
         if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
             x = self.mapToParent(e.pos()).x() - self._pos_offset.x()
             y = self.mapToParent(e.pos()).y() - self._pos_offset.y()
@@ -219,14 +299,27 @@ class BSDraggable(BSFrame):
 
 
 class BSCanvas(BSDraggable):
-    """ * """
+    """ ..
+
+    :param PySide.QtGui.QWidget parent:
+
+    Canvas superclass. Supports certain features to manage drag & dropable \
+    :class:`BSNode` on its canvas.
+    """
     def __init__(self, parent):
         super(BSCanvas, self).__init__(parent)
 
         parent.resizeSignal.connect(self.resizeEvent)
 
     def mouseMoveEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Drags the canvas including all child nodes relative to mouse move \
+        events.
+        """
         if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
             for child in self.children():
                 if not isinstance(child, QtGui.QAction):
@@ -240,12 +333,25 @@ class BSCanvas(BSDraggable):
         super(BSCanvas, self).mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Resets the canvas' geometry after a drag event to crop the parent \
+        (window).
+        """
         self.setGeometry(0, 0, self.width(), self.height())
         super(BSCanvas, self).mouseReleaseEvent(e)
 
     def resizeEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Adjusts own geometry to parent when resized.
+        """
         self.setGeometry(0,
                          0,
                          self.parent().width(),
@@ -254,7 +360,15 @@ class BSCanvas(BSDraggable):
 
 
 class BSArrow(QtGui.QWidget):
-    """ * """
+    """ ..
+
+    :param bs.gui.view_sets.BS bs:
+    :param bs.gui.lib.BSNode source:
+    :param bs.gui.lib.BSNode target:
+
+    This class draws an arrow between two :class:`BSNode`, *source* and \
+    *target*.
+    """
     _bs = None
     _source = None
     _target = None
@@ -288,6 +402,12 @@ class BSArrow(QtGui.QWidget):
 
     @property
     def source(self):
+        """
+        :type: :class:`BSNode`
+        :permissions: *read/write*
+
+        The source node the arrow connects from (visual origin of arrow).
+        """
         return self._source
 
     @source.setter
@@ -296,6 +416,12 @@ class BSArrow(QtGui.QWidget):
 
     @property
     def target(self):
+        """
+        :type: :class:`BSNode`
+        :permissions: *read/write*
+
+        The target node the arrow connects to (visual destination of arrow).
+        """
         return self._target
 
     @target.setter
@@ -303,9 +429,12 @@ class BSArrow(QtGui.QWidget):
         self._target = arg
 
     def delete(self):
-        """ *
-        Removes the arrow from associated objects (source, target) and deletes
-        the widget.
+        """ ..
+
+        :rtype: *void*
+
+        Removes the arrow from associated :class:`BSNode` (*source*, \
+        *target*) and deletes the widget.
         """
         # unassign arrow from source, target
         self._source.unassign_from_arrow(self)
@@ -315,7 +444,11 @@ class BSArrow(QtGui.QWidget):
         self.deleteLater()
 
     def paintEvent(self, e=None):
-        """ * """
+        """ ..
+        :rtype: *void*
+
+        Override of :class:`PySide.QtGui.QWidget.paintEvent`.
+        """
         path = QtGui.QPainterPath()
         # p1a
         p1a = self._source.parentWidget().mapToGlobal(self._source.geometry().center())
@@ -377,7 +510,12 @@ class BSArrow(QtGui.QWidget):
         return path
 
     def refresh(self):
-        """ * """
+        """ ..
+
+        :rtype: *void*
+
+        Refreshes this :class:`BSArrow`'s geometry, invoking a repaint event.
+        """
         margin = 100
         self.setGeometry(self._target.geometry().united(self._source.geometry()).x() - margin,
                          self._target.geometry().united(self._source.geometry()).y() - margin,
@@ -387,7 +525,15 @@ class BSArrow(QtGui.QWidget):
 
 
 class BSArrowBtnDel(BSFrame):
-    """ * """
+    """ ..
+
+    :param bs.gui.view_sets.BS bs:
+    :param bs.gui.lib.BSArrow bs_arrow:
+    :param bs.gui.lib.BSCanvas bs_canvas:
+
+    This is the button-widget to be used to interact with :class:`BSArrow`, \
+    usually to delete the arrow.
+    """
     _bs = None
     _bs_arrow = None
     _bs_canvas = None
@@ -412,12 +558,31 @@ class BSArrowBtnDel(BSFrame):
         self._bs_canvas.restack()
 
     def mouseMoveEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+
+        Override-implementation to suppress and prevent event from traveling \
+        down the hierarchy.
+        """
 
     def mousePressEvent(self, e):
+        """
+        :param PySide.QtCore.QEvent e:
+
+        Records global mouse-position to be used on :meth:`mouseReleaseEvent` \
+        to check if mouse has moved in the mean time.
+        """
         self._mouse_press_global_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+
+        Deletes the arrow on mouse-button-release, unless the mouse changed \
+        position since its :meth:`mousePressEvent`.
+        """
         if self._mouse_press_global_pos == e.globalPos():
             if e.button() & QtCore.Qt.MouseButton.LeftButton:
                 # remove association
@@ -428,7 +593,14 @@ class BSArrowBtnDel(BSFrame):
 
 
 class BSArrowCarrier(BSDraggable):
-    """ * """
+    """ ..
+    :param bs.gui.lib.BSCanvas parent:
+    :param bs.gui.window_main.Application app:
+    :param bs.gui.view_sets.BS bs:
+
+    An invisible widget that "picks up" and "carries" the new arrow when \
+    newly connecting two nodes.
+    """
     _app = None
     _bs = None
 
@@ -451,7 +623,10 @@ class BSArrowCarrier(BSDraggable):
         self.lower()
 
     def register_signals(self):
-        """ *
+        """ ..
+
+        :rtype: *void*
+
         Registers object's signals.
         """
         self._app.global_mouse_pos_signal.connect(self.move_to)
@@ -459,8 +634,11 @@ class BSArrowCarrier(BSDraggable):
         self._app.global_mouse_release_signal.connect(self.mouse_release_action)
 
     def unregister_signals(self):
-        """ *
-        Unregisters object's signals. Called, when object is not used anymore.
+        """ ..
+
+        :rtype: *void*
+
+        Unregisters object's signals. Called when object is not used anymore.
         """
         self._app.global_mouse_pos_signal.disconnect(self.move_to)
         self._app.global_mouse_press_signal.disconnect(self.record_mouse_pos)
@@ -472,7 +650,14 @@ class BSArrowCarrier(BSDraggable):
         self._arrow_inbound = None
 
     def move_to(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        This re-implemented event makes sure this :class:`BSArrowCarrier` \
+        stays with the mouse pointer.
+        """
         # only move when no button pressed:
         # when button pressed and connection arrow is active, canvas would
         # move this carrier plus global mouseMove signal this carrier as well
@@ -488,15 +673,28 @@ class BSArrowCarrier(BSDraggable):
             self.draw_arrows()
 
     def record_mouse_pos(self, widget, e):
-        """ *
+        """ ..
+
+        :param PySide.QtGui.QWidget widget:
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
         Records current mouse position for figuring out if mouse has moved or
         not in other methods.
         """
         self._mouse_press_global_pos = e.globalPos()
 
     def mouse_release_action(self, widget, e):
-        """ *
-        Connects the arrow to the node widget.
+        """ ..
+
+        :param PySide.QtGui.QWidget widget:
+        :param PySide.QtCore.QEvent e:
+
+        Handles the connection event when either a target node or a blank \
+        space on the :class:`BSCanvas` is clicked. In the former case the \
+        intermittent arrow is connected to the :class:`BSNode`, if the node \
+        is valid, in the latter the connection process is canceled and \
+        :meth:`connect_cancel` is called.
         """
         if (e.globalPos() == self._mouse_press_global_pos) and\
             e.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -516,11 +714,12 @@ class BSArrowCarrier(BSDraggable):
                     widget = self.parent()
             # if clicked on node
             if widget_node and\
-                isinstance(widget_node, bs.gui.lib.BSNode):
+                isinstance(widget_node, BSNode):
                 # BUILDING LOGIC CHECKS
                 # finalize node
                 is_allowed_finalize_node = False
                 if self._source:
+                    import bs.gui.view_sets
                     if widget_node.backup_entity not in self._source.backup_entity.backup_entity_ass[self._bs.backup_set_current] and\
                         not isinstance(widget_node, bs.gui.view_sets.BSSource):
                         is_allowed_finalize_node = True
@@ -555,18 +754,43 @@ class BSArrowCarrier(BSDraggable):
                 self.connect_cancel()
 
     def connect_start(self, source):
-        """ * """
+        """ ..
+
+        :param bs.gui.lib.BSNode source:
+        :rtype: *void*
+
+        Initializes a new interactive connection process, creating an \
+        intermittent :class:`BSArrow`, binding it to the :class:`BSNode` this \
+        process was initialized with and this :class:`BSArrowCarrier`.
+        """
         self._source = source
         self._arrow_inbound = BSArrow(self._bs, self._source, self)
 
     def connect_reconnect(self, source):
+        """
+        :param bs.gui.lib.BSNode source:
+        :rtype: *void*
+
+        **DEPRECATED, NOT IN USE ANYMORE**
+
+        Picks up an already connected arrow from its connected *target* and \
+        binds it to this :class:`BSArrowCarrier` so that it is ready to be \
+        connected to a :class:`BSNode` again.
+        """
         self._source = source
         self._arrow_inbound = self._source.arrow_outbound
         self._arrow_inbound.target.unassign_from_arrow(self._arrow_inbound)
         self._arrow_inbound.target = self
 
     def connect_finalize(self, target):
-        """ * """
+        """ ..
+
+        :param bs.gui.lib.BSNode target:
+        :rtype: *void*
+
+        Finalizes the connection process, connecting the intermittent \
+        :class:`BSArrow` to the target :class:`BSNode` that was clicked on.
+        """
         # update data on controllers
         # re-associate with new backup_filter/backup_target
         self._source.backup_entity.associate(self._bs.backup_set_current, target.backup_entity)
@@ -578,22 +802,49 @@ class BSArrowCarrier(BSDraggable):
         self._reset()
 
     def connect_cancel(self):
+        """
+        :rtype: *void*
+
+        Cancels an active connection-process where the intermittent \
+        :class:`BSArrow` is connected to the target-node as well as this \
+        :class:`BSArrowCarrier`, deleting the arrow.
+        """
         # delete arrow
         self._arrow_inbound.delete()
         # re-initialize self
         self._reset()
 
     def assign_to_arrow_as_target(self, arrow):
-        """ * """
+        """ ..
+
+        :param bs.gui.lib.BSArrow arrow:
+        :rtype: *void*
+
+        Assigns this :class:`BSArrowCarrier` to *arrow* as a *target-node*. \
+        Binding this node to the mouse-cursor-position, this makes the new \
+        arrow follow the mouse cursor.
+        """
         self._arrow_inbound = arrow
 
     def unassign_from_arrow(self, arrow):
-        """ * """
+        """ ..
+
+        :param bs.gui.lib.BSArrow arrow:
+        :rtype: void
+
+        Unassigns the carrier from its arrow, if currently assigned.
+        """
         if arrow == self._arrow_inbound:
             self._arrow_inbound = None
 
     def draw_arrows(self):
-        """ * """
+        """ ..
+
+        :rtype: *void*
+
+        If exists, redraws the intermittent arrow connected to this \
+        :class:`BSArrowCarrier`.
+        """
         if self._arrow_inbound:
             self._arrow_inbound.refresh()
 
@@ -879,7 +1130,16 @@ class BSNodeItemButton(BSFrame):
 
 
 class BSMessageBox(QtGui.QMessageBox):
-    """ * """
+    """ ..
+
+    :param PySide.QtGui.QMessageBox.Icon icon:
+    :param str title:
+    :param str message:
+
+    A modal message box used to display confirmations or simple \
+    notifications. Not much different from :class:`PySide.QtGui.QMessageBox` \
+    except for its custom CSS stylizing ability.
+    """
 
     def __init__(self, icon, title, message):
         super(BSMessageBox, self).__init__(icon, title, message)

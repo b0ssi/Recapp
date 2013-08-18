@@ -5,7 +5,7 @@
 ###############################################################################
 ###############################################################################
 ##    Author:         Bossi                                                  ##
-##                    Â© 2013 All rights reserved                             ##
+##                    Â© 2013 All rights reserved                            ##
 ##                    www.isotoxin.de                                        ##
 ##                    frieder.czeschla@isotoxin.de                           ##
 ##    Creation Date:  Mar 16, 2013                                           ##
@@ -15,7 +15,10 @@
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+"""
+This package contains the master-superclass(es) for all models used in \
+the project.
+"""
 
 import bs.config
 import bs.messages.database
@@ -27,7 +30,8 @@ import sqlite3
 
 class BSModel(object):
     """ ..
-    Structural superclass for all models.
+
+    Abstract superclass inherited by all models.
     """
     def __init__(self):
         super(BSModel, self).__init__()
@@ -60,7 +64,16 @@ class BSModel(object):
 
     @property
     def _add_is_permitted(self, *args, **kwargs):
-        """ *
+        """ ..
+
+        :param *args: Arbitrary arguments passed in by overloading \
+        implementations.
+
+        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        overloading implementations.
+
+        :type: *bool*
+
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant self._add()
         permissions to execute. The return value must be a boolean.
@@ -68,14 +81,24 @@ class BSModel(object):
         return True
 
     def _add(self, columns, datasets, **kwargs):
-        """ *
-        Adds a single or multiple data-sets to the object's database-table.
-        `columns` is a comma-separated list of column to be inserted,
-        `datasets` a 1- or 2-dimensional list/tuple of sets of values. The
-        number of values has to correspond with the number of columns passed.
+        """ ..
 
-        It accepts the following keyword-arguments:
-        - no_auth_required BOOL: bypasses the authentication check
+        :param list columns: A list/tuple of *str*-objects naming the \
+        database-columns to be inserted into.
+
+        :param list datasets: A 1- or 2-dimensional list/tuple of sets of \
+        values. These sets of values have to correspond to the order in which \
+        the *columns* are given. This list/tuple can be 1-dimensional if only \
+        one dataset is to be added or it can be a list of lists/tuple of \
+        tuples, if multiple datasets are to be added.
+
+        :param dict **kwargs: A dictionary holding extra-control-data. Valid \
+        keys and values are: `bool no_auth_requred`: If `True`, bypasses the \
+        authentication check.
+
+        :rtype: *sqlite3.Cursor*
+
+        Adds a single or multiple data-sets to the object's database-table.
         """
         # extract kwargs
         try:
@@ -139,7 +162,16 @@ class BSModel(object):
 
     @property
     def _get_is_permitted(self, *args, **kwargs):
-        """ *
+        """ ..
+
+        :param *args: Arbitrary arguments passed in by overloading \
+        implementations.
+
+        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        overloading implementations.
+
+        :type: *bool*
+
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant self._get()
         permissions to execute. The return value must be a boolean.
@@ -147,7 +179,16 @@ class BSModel(object):
         return True
 
     def _get(self, columns, conditions="", **kwargs):
-        """ *
+        """ ..
+
+        :param columns:
+
+        :param conditions:
+
+        :param **kwargs:
+
+        :rtype:
+
         Loads and returns dataset from selected `columns` in associated table
         under selection-conditions `conditions`, `conds_neg`.
 
@@ -216,7 +257,16 @@ class BSModel(object):
 
     @property
     def _remove_is_permitted(self, *args, **kwargs):
-        """ *
+        """ ..
+
+        :param *args: Arbitrary arguments passed in by overloading \
+        implementations.
+
+        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        overloading implementations.
+
+        :type: *bool*
+
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant
         self._remove() permissions to execute. The return value must be a
@@ -278,7 +328,16 @@ class BSModel(object):
 
     @property
     def _update_is_permitted(self, *args, **kwargs):
-        """ *
+        """ ..
+
+        :param *args: Arbitrary arguments passed in by overloading \
+        implementations.
+
+        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        overloading implementations.
+
+        :type: *bool*
+
         This method is designed to be overloaded by inheriting classes to
         implement individual access checks to be performed to grant
         self._update() permissions to execute. The return value must be a
