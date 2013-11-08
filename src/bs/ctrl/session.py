@@ -25,6 +25,7 @@ import binascii
 import bs.config
 import bs.ctrl.backup
 import bs.gui.window_main
+import bs.gui.window_backup_monitor
 import bs.messages
 import bs.model.models
 import Crypto.Hash.SHA256
@@ -42,7 +43,7 @@ import win32file
 
 class SessionsCtrl(object):
     """
-    :param bool bui_mode: Indicated whether or not to run the application \
+    :param bool gui_mode: Indicated whether or not to run the application \
     with a graphical user interface. If set to *False* it will be run from \
     the console.
 
@@ -52,6 +53,7 @@ class SessionsCtrl(object):
     # gui
     _app = None
     _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
+    _window_backup_monitor = None
     _gui_mode = None
 
     def __init__(self, gui_mode=False):
@@ -64,6 +66,7 @@ class SessionsCtrl(object):
         if self._gui_mode:
             self._app = bs.gui.window_main.Application("recapp")
             self.add_session_gui()
+            self._window_backup_monitor = bs.gui.window_backup_monitor.WindowBackupMonitor(self)
             self._app.exec_()
 
     def __repr__(self):
@@ -72,9 +75,9 @@ class SessionsCtrl(object):
     @property
     def app(self):
         """
-        :type: :class:`bs.gui.window_main.Application`
+        :type: :class:`~bs.gui.window_main.Application`
 
-        The central :class:`bs.gui.window_main.Application` hosting this \
+        The central :class:`~bs.gui.window_main.Application` hosting this \
         application gui-instance.
         """
         return self._app
@@ -84,16 +87,28 @@ class SessionsCtrl(object):
         """
         :type: *list*
 
-        A list of :class:`SessionGuiCtrl` hosed by this session.
+        A list of :class:`~bs.ctrl.session.SessionGuiCtrl` hosted by this \
+        session.
         """
         return self._guis
 
     @property
+    def window_backup_monitor(self):
+        """ ..
+
+        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
+
+        The central Backup-Monitor window that displays stati of and \
+        management options for all dispatched backup-jobs.
+        """
+        return self._window_backup_monitor
+
+    @property
     def sessions(self):
         """
-        :type: :class:`SessionsCtrl`
+        :type: :class:`~bs.ctrl.session.SessionsCtrl`
 
-        The :class:`SessionsCtrl` this session is associated with.
+        The :class:`~bs.ctrl.session.SessionsCtrl` this session is associated with.
         """
         return self._sessions
 
@@ -103,7 +118,7 @@ class SessionsCtrl(object):
 
         :param str password: The password for the user.
 
-        :rtype: :class:`SessionCtrl`
+        :rtype: :class:`~bs.ctrl.session.SessionCtrl`
 
         If attributed credentials are valid, return logged on, unlocked session
         for user.
@@ -119,7 +134,7 @@ class SessionsCtrl(object):
             if session.user.username == username:
                 new_session = session
                 break
-        # if no existing sessionf or user was found
+        # if no existing session for user was found
         if not new_session:
             # create new session
             new_session = SessionCtrl()
@@ -157,7 +172,8 @@ class SessionsCtrl(object):
     def remove_session(self, session):
         """ ..
 
-        :param :class:`SessionCtrl` The :class:`SessionCtrl` to remove.
+        :param bs.ctrl.session.SessionCtrl SessionCtrl: The \
+        :class:`~bs.ctrl.session.SessionCtrl` to remove.
 
         :rtype: *bool*
 
@@ -175,7 +191,7 @@ class SessionsCtrl(object):
     def add_session_gui(self):
         """ ..
 
-        :rtype: :class:`SessionGuiCtrl`
+        :rtype: :class:`~bs.ctrl.session.SessionGuiCtrl`
 
         Adds a new UI instance to host a separate *gui-session*.
         """
@@ -187,7 +203,7 @@ class SessionsCtrl(object):
         """ ..
 
         :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-        :class:`SessionGuiCtrl` to remove.
+        :class:`~bs.ctrl.session.SessionGuiCtrl` to remove.
 
         :rtype: *bool*
 
@@ -202,10 +218,10 @@ class SessionGuiCtrl(object):
     """ ..
 
     :param bs.ctrl.session.SessionsCtrl sessions: The \
-    :class:`SessionsCtrl` to associate with this :class:`SessionGuiCtrl`.
+    :class:`~bs.ctrl.session.SessionsCtrl` to associate with this :class:`~bs.ctrl.session.SessionGuiCtrl`.
 
     :param bs.gui.window_main.Application app: The central \
-    :class:`bs.gui.window_main.Application` that is running this GUI \
+    :class:`~bs.gui.window_main.Application` that is running this GUI \
     instance.
 
     This is a container that hosts a single GUI session. A unique instance is \
@@ -227,9 +243,9 @@ class SessionGuiCtrl(object):
     @property
     def main_window(self):
         """
-        :type: :class:`bs.gui.window_main.WindowMain`
+        :type: :class:`~bs.gui.window_main.WindowMain`
 
-        The :class:`bs.gui.window_main.WindowMain` associated with this
+        The :class:`~bs.gui.window_main.WindowMain` associated with this
         (*gui-*)*session*.
         """
         return self._main_window
@@ -237,19 +253,19 @@ class SessionGuiCtrl(object):
     @property
     def sessions(self):
         """
-        :type: :class:`SessionsCtrl`
+        :type: :class:`~bs.ctrl.session.SessionsCtrl`
 
-        The central :class:`SessionsCtrl` managing this application instance.
+        The central :class:`~bs.ctrl.session.SessionsCtrl` managing this application instance.
         """
         return self._sessions
 
     @property
     def session(self):
         """
-        :type: :class:`SessionCtrl`
+        :type: :class:`~bs.ctrl.session.SessionCtrl`
         :permissions: *read/write*
 
-        The :class:`SessionCtrl` representing the current session.
+        The :class:`~bs.ctrl.session.SessionCtrl` representing the current session.
         """
         return self._session
 
@@ -303,9 +319,9 @@ class SessionCtrl(object):
     @property
     def user(self):
         """
-        :type: :class:`UserCtrl`
+        :type: :class:`~bs.ctrl.session.UserCtrl`
 
-        The :class:`UserCtrl` associated with this *backup-session*.
+        The :class:`~bs.ctrl.session.UserCtrl` associated with this *backup-session*.
         """
         return self._user
 
@@ -388,8 +404,9 @@ class SessionCtrl(object):
         """ ..
 
         :param str username: The user's username to log-in with.
+        :param str password: The user's password to log-in with.
 
-        :rtype str password: The user's password to log-in with.
+        :rtype: *bool*
 
         Logs the user associated with this *backup-session* in.
         """
@@ -466,6 +483,9 @@ class SessionCtrl(object):
     def unlock(self, username, password):
         """ ..
 
+        :param str username: The user's username to log-in with.
+        :param str password: The user's password to log-in with.
+
         :rtype: *bool*
 
         Unlocks the session.
@@ -505,10 +525,10 @@ class UserCtrl(bs.model.models.Users):
     """ ..
 
     :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-    :class:`SessionGuiCtrl` associated with the session this user is \
+    :class:`~bs.ctrl.session.SessionGuiCtrl` associated with the session this user is \
     associated with.
 
-    Represents an user in the system.
+    Represents a user in the system.
     """
     _id = None
     _username = None
@@ -546,7 +566,7 @@ class UserCtrl(bs.model.models.Users):
         """
         :type: *str*
 
-        The user's username.
+        The user's name.
         """
         return self._username
 
@@ -729,8 +749,8 @@ class BackupSourceCtrl(bs.model.models.Sources):
         :type: *dict*
 
         Returns an associative array (dictionary) in the following format: \
-        {:class:`BackupSetCtrl`::class:`BackupSourceCtrl`} or \
-        {:class:`BackupSetCtrl`::class:`BackupTargetCtrl`}.
+        {:class:`~bs.ctrl.session.BackupSetCtrl`::class:`~bs.ctrl.session.BackupSourceCtrl`} or \
+        {:class:`~bs.ctrl.session.BackupSetCtrl`::class:`~bs.ctrl.session.BackupTargetCtrl`}.
         """
         if not self._backup_entity_ass:
             backup_entity_ass = {}
@@ -773,7 +793,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
         :param bs.model.models_master.BSModel backup_entity: The \
         *backup-entity* to associate with this *backup-source* on the \
         *backup-set*. This is one of the following: \
-        :class:`BackupFilterCtrl`, :class:`BackupTargetsCtrl`
+        :class:`~bs.ctrl.session.BackupFilterCtrl`, :class:`~bs.ctrl.session.BackupTargetsCtrl`
 
         :rtype: *void*
 
@@ -800,7 +820,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
 class BackupSourcesCtrl(bs.model.models.Sources):
     """ ..
 
-    :param SessionCtrl session: The :class:`SessionCtrl` these \
+    :param SessionCtrl session: The :class:`~bs.ctrl.session.SessionCtrl` these \
     *backup-sources* are associated with.
 
     This class groups and manages all *backup-sources* for one *session*.
@@ -827,7 +847,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         :type: *list*
 
         Returns all source objects that are associated with this \
-        :class:`BackupSourcesCtrl` and :class:`SessionCtrl`.
+        :class:`~bs.ctrl.session.BackupSourcesCtrl` and :class:`~bs.ctrl.session.SessionCtrl`.
         """
         # sources list is empty, load from db
         if not len(self._backup_sources):
@@ -889,7 +909,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
 
         :rtype: *bool*
 
-        Creates a new :class:`BackupSourceCtrl`.
+        Creates a new :class:`~bs.ctrl.session.BackupSourceCtrl`.
         """
         # VALIDATE DATA
         # source_name
@@ -934,7 +954,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
 
         :rtype: *bool*
 
-        Deletes an existing :class:`BackupSourceCtrl`.
+        Deletes an existing :class:`~bs.ctrl.session.BackupSourceCtrl`.
         """
         # VALIDATE DATA
         # source_obj
@@ -957,7 +977,7 @@ class BackupTargetCtrl(bs.model.models.Targets):
     """ ..
 
     :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-    :class:`SessionGuiCtrl` associated with the :class:`SessionCtrl` this \
+    :class:`~bs.ctrl.session.SessionGuiCtrl` associated with the :class:`~bs.ctrl.session.SessionCtrl` this \
     *backup-target* is associated with.
 
     :param int target_id: The target's ID as used as a unique ID in the \
@@ -1082,7 +1102,7 @@ class BackupTargetsCtrl(bs.model.models.Targets):
     """ ..
 
     :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-    :class:`SessionCtrl` these *backup-targets* are associated with.
+    :class:`~bs.ctrl.session.SessionCtrl` these *backup-targets* are associated with.
 
     This class groups and manages all *backup-targets* for one *session*.
     """
@@ -1308,7 +1328,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
         :type: *list*
 
         A list of one or more \
-        :class:`bs.ctrl.session.BackupFilterRuleAttributesCtrl` that make up \
+        :class:`~bs.ctrl.session.BackupFilterRuleAttributesCtrl` that make up \
         this filter.
         """
         if not self._backup_filter_rules:
@@ -1398,10 +1418,10 @@ class BackupFilterCtrl(bs.model.models.Filters):
         :type: *list*
 
         Returns an associative array (dictionary) in the following format:
-        {:class:`bs.ctrl.session.BackupSetCtrl`: <backup_entity>, ...: ...}, \
+        {:class:`~bs.ctrl.session.BackupSetCtrl`: <backup_entity>, ...: ...}, \
         where *backup_entity* is one of the following: \
-        :class:`bs.ctrl.session.BackupFilterCtrl` \
-        :class:`bs.ctrl.session.BackupTargetCtrl`
+        :class:`~bs.ctrl.session.BackupFilterCtrl` \
+        :class:`~bs.ctrl.session.BackupTargetCtrl`
         """
         if not self._backup_entity_ass:
             backup_entity_ass = {}
@@ -1441,9 +1461,9 @@ class BackupFilterCtrl(bs.model.models.Filters):
         :param bs.ctrl.session.BackupSetCtrl backup_set:
         :param bs.model.models_master.BSModel backup_entity: The \
         *backup-entity* to associate with. This is one of the following: \
-        :class:`bs.ctrl.session.BackupSourceCtrl` \
-        :class:`bs.ctrl.session.BackupFilterCtrl` \
-        :class:`bs.ctrl.session.BackupTargetCtrl`
+        :class:`~bs.ctrl.session.BackupSourceCtrl` \
+        :class:`~bs.ctrl.session.BackupFilterCtrl` \
+        :class:`~bs.ctrl.session.BackupTargetCtrl`
         :rtype: *void*
 
         Associates entity with another backup_entitys. This is done when \
@@ -1465,10 +1485,10 @@ class BackupFiltersCtrl(bs.model.models.Filters):
     """ ..
 
     :param bs.ctrl.session.SessionGuiCtrl session_gui: The session's \
-    :class:`SessionGuiCtrl`.
+    :class:`~bs.ctrl.session.SessionGuiCtrl`.
 
-    This class holds all :class:`BackupFilterCtrl` for the current \
-    :class:`SessionCtrl` and is used to create and delete filters on a \
+    This class holds all :class:`~bs.ctrl.session.BackupFilterCtrl` for the current \
+    :class:`~bs.ctrl.session.SessionCtrl` and is used to create and delete filters on a \
     session-level.
     """
     _session = None
@@ -1490,7 +1510,7 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 
         :type: *list*
 
-        A list of all :class:`BackupFilterCtrl` associated with the current \
+        A list of all :class:`~bs.ctrl.session.BackupFilterCtrl` associated with the current \
         set.
         """
         # filter list is empty, load from db
@@ -1567,7 +1587,7 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         """ ..
 
         :param bs.ctrl.session.BackupFilterCtrl filter_obj: The \
-        :class:`BackupFilterCtrl` to be deleted from the set.
+        :class:`~bs.ctrl.session.BackupFilterCtrl` to be deleted from the set.
 
         Deletes an existing backup-filter.
         """
@@ -1589,17 +1609,17 @@ class BackupFilterRuleCtrl(object):
     """ ..
 
     :param id: The filter-rule-attribute's ID.
-    :param category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
     This class is not to be instantiated directly but serves as an abstract
     superclass to
 
-    * :class:`BackupFilterRuleAttributesCtrl`
-    * :class:`BackupFilterRuleDateCtrl`
-    * :class:`BackupFilterRulePathCtrl`
-    * :class:`BackupFilterRuleSizeCtrl`
+    * :class:`~bs.ctrl.session.BackupFilterRuleAttributesCtrl`
+    * :class:`~bs.ctrl.session.BackupFilterRuleDateCtrl`
+    * :class:`~bs.ctrl.session.BackupFilterRulePathCtrl`
+    * :class:`~bs.ctrl.session.BackupFilterRuleSizeCtrl`
     """
     _id = None
     _category = None  # enum (self.category_size, ...
@@ -1865,16 +1885,16 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_size: A *mode_size* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum mode_size: A *mode_size* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param int size: The *data-size* in bytes to be compared against.
 
     This class represent a *file-/directory-size filter* that is set for a
-    :class:`bs.ctrl.session.BackupFilterCtrl`.
+    :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
-    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
     _mode_size = None  # >, >=, =, <=, <
     _size = None  # int bytes
@@ -1912,18 +1932,18 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_path: A *mode-path* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum mode_path: A *mode-path* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param bool match_case: If `True`, filter will be evaluated case-sensitively.
     :param str path_pattern: The (file-/directory path-)pattern that is to be \
     matched.
 
     This class represent a *file-/directory-path filter* that is set for a
-    :class:`bs.ctrl.session.BackupFilterCtrl`.
+    :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
-    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
     _mode_path = None  # contains, starts with, ends with, ...
     _match_case = None  # bool
@@ -1972,18 +1992,18 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum timestamp_type: A *typestamp_type* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum position: A *position* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum reference_date: A *reference_date* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum offset: An *offset* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum timestamp_type: A *typestamp_type* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum position: A *position* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum reference_date: A *reference_date* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum offset: An *offset* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
     This class represent a *date filter* that is set for a
-    :class:`bs.ctrl.session.BackupFilterCtrl`.
+    :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
-    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
     _timestamp_type = None  # cdate, ctime, mdate, mtime, ...
     _position = None  # before, on, after, exactly
@@ -2043,15 +2063,15 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum attribute: An *attribute* enum on :class:`bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum attribute: An *attribute* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
     This class represent a *file-attribute filter* that is set for a
-    :class:`bs.ctrl.session.BackupFilterCtrl`.
+    :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
-    **Inherits from:** :class:`BackupFilterRuleCtrl`
+    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
     _attribute = None
 
@@ -2077,7 +2097,7 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
 class BackupSetCtrl(bs.model.models.Sets):
     """ ..
 
-    :param bs.ctrl.session.SessionCtrl session: The :class:`SessionCtrl` this set-controller \
+    :param bs.ctrl.session.SessionCtrl session: The :class:`~bs.ctrl.session.SessionCtrl` this set-controller \
     is accessed in.
 
     :param int set_id: The set's unique ID.
@@ -2094,13 +2114,13 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     :param  str set_db_path: The set's database path.
 
-    :param list source_objs: A list of :class:`BackupSourceCtrl` associated \
+    :param list source_objs: A list of :class:`~bs.ctrl.session.BackupSourceCtrl` associated \
     with the set.
 
-    :param list filter_objs: A list of :class:`BackupFilterCtrl` associated \
+    :param list filter_objs: A list of :class:`~bs.ctrl.session.BackupFilterCtrl` associated \
     with the set.
 
-    :param list target_objs: A list of :class:`BackupTargetCtrl` associated \
+    :param list target_objs: A list of :class:`~bs.ctrl.session.BackupTargetCtrl` associated \
     with the set.
     """
     _session = None
@@ -2253,7 +2273,7 @@ class BackupSetCtrl(bs.model.models.Sets):
 
         :type: *list*
 
-        A list of :class:`BackupSourceCtrl` set for this set.
+        A list of :class:`~bs.ctrl.session.BackupSourceCtrl` set for this set.
         """
         return self._backup_sources
 
@@ -2263,7 +2283,7 @@ class BackupSetCtrl(bs.model.models.Sets):
 
         :type: *list*
 
-        A list of :class:`BackupFilterCtrl` set for this set.
+        A list of :class:`~bs.ctrl.session.BackupFilterCtrl` set for this set.
         """
         return self._backup_filters
 
@@ -2274,7 +2294,7 @@ class BackupSetCtrl(bs.model.models.Sets):
         :type: *list*
         :permissions: *read/write*
 
-        A list of :class:`BackupTargetCtrl` set as *backup-targets* for \
+        A list of :class:`~bs.ctrl.session.BackupTargetCtrl` set as *backup-targets* for \
         this set.
         """
         return self._backup_targets
@@ -2324,7 +2344,7 @@ class BackupSetCtrl(bs.model.models.Sets):
         """
         :type: *list*
 
-        A list of :class:`bs.ctrl.backup.BackupCtrl` associated with the set.
+        A list of :class:`~bs.ctrl.backup.BackupCtrl` associated with the set.
         """
         return self._backup_ctrls
 
@@ -2371,7 +2391,7 @@ class BackupSetCtrl(bs.model.models.Sets):
         """ ..
 
         :param bs.ctrl.session.BackupFilterCtrl backup_filter: The \
-        :class:`BackupFilterCtrl` to add to the set.
+        :class:`~bs.ctrl.session.BackupFilterCtrl` to add to the set.
         :rtype: *void*
 
         Adds a backup-filter to this backup-set.
@@ -2387,7 +2407,7 @@ class BackupSetCtrl(bs.model.models.Sets):
         """ ..
 
         :param bs.ctrl.session.BackupSourceCtrl: The \
-        :class:`BackupSourceCtrl` to remove from the set.
+        :class:`~bs.ctrl.session.BackupSourceCtrl` to remove from the set.
         :rtype: *void*
 
         Removes a backup-source from this backup-set.
@@ -2484,7 +2504,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
     :param SessionCtrl session: The session this these sets belong to.
 
     Encapsulates all sets that are associated with a \
-    :class:`SessionCtrl`.
+    :class:`~bs.ctrl.session.SessionCtrl`.
     """
     _session = None
     _sets = None
@@ -2504,7 +2524,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
 
         :type: *list*
 
-        The list of :class:`BackupSetCtrl` that are associated with its
+        The list of :class:`~bs.ctrl.session.BackupSetCtrl` that are associated with its
         session.
         """
         # sets list is empty, load from db
@@ -2585,13 +2605,13 @@ class BackupSetsCtrl(bs.model.models.Sets):
         :param str set_db_path: The absolute file-path where the \
         *backup-set*'s database will be created.
 
-        :param list source_objs: A list of :class:`BackupSourceCtrl` to \
+        :param list source_objs: A list of :class:`~bs.ctrl.session.BackupSourceCtrl` to \
         associate with the set.
 
-        :param list filter_objs: A list of :class:`BackupFilterCtrl` to \
+        :param list filter_objs: A list of :class:`~bs.ctrl.session.BackupFilterCtrl` to \
         associate with the set.
 
-        :param list target_objs: A list of :class:`BackupTargetCtrl` to \
+        :param list target_objs: A list of :class:`~bs.ctrl.session.BackupTargetCtrl` to \
         associate with the set.
 
         Creates a new (empty) backup-set.
@@ -2693,7 +2713,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
         """ ..
 
         :param bs.ctrl.session.BackupSetCtrl backup_set: The \
-        :class:`BackupSetCtrl` to permanently delete.
+        :class:`~bs.ctrl.session.BackupSetCtrl` to permanently delete.
         :rtype: *bool*
 
         Deletes an existing backup-set.

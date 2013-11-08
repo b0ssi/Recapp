@@ -21,7 +21,7 @@ import os
 import winreg
 
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.2"
+VERSION = "0.0.2.3"
 
 COPYRIGHT_TIMEFRAME = "2012-2013"
 COPYRIGHT_HOLDER = "Frieder Czeschla"

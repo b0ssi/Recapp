@@ -15,7 +15,7 @@
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+""" This package contains the *about* window class(es)."""
 
 import bs.config
 import platform
@@ -23,7 +23,12 @@ from PySide import QtGui
 
 
 class WindowAbout(QtGui.QDialog):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui:
+
+    This is the *about* window.
+    """
     _default_width = 300
     _default_height = 200
     _session_gui = None

@@ -56,31 +56,37 @@ class BSFrame(QtGui.QFrame):
         follows:
 
         argument 1 needs to be of following format:
-        (
-         (object,
-          class_constraint,
-          pattern,
-          (
-           (dataset1),
-           (dataset2),
-           (dataset3),
-           (dataset4),
-           (dataset5),
-           (dataset6),
-          )
-         ),
-         ...
-        )
+
+        .. code-block:: python
+
+            (
+                (object,
+                    class_constraint,
+                    pattern,
+                    (
+                        (dataset1),
+                        (dataset2),
+                        (dataset3),
+                        (dataset4),
+                        (dataset5),
+                        (dataset6),
+                    ),
+                ),
+                ...
+            )
+
         where
 
         - `class_constraint` needs to be either `"."`, `""` or `None`. This \
         decides whether the css is constrained to the object only/object and \
-        all inheriting sub-types or to the object's hierarchy tree. `"."` \
-        will wrap the css definitions into `.classname {...}`: constrains to \
-        instances of class only, `""` will wrap the css definitions into \
-        `classname {...}` constrains to any instance of class or subtype \
-        `None` will not wrap the css definitions: only constrains to object \
-        hierarchy (leaving out `[.]class {}` completely in css string).
+        all inheriting sub-types or to the object's hierarchy tree.
+
+            - `"."` will wrap the css definitions into `.classname {...}`: \
+                constrains to instances of class only.
+            - `""` will wrap the css definitions into `classname {...}` \
+                constrains to any instance of class or subtype
+            - `None` will not wrap the css definitions: only constrains to \
+                object hierarchy (leaving out `[.]class {}` completely in css string).
 
         - `pattern` is a pattern-string that uses the six `dataset#` tuples \
         to substitute its placeholders with corresponding data, e.g.: \
@@ -445,6 +451,7 @@ class BSArrow(QtGui.QWidget):
 
     def paintEvent(self, e=None):
         """ ..
+
         :rtype: *void*
 
         Override of :class:`PySide.QtGui.QWidget.paintEvent`.
@@ -594,6 +601,7 @@ class BSArrowBtnDel(BSFrame):
 
 class BSArrowCarrier(BSDraggable):
     """ ..
+
     :param bs.gui.lib.BSCanvas parent:
     :param bs.gui.window_main.Application app:
     :param bs.gui.view_sets.BS bs:
@@ -850,7 +858,17 @@ class BSArrowCarrier(BSDraggable):
 
 
 class BSNode(BSDraggable):
-    """ * """
+    """ ..
+
+    :param bs.gui.view_sets.BS bs:
+    :param bs.gui.view_sets.BSSetsCanvas bs_sets_canvas:
+    :param bs.gui.window_main.Application app:
+    :param bool has_conn_pad:
+
+    The superclass to all floating, draggable nodes. Offers node-specific \
+    features such as arrow-connectors, arrow-association-management, node \
+    association management, etc.
+    """
     _bs = None
     _bs_sets_canvas = None
     _app = None
@@ -901,6 +919,12 @@ class BSNode(BSDraggable):
 
     @property
     def title_text(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The title's text.
+        """
         return self._title.text()
 
     @title_text.setter
@@ -909,14 +933,32 @@ class BSNode(BSDraggable):
 
     @property
     def arrows_inbound(self):
+        """
+        :type: *list*
+
+        A list of all inbound :class:`BSArrow` connecting to this node as a \
+        target.
+        """
         return self._arrows_inbound
 
     @property
     def arrows_outbound(self):
+        """
+        :type: *list*
+
+        A list of all outbound :class:`BSArrow` connecting from this node as a \
+        source.
+        """
         return self._arrows_outbound
 
     @property
     def title_size(self):
+        """
+        :type: *int*
+        :permissions: *read/write*
+
+        The title's size in px.
+        """
         return self._title_size
 
     @title_size.setter
@@ -934,18 +976,36 @@ class BSNode(BSDraggable):
         self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
 
     def assign_to_arrow_as_source(self, arrow):
-        """ * """
+        """ ..
+
+        :param bs.gui.lib.BSArrow arrow:
+        :rtype: *void*
+
+        Assigns a :class:`BSArrow` to this node as an *outbound* arrow, \
+        making this node a *source*.
+        """
         if arrow is not self._arrows_outbound:
             self._arrows_outbound.append(arrow)
 
     def assign_to_arrow_as_target(self, arrow):
-        """ * """
+        """ ..
+
+        :param bs.gui.lib.BSArrow arrow:
+        :rtype: *void*
+
+        Assigns a :class:`BSArrow` to this node as an *inbound* arrow, \
+        making this node a *target*.
+        """
         if not arrow in self._arrows_inbound:
             self._arrows_inbound.append(arrow)
 
     def unassign_from_arrow(self, arrow):
-        """ *
-        Unassigns `arrow` from this widget.
+        """ ..
+
+        :param bs.gui.lib.BSArrow arrow:
+        :rtype: *void*
+
+        Unassign `arrow` from this widget.
         """
         # pop from in- outbound list
         if arrow in self._arrows_inbound:
@@ -955,7 +1015,12 @@ class BSNode(BSDraggable):
         self._bs.set_modified()
 
     def draw_arrows(self):
-        """ * """
+        """ ..
+
+        :rtype: *void*
+
+        Invokes connected in- and outbound arrows to redraw themselves.
+        """
         if not self._arrows_inbound == []:
             for arrow_inbound in self._arrows_inbound:
                 arrow_inbound.refresh()
@@ -964,34 +1029,69 @@ class BSNode(BSDraggable):
                 arrow_outbound.refresh()
 
     def mousePressEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Raise the node above its siblings.
+        """
         super(BSNode, self).mousePressEvent(e)
 
 #        self._mouse_press_global_pos = e.globalPos()
         self.raise_()
 
     def mouseMoveEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Redraw connected arrows on mouse move.
+        """
         self.draw_arrows()
         super(BSNode, self).mouseMoveEvent(e)
 
     def focusInEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Mark the node visually when focusing in on it.
+        """
         self._border_hex_orig = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
         self.setStyleSheet("BSNode {border: 1px solid #333333}")
 
     def focusOutEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Unmark the node visually when focusing out of it.
+        """
         self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._border_hex_orig, ))
 
     def keyPressEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Perform actions on node in reaction to key-presses:
+
+        - [del]: Delete the node.
+        """
         if e.matches(QtGui.QKeySequence.Delete):
             self.remove_node()
 
     def remove_node(self):
-        """ *
-        Removes the node's arrows. Additional operations take place on
+        """ ..
+
+        :rtype: *void*
+
+        Remove the node's arrows. Additional operations take place on \
         inheriting objects.
         """
         # request exits
@@ -1012,14 +1112,22 @@ class BSNode(BSDraggable):
                             "did not shut down properly." % (self.__class__.__name__, ))
 
     def request_exit(self):
-        """ *
-        To be overridden by inheriting objects.
+        """ ..
+
+        :rtype: *bool*
+
+        Set in place to be overridden by inheriting objects. This method is \
+        to be called externally to request an exit on threaded operations \
+        running on this object.
         """
         return True
 
 
 class BSNodeConnPad(QtGui.QFrame):
-    """ * """
+    """ ..
+
+    The interactive widget on a node used to start connectino-arrows from.
+    """
 
     _layout = None
 
@@ -1044,23 +1152,40 @@ class BSNodeConnPad(QtGui.QFrame):
 #         self._layout.addWidget(icon, 0, 0, 1, 1)
 
     def mouseMoveEvent(self, e):
-        """ *
-        Override
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Empty override
         """
 
     def mousePressEvent(self, e):
-        """ *
-        Override
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Empty override
         """
 
     def mouseReleaseEvent(self, e):
-        """ *
-        Override
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Empty override
         """
 
 
 class BSNodeItem(BSFrame):
-    """ * """
+    """ ..
+
+    :param PySide.QtGui.QWidget parent:
+
+    An elementary sub-item of a :class:`BSNode`.
+    """
 
     _layout = None
     _title = None
@@ -1078,11 +1203,22 @@ class BSNodeItem(BSFrame):
 
     @property
     def title(self):
+        """
+        :type: :class:`PySide.QtGui.QLabel`
+
+        The :class:`BSNodeItem`'s title :class:`PySide.QtGui.QLabel`.
+        """
         return self._title
 
     @property
     def title_text(self):
-        """ * """
+        """ ..
+
+        :rtype: *str*
+        :permissions: *read/write*
+
+        The title's text.
+        """
         return self._title.text()
 
     @title_text.setter
@@ -1091,13 +1227,23 @@ class BSNodeItem(BSFrame):
         self._title.setText(str(title))
 
     def mouseMoveEvent(self, e):
-        """ *
-        Override to ignore
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Empty override.
         """
 
 
 class BSNodeItemButton(BSFrame):
-    """ * """
+    """ ..
+
+    :param PySide.QtGui.QWidget parent:
+    :param str title:
+
+    Used to create a nested button on a :class:`BSNodeItem`.
+    """
     _title = None
 
     _layout = None
@@ -1118,13 +1264,25 @@ class BSNodeItemButton(BSFrame):
                            % (bs.config.PALETTE[6], ))
 
     def enterEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Set the defined *hover* StyleSheet.
+        """
         self.setStyleSheet("background: #%s; color: #%s"
                            % (bs.config.PALETTE[1],
                               bs.config.PALETTE[4], ))
 
     def leaveEvent(self, e):
-        """ * """
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Set the defined *normal* StyleSheet.
+        """
         self.setStyleSheet("background: None; color: #%s"
                            % (bs.config.PALETTE[6], ))
 

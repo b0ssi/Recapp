@@ -76,7 +76,23 @@ class Application(QtGui.QApplication):
 
 
 class WindowMain(QtGui.QMainWindow):
-    """ * """
+    """ ..
+
+    :param bs.ctrl.session.SessionsCtrl sessions: The \
+    :class:`~bs.ctrl.session.SessionsCtrl` to associate with this \
+    :class:`WindowMain`.
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`~bs.ctrl.session.SessionGuiCtrl` to associate with this \
+    :class:`WindowMain`.
+    :param bs.gui.window_main.Application app: The single \
+    :class:`~bs.gui.window_main.Application` instance that manages the GUI \
+    runtime.
+
+    This class is a GUI main-window that hosts the entire interface for a \
+    separate set of one or more sessions. One separate user can be logged in \
+    and interactively managed in separate instances of this GUI class \
+    simultaneously.
+    """
     _sessions = None
     _session_gui = None
     _app = None
@@ -241,6 +257,8 @@ class WindowMain(QtGui.QMainWindow):
                 e.ignore()
                 return False
         self._sessions.remove_session_gui(self._session_gui)
+        # close backup-monitor
+        self._sessions.window_backup_monitor.close()
 
     def keyPressEvent(self, e):
         """ * """

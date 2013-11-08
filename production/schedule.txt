@@ -9,7 +9,7 @@
 ################################
 ................................
 ................................
-[X]		NEXT MILESTONE: 0001
+[X]		NEXT MILESTONE: 0.0.1
 		........................
 [X]		automatically create default user
 [X]		user can log in, out
@@ -34,7 +34,7 @@
 		[X] any code-warnings/errors
 ................................
 ................................
-[X]		NEXT MILESTONE: 0002
+[X]		NEXT MILESTONE: 0.0.2
 		........................
 [X]		Controllers: Restrict methods to logged_in only
 [X]		Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
@@ -126,12 +126,11 @@
 					bs.gui
 					bs.model
 					bs.model.models_master.*
-			> todo:	bs.gui.lib.*
-					bs.gui.view_login.*
-					bs.gui.view_sets.*
+					bs.gui.lib.*
 					bs.gui.window_about.*
+			> todo:	bs.gui.view_login.*
+					bs.gui.view_sets.*
 					bs.gui.window_main.*
-					bs.model.models.*
 		[ ]	validate user-input
 		[ ]	write test/test
 		[ ]	manage conditional exception-handling
@@ -148,7 +147,7 @@
 		[ ]	Make sure all modified-flags (*) are reset
 ................................
 ................................
-[.]		NEXT MILESTONE: 0003
+[.]		NEXT MILESTONE: 0.0.3
 		........................
 [.]		views:
 		[X]	basic main-window
@@ -189,8 +188,15 @@
 						[X]	Del button on arrow
 				[X]	Canvas
 					[X]	bug: on reconnect: scrolling canvas causes canvas rush
-		[ ]	window_about: Fill with simple info
-		[ ]	refactor object reference names, implement consistent scheme
+		[X]	window_about: Fill with simple info
+		[ ]	refactor object/module/package/class names, implement consistent scheme
+			[ ] example!?
+			[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
+			[ ] view_sets.BS -> view_sets.BSMainView
+			[ ]	view_sets -> view_bs
+			[ ]	view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
+			[ ] view_login.ViewLogin -> view_login.LoginView
+			[ ] window_about.WindowAbout merge into window_main.WindowMainAbout
 		[X]	implement consistent scheme for passing object-references into classes
 [X]		controllers:
 		[X]	refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
@@ -200,7 +206,7 @@
 [ ]		.
 ................................
 ................................
-[ ]		NEXT MILESTONE: 0004
+[ ]		NEXT MILESTONE: 0.0.4
 		........................
 [ ]		.
 ................................
