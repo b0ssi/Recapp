@@ -3,15 +3,19 @@
 ################################
 
 2013-11-09
+- implemented full control of BMQueueView and (temp. name for now) ScrollArea. No scroll bars yet but mouse wheel scrolling fully works.
+- add/remove methods for the queue
+
+2013-11-09 (was actually 2013-11-08)
 - Started package view_backup_monitor and writing some of its first classes BMMainView, BMQueueView, BMQueueJobView
 - Initial work on BMQueueView with some methods
 - Full docs update incl. formatting
 
-2013-11-08
+2013-11-08 (was actually 2013-11-07)
 - started package window_backup_monitor and class WindowBackupMonitor
 - global formatting (css)/layout work on docs
 
-2013-11-06 - 07
+2013-11-06 - 07 (was actually 2013-11-05 - 06)
 - substantial work on docs. Started custom theme, merged default/basic into the new theme, clean up, customization, code integration etc.
 
 2013-08-14 - 19

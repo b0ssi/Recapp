@@ -880,7 +880,6 @@ class BSNode(BSDraggable):
     _title_size = None
     _conn_pad = None
     _custom_contents_container = None # used by custom nodes to place custom contents into
-#    _mouse_press_global_pos = None  # Holds mouse pos when key was pressed to compare against pos when released
     _border_hex_orig = None
 
     def __init__(self, bs, bs_sets_canvas, app, has_conn_pad=False):
@@ -1061,7 +1060,7 @@ class BSNode(BSDraggable):
         Mark the node visually when focusing in on it.
         """
         self._border_hex_orig = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
-        self.setStyleSheet("BSNode {border: 1px solid #333333}")
+        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (bs.config.PALETTE[9], ))
 
     def focusOutEvent(self, e):
         """ ..

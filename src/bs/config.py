@@ -18,12 +18,13 @@
 """ * """
 
 import os
+import time
 import winreg
 
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.2.3"
+VERSION = "0.0.3.4"
 
-COPYRIGHT_TIMEFRAME = "2012-2013"
+COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"
 MANUFACTURER = "Isotoxin"
 
@@ -59,7 +60,9 @@ PALETTE = ["59554e",  # 0
            "767167",  # 5
            "888277",  # 6
            "ff0000",  # 7
-           "ff2a2a"]  # 8
+           "ff2a2a",  # 8
+           "393632",  # 9
+           ]
 # CSS
 CSS = ""  # "QWidget {background: #c7c7ff; border-radius: 2px}"
 # background: #59554e
