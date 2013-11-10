@@ -48,7 +48,7 @@ class BMMainView(QtGui.QFrame):
         widget.setPixmap(QtGui.QPixmap("./img/backup_monitor_bg.png"))
         # queues
         for i in range(8):
-            scroll_area_widget = ScrollArea(self)
+            scroll_area_widget = bs.gui.lib.ScrollArea(self)
             queue_widget = BMQueueView(scroll_area_widget, i)
             self._queue_scroll_areas.append(scroll_area_widget)
             x = 10 + i * 85
@@ -199,6 +199,16 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
     def keyReleaseEvent(self, e):
         # del
         if e.matches(QtGui.QKeySequence.Delete):
+            # focus in onto next backup-job in list
+            own_index = self.parent()._backup_jobs.index(self)
+            try:
+                self.parent()._backup_jobs[own_index + 1].setFocus()
+            except:
+                try:
+                    self.parent()._backup_jobs[own_index - 1].setFocus()
+                except:
+                    pass
+            # remove itself
             self.parent().remove_backup_job(self)
 
         super(BMQueueJobView, self).keyReleaseEvent(e)
@@ -211,105 +221,3 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
     def focusOutEvent(self, e):
         self.setStyleSheet(".BMQueueJobView {background: #%s; border-radius: 3px}"
                            % (bs.config.PALETTE[2], ))
-
-
-class ScrollArea(QtGui.QFrame):
-    """ ..
-
-    :param QtGui.QWidget parent: The parent widget the scroll view is to \
-    be assigned to.
-
-    This is a fixed-size scroll frame that allows one :attr:`central_widget` \
-    to hold arbitrary contents that can scroll if the :attr:`central_widget` \
-    is larger than the this scroll-view in either one or both directions x \
-    and y.
-    """
-
-    _central_widget = None
-    _central_widget_animation = None
-
-    def __init__(self, parent):
-        super(ScrollArea, self).__init__(parent)
-
-        self._init_ui()
-
-    def _init_ui(self):
-        pass
-
-    @property
-    def central_widget(self):
-        """ ..
-
-        The central widget frame that holds all the contents for the \
-        scroll-view. Should be scaled explicitly and will cause the \
-        scroll-area to scroll x-/y-wise repsectively if larger than \
-        scroll-view in corresponding direction(s).
-        """
-        return self._central_widget
-
-    def scroll_to(self, x, y, animate=True):
-        """ ..
-
-        :param float x: The x-position (0...1) to scroll to.
-        :param float y: The y-position (0...1) to scroll to.
-        :param bool animate: Whether or not to animate the transition.
-
-        At 0, the central widget is repositioned so that the top/left border \
-        sits on the top/left border of the scroll area, respectively. If 1, \
-        the widget is repositioned so that the bottom/right border sits on \
-        the bottom/right border of the scroll widget, respectively.
-        """
-        if not self._central_widget_animation:
-            # animation setup
-            self._central_widget_animation = QtCore.QPropertyAnimation(self._central_widget, "pos", self)
-            self._central_widget_animation.setDuration(100)
-        # calc scroll attributes
-        scroll_margin_x = self._central_widget.width() - self.width()
-        if scroll_margin_x < 0: scroll_margin_x = 0
-        scroll_margin_y = self._central_widget.height() - self.height()
-        if scroll_margin_y < 0: scroll_margin_y = 0
-        new_x = 0 - x * scroll_margin_x
-        new_y = 0 - y * scroll_margin_y
-        # execute scroll
-        if animate:
-            self._central_widget_animation.setStartValue(self.central_widget.pos())
-            self._central_widget_animation.setEndValue(QtCore.QPoint(new_x, new_y))
-            self._central_widget_animation.start()
-        else:
-            self._central_widget.move(new_x, new_y)
-
-    def set_central_widget(self, central_widget):
-        """ ..
-
-        :param QtGui.QWidget central_widget: The primary widget that hosts \
-        all remaining contents for the scroll area.
-
-        Sets the central widget to ``central_widget``.
-        """
-        self._central_widget = central_widget
-
-    def wheelEvent(self, e):
-        # scroll widget up/down
-        if e.orientation() == e.orientation().Vertical:
-            delta = e.delta() / 3
-            scroll_margin_x = self._central_widget.width() - self.width()
-            scroll_margin_y = self._central_widget.height() - self.height()
-            new_x_f = 0.0
-            new_y_f = 0.0
-            # build scroll-to percentages
-            new_x = self._central_widget.x()
-            new_y = self._central_widget.y() + delta
-            if scroll_margin_x > 0:
-                new_x_f = abs(self._central_widget.x() + delta) / scroll_margin_x
-            if scroll_margin_y > 0:
-                new_y_f = abs(self._central_widget.y() + delta) / scroll_margin_y
-            # call scroll_to
-            if new_y <= 0 and \
-                new_y + self._central_widget.height() >= self.height():
-                self.scroll_to(new_x_f, new_y_f)
-            elif delta > new_y > 0:
-                self.scroll_to(new_x_f, 0.0)
-            elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta) and \
-                delta < 0:
-                self.scroll_to(new_x_f, 1.0)
-        return True

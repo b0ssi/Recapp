@@ -197,10 +197,11 @@
 					[X]	bug: on reconnect: scrolling canvas causes canvas rush
 		[.] Backup Manager
 			[.] ScrollView
-				[ ] refactor into library
-				[ ] scrollbars
-				[ ] scroll on arrow keys
+				[X] refactor into library
+				[X] scrollbars
+				[X] scroll on arrow keys
 				[ ] finally: fully test for x, y scrolling
+					[ ] extend to support vertical scrolling (mouseWheel *and* cursor keys)
 		[X]	window_about: Fill with simple info
 		[ ]	refactor object/module/package/class names, implement consistent scheme
 			[ ] example!?

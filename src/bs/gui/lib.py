@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 ###############################################################################
 ##    bs.gui.nodes                                                           ##
 ###############################################################################
@@ -14,17 +13,20 @@
 ##    Usage:                                                                 ##
 ##                                                                           ##
 ###############################################################################
-
-from PySide import QtCore, QtGui
-import bs.config
 # import bs.gui.view_sets
-import logging
-import re
-
 """ ..
 
 This package contains all abstract *view-classes*.
 """
+
+import logging
+import math
+import re
+import time
+
+from PySide import QtCore, QtGui
+
+import bs.config
 
 
 class BSFrame(QtGui.QFrame):
@@ -565,31 +567,19 @@ class BSArrowBtnDel(BSFrame):
         self._bs_canvas.restack()
 
     def mouseMoveEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-
-        Override-implementation to suppress and prevent event from traveling \
-        down the hierarchy.
-        """
+        # Override-implementation to suppress and prevent event from \
+        # traveling down the hierarchy.
+        pass
 
     def mousePressEvent(self, e):
-        """
-        :param PySide.QtCore.QEvent e:
-
-        Records global mouse-position to be used on :meth:`mouseReleaseEvent` \
-        to check if mouse has moved in the mean time.
-        """
+        # Records global mouse-position to be used on \
+        # :meth:`mouseReleaseEvent` to check if mouse has moved in the mean \
+        # time.
         self._mouse_press_global_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-
-        Deletes the arrow on mouse-button-release, unless the mouse changed \
-        position since its :meth:`mousePressEvent`.
-        """
+        #Deletes the arrow on mouse-button-release, unless the mouse changed \
+        # position since its :meth:`mousePressEvent`.
         if self._mouse_press_global_pos == e.globalPos():
             if e.button() & QtCore.Qt.MouseButton.LeftButton:
                 # remove association
@@ -1311,3 +1301,210 @@ class BSMessageBox(QtGui.QMessageBox):
                  bs.config.PALETTE[4],
                  )
         self.setStyleSheet(css)
+
+
+class ScrollArea(QtGui.QFrame):
+    """ ..
+
+    :param QtGui.QWidget parent: The parent widget the scroll view is to \
+    be assigned to.
+
+    This is a fixed-size scroll frame that allows one :attr:`central_widget` \
+    to hold arbitrary contents that can scroll if the :attr:`central_widget` \
+    is larger than the this scroll-view in either one or both directions x \
+    and y.
+    """
+
+    _central_widget = None
+    _central_widget_animation = None
+    _scroll_bar_v = None
+    _scroll_bar_h = None
+    _scroll_bar_animation = None
+    _scroll_bar_animation_property = None
+
+    def __init__(self, parent):
+        super(ScrollArea, self).__init__(parent)
+
+        self._init_ui()
+
+    def _init_ui(self):
+        # scroll bars
+        self._scroll_bar_h = QtGui.QFrame(self)
+        self._scroll_bar_v = QtGui.QFrame(self)
+        self._scroll_bar_animation = QtCore.QPropertyAnimation(self, "_scroll_bar_animation_property", self)
+        self._scroll_bar_animation.setDuration(500)
+
+    @property
+    def central_widget(self):
+        """ ..
+
+        The central widget frame that holds all the contents for the \
+        scroll-view. Should be scaled explicitly and will cause the \
+        scroll-area to scroll x-/y-wise repsectively if larger than \
+        scroll-view in corresponding direction(s).
+        """
+        return self._central_widget
+
+    def _get_scroll_bar_alpha(self):
+        return 0
+
+    def _set_scroll_bar_alpha(self, arg):
+        """ ..
+
+        :param int arg: Transparency. This is an 8-bit int.
+        """
+        self._scroll_bar_v.setStyleSheet("QWidget {background: rgba(0, 0, 0, %s); border-radius: 2px}" % (arg, ))
+        self._scroll_bar_h.setStyleSheet("QWidget {background: rgba(0, 0, 0, %s); border-radius: 2px}" % (arg, ))
+
+    _scroll_bar_animation_property = QtCore.Property("int", _get_scroll_bar_alpha, _set_scroll_bar_alpha)
+
+    def scroll_to(self, x, y, animate=True):
+        """ ..
+
+        :param float x: The x-position (0...1) to scroll to.
+        :param float y: The y-position (0...1) to scroll to.
+        :param bool animate: Whether or not to animate the transition.
+
+        At 0, the central widget is repositioned so that the top/left border \
+        sits on the top/left border of the scroll area, respectively. If 1, \
+        the widget is repositioned so that the bottom/right border sits on \
+        the bottom/right border of the scroll widget, respectively.
+        """
+        # calc scroll attributes
+        scroll_margin_x = self._central_widget.width() - self.width()
+        if scroll_margin_x < 0: scroll_margin_x = 0
+        scroll_margin_y = self._central_widget.height() - self.height()
+        if scroll_margin_y < 0: scroll_margin_y = 0
+        new_x = 0 - x * scroll_margin_x
+        new_y = 0 - y * scroll_margin_y
+        # execute scroll
+        if animate:
+            self._central_widget_animation.setStartValue(self.central_widget.pos())
+            self._central_widget_animation.setEndValue(QtCore.QPoint(new_x, new_y))
+            self._central_widget_animation.start()
+        else:
+            self._central_widget.move(new_x, new_y)
+        self._update_scroll_bars(x, y)
+
+    def _update_scroll_bars(self, scroll_to_x_f, scroll_to_y_f):
+        """ ..
+
+        Updates scrollbars' positions and sizes.
+        """
+        if self._central_widget.width() > 0 and self._central_widget.height() > 0:
+            # these are offsets by which the scrollbars are shortened and limited to move into the lr corner (necessary, if both are visible for them to not intersect 
+            scroll_bar_h_corner_offset = 4
+            scroll_bar_v_corner_offset = 4
+            # deactivate scrollbars if unnecessary (widget width/height <= width/height of scroll area
+            if self._central_widget.width() <= self.width():
+                self._scroll_bar_h.setHidden(True)
+                scroll_bar_v_corner_offset = 0
+            if self._central_widget.height() <= self.height():
+                self._scroll_bar_v.setHidden(True)
+                scroll_bar_h_corner_offset = 0
+            # horizontal scrollbar
+            self._scroll_bar_h.raise_()
+            width = math.floor(self.width() / self._central_widget.width() * self.width()) - scroll_bar_h_corner_offset
+            self._scroll_bar_h.resize(width, 4)
+            x = math.floor((self.width() - scroll_bar_h_corner_offset - width) * scroll_to_x_f)
+            print(scroll_to_x_f)
+            y = self.height() - 4
+            self._scroll_bar_h.move(x, y)
+            # vertical scrollbar
+            self._scroll_bar_v.raise_()
+            height = math.floor(self.height() / self._central_widget.height() * self.height()) - scroll_bar_v_corner_offset
+            self._scroll_bar_v.resize(4, height)
+            x = self.width() - 5
+            y = math.floor((self.height() - scroll_bar_v_corner_offset - height) * scroll_to_y_f)
+            self._scroll_bar_v.move(x, y)
+
+    def set_central_widget(self, central_widget):
+        """ ..
+
+        :param QtGui.QWidget central_widget: The primary widget that hosts \
+        all remaining contents for the scroll area.
+
+        Sets the central widget to ``central_widget``.
+
+        .. Note:: Currently the central-widget cannot be resized, the \
+        scroll-area would have to get fully updated. Implement if necessary.
+        """
+        self._central_widget = central_widget
+        # animation setup
+        self._central_widget_animation = ScrollAreaAnimation(self._central_widget, "pos", self)
+        self._central_widget_animation.setDuration(100)
+
+    def wheelEvent(self, e):
+        # scroll widget up/down
+        if e.orientation() == e.orientation().Vertical:
+            delta = e.delta() / 3
+            self._calculate_scroll(delta)
+
+    def keyPressEvent(self, e):
+        if e.matches(QtGui.QKeySequence.MoveToPreviousLine):
+            self._calculate_scroll(-40)
+        if e.matches(QtGui.QKeySequence.MoveToNextLine):
+            self._calculate_scroll(40)
+
+    def _calculate_scroll(self, delta):
+        """ ..
+
+        :param int delta: Distance in px to travel. Can be negative (scroll \
+        down) or positive (scroll up).
+
+        Calculates the exact cp position (0...1) to scroll to, incl. top/end \
+        cap-offs and calls the scroll method.
+        """
+        scroll_margin_x = self._central_widget.width() - self.width()
+        scroll_margin_y = self._central_widget.height() - self.height()
+        new_x_f = 0.0
+        new_y_f = 0.0
+        # build scroll-to percentages
+        new_x = self._central_widget.x()
+        new_y = self._central_widget.y() + delta
+        if scroll_margin_x > 0:
+            new_x_f = abs(self._central_widget.x() + delta) / scroll_margin_x
+        if scroll_margin_y > 0:
+            new_y_f = abs(self._central_widget.y() + delta) / scroll_margin_y
+        # call scroll_to
+        if new_y <= 0 and \
+            new_y + self._central_widget.height() >= self.height():
+            self.scroll_to(new_x_f, new_y_f)
+        elif delta > new_y > 0:
+            self.scroll_to(new_x_f, 0.0)
+        elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta) and \
+            delta < 0:
+            self.scroll_to(new_x_f, 1.0)
+
+
+class ScrollAreaAnimation(QtCore.QPropertyAnimation):
+    """ ..
+
+    This is the animation object that animates the central-widget in the \
+    scroll area.
+    """
+    _finish_timer = None
+
+    def __init__(self, target_widget, property_name, parent):
+        super(ScrollAreaAnimation, self).__init__(target_widget,
+                                                  property_name,
+                                                  parent)
+        self._finish_timer = QtCore.QTimer(self)
+        self._finish_timer.setInterval(2000)
+        self._finish_timer.timeout.connect(self._finalize_animation)
+
+    def _finalize_animation(self):
+        # hide scrollbars
+        self.parent()._scroll_bar_animation.setStartValue(128)
+        self.parent()._scroll_bar_animation.setEndValue(0)
+        self.parent()._scroll_bar_animation.start()
+        self._finish_timer.stop()
+
+    def start(self):
+        if not self._finish_timer.isActive():
+            self.parent()._scroll_bar_animation.setStartValue(0)
+            self.parent()._scroll_bar_animation.setEndValue(128)
+            self.parent()._scroll_bar_animation.start()
+        self._finish_timer.start()
+
+        super(ScrollAreaAnimation, self).start()

@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2013-11-10
+- refactored ScrollArea class into gui.lib
+- implemented scrollbars, fully finished all controls and detail work
+- automatic selection/focus of next backup-job in queue on delete
+- scrolling via keyboard (arrow keys) now supported, vertically only.
+
 2013-11-09
 - implemented full control of BMQueueView and (temp. name for now) ScrollArea. No scroll bars yet but mouse wheel scrolling fully works.
 - add/remove methods for the queue
