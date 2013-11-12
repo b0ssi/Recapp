@@ -22,7 +22,7 @@ import time
 import winreg
 
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.5"
+VERSION = "0.0.3.6"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"
@@ -62,6 +62,7 @@ PALETTE = ["59554e",  # 0
            "ff0000",  # 7
            "ff2a2a",  # 8
            "393632",  # 9
+           "48453f",  # 10
            ]
 # CSS
 CSS = ""  # "QWidget {background: #c7c7ff; border-radius: 2px}"

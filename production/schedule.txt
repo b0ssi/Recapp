@@ -196,12 +196,29 @@
 				[X]	Canvas
 					[X]	bug: on reconnect: scrolling canvas causes canvas rush
 		[.] Backup Manager
-			[.] ScrollView
+			[X] ScrollView
 				[X] refactor into library
 				[X] scrollbars
 				[X] scroll on arrow keys
-				[ ] finally: fully test for x, y scrolling
-					[ ] extend to support vertical scrolling (mouseWheel *and* cursor keys)
+				[X] finally: fully test for x, y scrolling
+					[X] extend to support vertical scrolling (mouseWheel *and* cursor keys)
+			[X] active-backup-job
+				[X] backup-job
+					[X] integrate progress bar
+					[X] implement expand/collapse functionality
+						NB: expand only for now
+				[X] queue:
+					[X] get to move backup-job from queue to pole-position
+					[X] get to remove backup-job from pole-position
+					[X]	get to move first in queue to pole-position on adding backup-job
+					[X] yellow/orange "currently active" LED below queue
+						[X] add UI
+						[X] add controls to "switch on/off" on queue/backup-job focus
+			[ ] integration with controllers, backup-sets interface
+				[ ]	bind backup-set controllers to sets
+					[ ] dispatch backup-set controller from backup-set into backup-manager
+				[ ]	restrict control of backup-jobs to logged in users only
+				[ ]	link up backup controller with details UI/progress, etc.
 		[X]	window_about: Fill with simple info
 		[ ]	refactor object/module/package/class names, implement consistent scheme
 			[ ] example!?

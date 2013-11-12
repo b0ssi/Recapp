@@ -1330,9 +1330,12 @@ class ScrollArea(QtGui.QFrame):
     def _init_ui(self):
         # scroll bars
         self._scroll_bar_h = QtGui.QFrame(self)
+        self._scroll_bar_h.resize(0, 0)
         self._scroll_bar_v = QtGui.QFrame(self)
+        self._scroll_bar_v.resize(0, 0)
         self._scroll_bar_animation = QtCore.QPropertyAnimation(self, "_scroll_bar_animation_property", self)
-        self._scroll_bar_animation.setDuration(500)
+        self._scroll_bar_animation.setDuration(200)
+#         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
     @property
     def central_widget(self):
@@ -1393,21 +1396,26 @@ class ScrollArea(QtGui.QFrame):
         """
         if self._central_widget.width() > 0 and self._central_widget.height() > 0:
             # these are offsets by which the scrollbars are shortened and limited to move into the lr corner (necessary, if both are visible for them to not intersect 
-            scroll_bar_h_corner_offset = 4
-            scroll_bar_v_corner_offset = 4
+            scroll_bar_h_corner_offset = None
+            scroll_bar_v_corner_offset = None
             # deactivate scrollbars if unnecessary (widget width/height <= width/height of scroll area
             if self._central_widget.width() <= self.width():
                 self._scroll_bar_h.setHidden(True)
                 scroll_bar_v_corner_offset = 0
+            else:
+                self._scroll_bar_h.setHidden(False)
+                scroll_bar_v_corner_offset = 4
             if self._central_widget.height() <= self.height():
                 self._scroll_bar_v.setHidden(True)
                 scroll_bar_h_corner_offset = 0
+            else:
+                self._scroll_bar_v.setHidden(False)
+                scroll_bar_h_corner_offset = 4
             # horizontal scrollbar
             self._scroll_bar_h.raise_()
             width = math.floor(self.width() / self._central_widget.width() * self.width()) - scroll_bar_h_corner_offset
             self._scroll_bar_h.resize(width, 4)
             x = math.floor((self.width() - scroll_bar_h_corner_offset - width) * scroll_to_x_f)
-            print(scroll_to_x_f)
             y = self.height() - 4
             self._scroll_bar_h.move(x, y)
             # vertical scrollbar
@@ -1424,7 +1432,7 @@ class ScrollArea(QtGui.QFrame):
         :param QtGui.QWidget central_widget: The primary widget that hosts \
         all remaining contents for the scroll area.
 
-        Sets the central widget to ``central_widget``.
+        Sets the central widget to :attr:`central_widget`.
 
         .. Note:: Currently the central-widget cannot be resized, the \
         scroll-area would have to get fully updated. Implement if necessary.
@@ -1438,18 +1446,22 @@ class ScrollArea(QtGui.QFrame):
         # scroll widget up/down
         if e.orientation() == e.orientation().Vertical:
             delta = e.delta() / 3
-            self._calculate_scroll(delta)
+            self._calculate_scroll(0, delta)
 
     def keyPressEvent(self, e):
         if e.matches(QtGui.QKeySequence.MoveToPreviousLine):
-            self._calculate_scroll(-40)
+            self._calculate_scroll(0, 40)
         if e.matches(QtGui.QKeySequence.MoveToNextLine):
-            self._calculate_scroll(40)
+            self._calculate_scroll(0, -40)
+        if e.matches(QtGui.QKeySequence.MoveToPreviousChar):
+            self._calculate_scroll(40, 0)
+        if e.matches(QtGui.QKeySequence.MoveToNextChar):
+            self._calculate_scroll(-40, 0)
 
-    def _calculate_scroll(self, delta):
+    def _calculate_scroll(self, delta_x, delta_y):
         """ ..
 
-        :param int delta: Distance in px to travel. Can be negative (scroll \
+        :param int delta_y: Distance in px to travel. Can be negative (scroll \
         down) or positive (scroll up).
 
         Calculates the exact cp position (0...1) to scroll to, incl. top/end \
@@ -1460,20 +1472,27 @@ class ScrollArea(QtGui.QFrame):
         new_x_f = 0.0
         new_y_f = 0.0
         # build scroll-to percentages
-        new_x = self._central_widget.x()
-        new_y = self._central_widget.y() + delta
+        new_x = self._central_widget.x() + delta_x
+        new_y = self._central_widget.y() + delta_y
         if scroll_margin_x > 0:
-            new_x_f = abs(self._central_widget.x() + delta) / scroll_margin_x
+            new_x_f = abs(self._central_widget.x() + delta_x) / scroll_margin_x
         if scroll_margin_y > 0:
-            new_y_f = abs(self._central_widget.y() + delta) / scroll_margin_y
+            new_y_f = abs(self._central_widget.y() + delta_y) / scroll_margin_y
         # call scroll_to
-        if new_y <= 0 and \
-            new_y + self._central_widget.height() >= self.height():
+        if (new_y <= 0 and \
+            new_y + self._central_widget.height() >= self.height()) or \
+            (new_x <= 0 and \
+            new_x + self._central_widget.width() >= self.width()):
             self.scroll_to(new_x_f, new_y_f)
-        elif delta > new_y > 0:
+        elif delta_x > new_x > 0:
+            self.scroll_to(0.0, new_y_f)
+        elif self.width() < self._central_widget.x() + self._central_widget.width() < self.width() + abs(delta_x) and \
+            delta_x < 0:
+            self.scroll_to(1.0, new_y_f)
+        elif delta_y > new_y > 0:
             self.scroll_to(new_x_f, 0.0)
-        elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta) and \
-            delta < 0:
+        elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta_y) and \
+            delta_y < 0:
             self.scroll_to(new_x_f, 1.0)
 
 

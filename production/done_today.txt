@@ -2,6 +2,17 @@
 ## DONE TODAY ##################
 ################################
 
+2013-11-11
+- fully tested and completed scroll-area for x- and y-axis operability
+- added option for queue to:
+	- move first backup-job to pole-position
+	- retire current pole-position job and move next in queue in
+- made backup-job widget expandable, added functionality and control of progress-bar
+- implemented "currently active LED" and focus controls
+- add first elements of details view:
+	- progress bar
+	- "current item"
+
 2013-11-10
 - refactored ScrollArea class into gui.lib
 - implemented scrollbars, fully finished all controls and detail work
