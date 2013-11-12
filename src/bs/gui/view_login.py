@@ -23,7 +23,9 @@ import re
 
 
 class ViewLogin(QtGui.QWidget):
-    """ * """
+    """ ..
+
+    """
     _layout = None
     _sessions = None
     _session_gui = None
@@ -42,7 +44,9 @@ class ViewLogin(QtGui.QWidget):
         return self._view_login_form
 
     def _init_ui(self):
-        """ * """
+        """ ..
+
+        """
         # set-up layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -63,10 +67,18 @@ class ViewLogin(QtGui.QWidget):
         self._layout.addWidget(ViewLoginEmblem(), 0, 3, 1, 1)
 
     def unlock(self, username, password):
-        """ * """
+        """ ..
+
+        """
 
     def log_in(self, username, password):
-        """ *
+        """ ..
+
+        :param str username: The *username* part of the credentials to log-\
+        in with.
+        :param str password: The *password* part of the credentials to log-\
+        in with.
+
         Gets session for user if login is valid and sets up UI.
         """
         session = self._sessions.add_session(username, password)
@@ -85,10 +97,11 @@ class ViewLogin(QtGui.QWidget):
             # add reference to new session to session_gui
             self._session_gui.session = session
             # set view
-            self._session_gui.main_window.set_view('x')
+            self._session_gui.main_window.set_view('view_sets')
 
     def request_exit(self):
-        """ *
+        """ ..
+
         Hook-method called by window manager before changing view.
         Close any view-specific processes here. Events, etc.
         """
@@ -96,7 +109,9 @@ class ViewLogin(QtGui.QWidget):
 
 
 class ViewLoginForm(QtGui.QWidget):
-    """ * """
+    """ ..
+
+    """
     _layout = None
     _label_username = None
     _input_username = None
@@ -123,7 +138,9 @@ class ViewLoginForm(QtGui.QWidget):
         return self._input_password
 
     def _init_ui(self):
-        """ * """
+        """ ..
+
+        """
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setRowMinimumHeight(1, 20)
@@ -173,7 +190,8 @@ class ViewLoginForm(QtGui.QWidget):
                 )
 
     def _on_text_changed(self):
-        """ *
+        """ ..
+
         Refreshes form formatting, updates auto completer.
         """
         # INPUT_USERNAME: HIGHLIGHT LOCKED USERNAME
@@ -190,7 +208,8 @@ class ViewLoginForm(QtGui.QWidget):
         return False
 
     def _on_text_edited(self):
-        """ *
+        """ ..
+
         Updates form only on text edits (prevents completion list from getting
         updated on cycling through list)
         """
@@ -202,7 +221,9 @@ class ViewLoginForm(QtGui.QWidget):
         self._input_username.setCompleter(self._input_username_completer)
 
     def _set_into_unlock(self, arg):
-        """ * """
+        """ ..
+
+        """
         # set into unlock mode
         if arg:
             text = "Un&lock"
@@ -218,7 +239,9 @@ class ViewLoginForm(QtGui.QWidget):
 
 
 class ViewLoginEmblem(QtGui.QLabel):
-    """ * """
+    """ ..
+
+    """
 
     _layout = None
 

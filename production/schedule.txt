@@ -5,8 +5,12 @@
 [<runCode>] End of Day Commit				Periodic routine End of Day commit
 
 ## DAILY PROCEDURE #############
-- finish work, clean up dev comments, tests, commented-out elements
+- clean-up
+	- finish work, clean-up dev comments, tests, commented-out elements
+	- clean-up warnings/long lines
+	- sort fields/methods alphabetically
 - update documentation
+- reset day-modification marks (".. x" -> "..")
 - increment version number
 - commit
 - backup
@@ -214,9 +218,12 @@
 					[X] yellow/orange "currently active" LED below queue
 						[X] add UI
 						[X] add controls to "switch on/off" on queue/backup-job focus
-			[ ] integration with controllers, backup-sets interface
-				[ ]	bind backup-set controllers to sets
-					[ ] dispatch backup-set controller from backup-set into backup-manager
+			[.] integration with controllers, backup-sets interface
+				[X]	bind backup-set controllers to sets
+					[X] dispatch backup-set controller from backup-set into backup-manager
+				[.]	get backup-job to execute backup-set
+					[ ] on job-move into pole position
+				[ ]	get backup-set to dismiss backup-job on finish (and move-in next backup-job in queue)
 				[ ]	restrict control of backup-jobs to logged in users only
 				[ ]	link up backup controller with details UI/progress, etc.
 		[X]	window_about: Fill with simple info

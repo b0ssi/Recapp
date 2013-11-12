@@ -22,7 +22,7 @@ import time
 import winreg
 
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.6"
+VERSION = "0.0.3.7"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"

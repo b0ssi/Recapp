@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2013-11-12
+- backup-monitor now opens on job dispatch
+- backup-set now gets dispatched right into backup-manager queue (no options dialog yet, just dispatches into queue 1 for now)
+- [in progress] backup-monitor runs through backup-sources in in backup-set and executes them
+- add link to backup-monitor in main-menu
+
 2013-11-11
 - fully tested and completed scroll-area for x- and y-axis operability
 - added option for queue to:

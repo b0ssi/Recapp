@@ -15,7 +15,9 @@
 ##                                                                           ##
 ###############################################################################
 
-""" * """
+""" ..
+
+"""
 
 from PySide import QtCore, QtGui
 import bs.config
@@ -30,14 +32,17 @@ import time
 
 
 class BS(QtGui.QFrame):
-    """ * """
+    """ ..
+
+    """
     _window_main = None
     _session_gui = None
     _backup_sets = None
     _app = None
 
-    gui_data_modified_signal = None
-    resizeSignal = QtCore.Signal(QtGui.QResizeEvent)
+    _gui_data_modified_signal = None
+    _gui_data_save_signal = None
+    _resizeSignal = None
     _menu_sets = None
     _bs_sets_canvas = None
     _backup_set_current = None
@@ -49,16 +54,19 @@ class BS(QtGui.QFrame):
         self._session_gui = session_gui
         self._backup_sets = session_gui.session.backup_sets
         self._app = app
+        self._resizeSignal = QtCore.Signal(QtGui.QResizeEvent)
 
-        self.gui_data_modified_signal = bs.utils.Signal()
-        self.gui_data_modified_signal.connect(self._app.idle_1s_timer.start)
-        self.gui_data_save_signal = bs.utils.Signal()
-        self.gui_data_save_signal.connect(self._save_to_db)
+        self._gui_data_modified_signal = bs.utils.Signal()
+        self._gui_data_modified_signal.connect(self._app.idle_1s_timer.start)
+        self._gui_data_save_signal = bs.utils.Signal()
+        self._gui_data_save_signal.connect(self._save_to_db)
         self._app.idle_1s_timer.timeout.connect(self.gui_data_save_signal.emit)
         self._init_ui()
 
     def _init_ui(self):
-        """ * """
+        """ ..
+
+        """
         self.setGeometry(0, 0, self.parent().width(), self.parent().height())
         self._menu_sets = BSMenu(self, self._backup_sets)
         self._bs_sets_canvas = BSSetsCanvas(self, self._menu_sets, self._app)
@@ -80,11 +88,39 @@ class BS(QtGui.QFrame):
         self._backup_set_current = backup_set_current
 
     @property
+    def gui_data_modified_signal(self):
+        return self._gui_data_modified_signal
+
+    @gui_data_modified_signal.setter
+    def gui_data_modified_signal(self, arg):
+        self._gui_data_modified_signal = arg
+
+    @property
+    def gui_data_save_signal(self):
+        return self._gui_data_save_signal
+
+    @gui_data_save_signal.setter
+    def gui_data_save_signal(self, arg):
+        self._gui_data_save_signal = arg
+
+    @property
+    def resizeSignal(self):
+        return self._resizeSignal
+
+    @resizeSignal.setter
+    def resizeSignal(self, arg):
+        self._resizeSignal = arg
+
+    @property
     def session_gui(self):
         return self._session_gui
 
     def set_modified(self, force_save=False):
         """ ..
+
+        :param bool force_save: Force the \
+        :class:`~bs.ctrl.session.BackupSetCtrl` to be saved into DB if \
+        ``True``.
 
         Triggers the modified signal (which again sets connected handlers such
         as a save button to enabled, etc.) which then starts the timer which
@@ -157,12 +193,24 @@ class BS(QtGui.QFrame):
             return False
 
     def resizeEvent(self, e):
-        """ * """
+        """ ..
+
+        :param QtCore.QEvent e:
+
+        Override.
+        """
         self.resizeSignal.emit(e)
 
 
 class BSSetsCanvas(bs.gui.lib.BSCanvas):
-    """ * """
+    """ ..
+
+    :param bs.gui.view_sets.BS bs:
+    :param bs.gui.view_sets.BSMenu menu_sets:
+    :param bs.gui.window_main.Application app:
+
+    The canvas gui for the set-management interface.
+    """
     _bs = None
     _menu_sets = None
     _app = None
@@ -215,7 +263,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     def restack(self):
         """ ..
 
-        Restacks children in correct order so they don't overlap
+        Re-stacks children in correct order so they don't overlap \
         inappropriately.
         """
         for widget in self.bs_arrow_btn_del_widgets:
@@ -271,7 +319,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     def load_set(self, backup_set):
         """ ..
 
-        Loads a backup-set onto the canvas.
+        :param bs.ctrl.session.BackupSetCtrl backup_set:
+
+        Loads a :class:`~bs.ctrl.session.BackupSetCtrl` onto the canvas.
         """
         self.close_set()
         # set new current set
@@ -365,6 +415,14 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     def add_node(self, backup_entity, backup_set, global_pos=None):
         """ ..
 
+        :param mixed-type backup_entity: This can be one of the following:
+
+        - :class:`~bs.ctrl.session.BackupSourceCtrl`
+        - :class:`~bs.ctrl.session.BackupFilterCtrl`
+        - :class:`~bs.ctrl.session.BackupTargetCtrl`
+        :param bs.ctrl.session.BackupSetCtrl backup_set:
+        :param QtCore.QPoint global_pos:
+
         Adds a new node.
         """
         if isinstance(backup_entity, bs.ctrl.session.BackupSourceCtrl):
@@ -397,6 +455,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     def mouseReleaseEvent(self, e):
         """ ..
 
+        :param QtCore.QEvent e:
+
+        Override.
         """
         if e.globalPos() == self._mouse_press_global_pos and\
             e.button() & QtCore.Qt.MouseButton.RightButton and\
@@ -408,7 +469,12 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             super(BSSetsCanvas, self).mouseReleaseEvent(e)
 
     def keyPressEvent(self, e):
-        """ * """
+        """ ..
+
+        :param QtCore.QEvent e:
+
+        Override.
+        """
         if e.text() == "h":
             bs_nodes = self._bs_filter_widgets + self._bs_source_widgets + self._bs_target_widgets
             bb_l = 0
@@ -445,7 +511,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
 
 
 class BSSetsCMenu(QtGui.QMenu):
-    """ * """
+    """ ..
+
+    """
     _bs_sets_canvas = None
     _backup_set_current = None
     _c_menu_main_global_pos = None
@@ -485,7 +553,9 @@ class BSSetsCMenu(QtGui.QMenu):
 
 
 class BSSetsCMenuSub(QtGui.QMenu):
-    """ * """
+    """ ..
+
+    """
     _backup_entities_session = None  # these is the list of entities (backup_sources/backup_filters) for the entire sessionself._bs.backup_set_current.backup_sources
     _backup_entities_set = None  # these is the list of entities (backup_sources/backup_filters) for the entire sessionself._bs.backup_set_current.backup_sources
     _bs_sets_canvas = None
@@ -529,7 +599,9 @@ class BSSetsCMenuSub(QtGui.QMenu):
 
 
 class BSSetsCMenuAction(QtGui.QAction):
-    """ * """
+    """ ..
+
+    """
     _bs_sets_canvas = None
     _backup_entity = None
     _backup_set_current = None
@@ -561,7 +633,9 @@ class BSSetsCMenuAction(QtGui.QAction):
 
 
 class BSMenu(bs.gui.lib.BSDraggable):
-    """ * """
+    """ ..
+
+    """
     _bs = None
     _backup_sets = None
 
@@ -657,14 +731,18 @@ class BSMenu(bs.gui.lib.BSDraggable):
                          )
 
     def mouseMoveEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         self._x_c = self.x() + self.width() / 2
         self._y_c = self.y() + self.height() / 2
 
         super(BSMenu, self).mouseMoveEvent(e)
 
     def resizeEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         if e.oldSize().width() > 0:
             x = self._x_c - self.width() / 2
             y = self._y_c - self.height() / 2
@@ -694,7 +772,9 @@ class BSMenu(bs.gui.lib.BSDraggable):
 
 
 class BSMenuItem(bs.gui.lib.BSNodeItem):
-    """ * """
+    """ ..
+
+    """
 
     _bs_menu = None
     _backup_set = None
@@ -712,11 +792,9 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
         self._init_ui()
 
     def _init_ui(self):
-        """ * """
-        # layout
-#        self._layout.setColumnStretch(0, 100)
-#        self._layout.setColumnStretch(1, 1)
-#        self._layout.setColumnMinimumWidth(1, 28)
+        """ ..
+
+        """
         # title
         self.title_text = self._backup_set.set_name
         # buttons
@@ -750,14 +828,18 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
                     )
 
     def mousePressEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSMenuItem, self).mousePressEvent(e)
 
         self._bs._bs_sets_canvas.load_set(self._backup_set)
 
 
 class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
-    """ * """
+    """ ..
+
+    """
     _title = None
     _bs_menu = None
     _bs_menu_item = None
@@ -776,9 +858,9 @@ class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
         self._bs = bs
 
     def mousePressEvent(self, e):
-        """ * """
-#        super(BSMenuItemBtnDel, self).mousePressEvent(e)
+        """ ..
 
+        """
         msg_box = bs.gui.lib.BSMessageBox(QtGui.QMessageBox.Warning,
                                           "Confirm Deletion",
                                           "<p>Are you sure you wish to delete "\
@@ -799,7 +881,9 @@ class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
 
 
 class BSMenuItemSave(bs.gui.lib.BSNodeItem):
-    """ * """
+    """ ..
+
+    """
     _bs = None
     _bs_menu = None
 
@@ -860,7 +944,10 @@ class BSMenuItemSave(bs.gui.lib.BSNodeItem):
     def mousePressEvent(self, e):
         """ ..
 
-        Triggers backup_set.save_to_db() and disables this button again.
+        :param QtCore.QEvent e:
+
+        Override. Triggers backup_set.save_to_db() and disables this button \
+        again.
         """
         super(BSMenuItemSave, self).mousePressEvent(e)
 
@@ -868,7 +955,9 @@ class BSMenuItemSave(bs.gui.lib.BSNodeItem):
 
 
 class BSSource(bs.gui.lib.BSNode):
-    """ * """
+    """ ..
+
+    """
     _bs = None
     _bs_sets_canvas = None
     _backup_entity = None
@@ -942,7 +1031,9 @@ class BSSource(bs.gui.lib.BSNode):
         gui_data["nodes"]["bs_source_widgets"][str(self._backup_entity.backup_source_id)]["pos"] = pos
 
     def remove_node(self):
-        """ * """
+        """ ..
+
+        """
         super(BSSource, self).remove_node()
 
         # unregister set-association
@@ -954,7 +1045,9 @@ class BSSource(bs.gui.lib.BSNode):
         self.deleteLater()
 
     def request_exit(self):
-        """ * """
+        """ ..
+
+        """
         if self._bs_source_item.request_exit():
             return True
         else:
@@ -962,13 +1055,17 @@ class BSSource(bs.gui.lib.BSNode):
             return False
 
     def mousePressEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSSource, self).mousePressEvent(e)
 
         self._mouse_press_event_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSSource, self).mouseReleaseEvent(e)
         # emit modified-signal, only if mouse has actually moved
         if self._mouse_press_event_pos != e.globalPos():
@@ -976,7 +1073,9 @@ class BSSource(bs.gui.lib.BSNode):
 
 
 class BSSourceItem(bs.gui.lib.BSNodeItem):
-    """ * """
+    """ ..
+
+    """
     _bs_source = None
     _backup_entity = None
     _backup_set = None
@@ -996,7 +1095,9 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         self._init_ui()
 
     def _init_ui(self):
-        """ * """
+        """ ..
+
+        """
         self.title_text = "Calculate Pending Data"
         # CSS
         self.css = ((self,
@@ -1026,7 +1127,9 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                     )
 
     def mouseReleaseEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         # if backup_set is encrypted, prompt for key
         if self._backup_set.salt_dk:
             err_msg = "The Backup-Set seems to be encrypted. Please enter the password:"
@@ -1080,7 +1183,9 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
 
 class BSFilter(bs.gui.lib.BSNode):
-    """ * """
+    """ ..
+
+    """
     _bs_sets_canvas = None
     _bs = None
     _backup_entity = None
@@ -1124,13 +1229,17 @@ class BSFilter(bs.gui.lib.BSNode):
         self.show()
 
     def mousePressEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSFilter, self).mousePressEvent(e)
 
         self._mouse_press_event_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSFilter, self).mouseReleaseEvent(e)
 
         # emit modified-signal, only if mouse has actually moved
@@ -1168,7 +1277,9 @@ class BSFilter(bs.gui.lib.BSNode):
         gui_data["nodes"]["bs_filter_widgets"][str(self._backup_entity.backup_filter_id)]["pos"] = pos
 
     def remove_node(self):
-        """ * """
+        """ ..
+
+        """
         super(BSFilter, self).remove_node()
 
         # unregister set-association
@@ -1181,7 +1292,9 @@ class BSFilter(bs.gui.lib.BSNode):
 
 
 class BSFilterItem(bs.gui.lib.BSNodeItem):
-    """ * """
+    """ ..
+
+    """
     _bs_filter = None
     _backup_filter_rule = None
 
@@ -1233,7 +1346,9 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
 
 
 class BSTarget(bs.gui.lib.BSNode):
-    """ * """
+    """ ..
+
+    """
     _bs_sets_canvas = None
     _bs = None
     _backup_entity = None
@@ -1297,11 +1412,7 @@ class BSTarget(bs.gui.lib.BSNode):
                       )
                      )
                     )
-
-        def mouse_press_event():
-            print("test!!!")
-
-        widget.mousePressEvent = lambda e: mouse_press_event()
+        widget.mousePressEvent = lambda e: self.dispatch_backup_job()
         self._custom_contents_container._layout.addWidget(widget,
                                                           self._custom_contents_container._layout.count(),
                                                           0, 1, 1)
@@ -1312,14 +1423,28 @@ class BSTarget(bs.gui.lib.BSNode):
         self.title_size = 13
         self.show()
 
+    def dispatch_backup_job(self):
+        """ ..
+
+        Dispatches the associated backup-set as a new backup-job to the \
+        monitor/queue.
+        """
+        bm_window = self._bs.session_gui.sessions.window_backup_monitor
+        bm_window.show()
+        bm_window.view.queues[0].add_backup_job(self._backup_set)
+
     def mousePressEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSTarget, self).mousePressEvent(e)
 
         self._mouse_press_event_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
-        """ * """
+        """ ..
+
+        """
         super(BSTarget, self).mouseReleaseEvent(e)
 
         # emit modified-signal, only if mouse has actually moved
@@ -1359,12 +1484,14 @@ class BSTarget(bs.gui.lib.BSNode):
     def keyPressEvent(self, e):
         """ ..
 
-        Override
+        Override to mute.
         """
 
 
 class BSTargetItem(bs.gui.lib.BSNodeItem):
-    """ * """
+    """ ..
+
+    """
     _bs_target = None
     _backup_target = None
 

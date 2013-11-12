@@ -13,7 +13,9 @@
 ##    Usage:                                                                 ##
 ##                                                                           ##
 ###############################################################################
-"""
+
+""" ..
+
 The window GUI that hosts the *Backup-Monitor*.
 """
 
@@ -31,12 +33,16 @@ class WindowBackupMonitor(QtGui.QMainWindow):
     :class:`~bs.ctrl.session.SessionsCtrl` managing all \
     :class:`~bs.ctrl.session.SessionCtrl`.
 
-    The central Backup-Monitor window that displays stati of and management options for all dispatched backup-jobs.
+    The central Backup-Monitor window that displays stati of and management \
+    options for all dispatched backup-jobs.
     """
     _layout = None
     _sessions_ctrl = None
 
     def __init__(self, sessions_ctrl):
+        """ ..
+
+        """
         super(WindowBackupMonitor, self).__init__()
 
         self._sessions_ctrl = sessions_ctrl
@@ -44,10 +50,14 @@ class WindowBackupMonitor(QtGui.QMainWindow):
         self._init_ui()
 
     def _init_ui(self):
+        """ ..
+
+        """
         self.setWindowTitle("%s: Backup Monitor" % (bs.config.PROJECT_NAME, ))
         self.setCentralWidget(QtGui.QWidget())
         # set position next to first main_window
-        x = self._sessions_ctrl.guis[0].main_window.geometry().x() + self._sessions_ctrl.guis[0].main_window.frameGeometry().width()
+        x = self._sessions_ctrl.guis[0].main_window.geometry().x() + \
+            self._sessions_ctrl.guis[0].main_window.frameGeometry().width()
         y = self._sessions_ctrl.guis[0].main_window.geometry().y()
         self.setGeometry(x, y, 699, 512)
         # layout
@@ -58,4 +68,13 @@ class WindowBackupMonitor(QtGui.QMainWindow):
         self.centralWidget().setLayout(self._layout)
         self._layout.addWidget(view, 0, 0, 1, 1)
 
-        self.show()
+    @property
+    def view(self):
+        """ ..
+
+        :type: :class:`~bs.gui.view_backup_monitor.BMMainView`
+        :permissions: read
+
+        Returns the main view widget of the backup-monitor directly.
+        """
+        return self._layout.itemAt(0).widget()
