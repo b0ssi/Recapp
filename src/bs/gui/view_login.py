@@ -102,6 +102,8 @@ class ViewLogin(QtGui.QWidget):
     def request_exit(self):
         """ ..
 
+        :rtype: *bool*
+
         Hook-method called by window manager before changing view.
         Close any view-specific processes here. Events, etc.
         """

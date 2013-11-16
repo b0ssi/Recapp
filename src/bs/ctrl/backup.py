@@ -41,8 +41,10 @@ import zlib
 class BackupCtrl(object):
     """ ..
 
-    :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* to handle.
-    :param bs.ctrl.session.BackupSourceCtrl backukp_source: The *backup-source* to handle.
+    :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* to \
+    handle.
+    :param bs.ctrl.session.BackupSourceCtrl backukp_source: The \
+    *backup-source* to handle.
 
     Manages and runs a backup-job.
     """
@@ -53,8 +55,9 @@ class BackupCtrl(object):
     _tmp_dir = None
     _bytes_to_be_backed_up = None
     _files_num_to_be_backed_up = None
-    _pre_calc_thread = None
     _request_exit = None
+    _update_signal = None
+    _processing_finished_signal = None
 
     def __init__(self, backup_set, backup_source):
         self._backup_set = backup_set
@@ -62,9 +65,9 @@ class BackupCtrl(object):
 
         self._targets = backup_set.backup_targets
         self._tmp_dir = tempfile.TemporaryDirectory()
-        self._bytes_to_be_backed_up = 0
-        self._files_num_to_be_backed_up = 0
         self._request_exit = False
+        self._update_signal = bs.utils.Signal()
+        self._processing_finished_signal = bs.utils.Signal()
 
     @property
     def bytes_to_be_backed_up(self):
@@ -83,6 +86,28 @@ class BackupCtrl(object):
         The number of files pending to be backed up. [#f1]_
         """
         return self._files_num_to_be_backed_up
+
+    @property
+    def processing_finished_signal(self):
+        """ ..
+
+        :type: :class:`~bs.utils.Signal`
+
+        This signal emits when the pre-process- or backup-execution finishes.
+        """
+        return self._processing_finished_signal
+
+    @property
+    def update_signal(self):
+        """ ..
+
+        :type: :class:`~bs.utils.Signal`
+
+        This signal emits when the backup-process updates (this usually \
+        happens for each file that is processed). It emits with \
+        :class:`~bs.ctrl.backup.BackupUpdateEvent` as event-parameter.
+        """
+        return self._update_signal
 
     def _update_db(self, conn):
         """ ..
@@ -354,8 +379,9 @@ class BackupCtrl(object):
             for file in files:
                 # exit thread prematurely on request
                 if self._request_exit:
-                    self._bytes_to_be_backed_up = 0
-                    self._files_num_to_be_backed_up = 0
+                    self._bytes_to_be_backed_up = None
+                    self._files_num_to_be_backed_up = None
+                    self._request_exit = False
                     return False
                 # create file object
                 file_obj = BackupFileCtrl(self._backup_set,
@@ -703,8 +729,13 @@ class BackupCtrl(object):
                                                     entity_id=entity_id)
                 if self._files_num_to_be_backed_up % 1000 == 0:
                     conn.commit()
+                # fire updated signal
+                e = BackupUpdateEvent(file_obj)
+                self._update_signal.emit(e)
         conn.commit()
         conn.close()
+        # fire processing finished signal
+        self._processing_finished_signal.emit()
         return True
 
     def pre_process_data(self, force_refresh=False):
@@ -713,21 +744,16 @@ class BackupCtrl(object):
         :param bool force_refresh: If *True*, forces a rescan of the \
         associated source. Always scans sources on its first run to aquire \
         an initial data-set.
-        :rtype: *threading.Thread*
+        :rtype: *bool*
 
-        Starts a new thread that cumulates the total capacity (in bytes) to be
-        backed up.
-        It returns the processing thread to monitor the progress externally.
+        Accumulates the total capacity (in bytes) that is due for back-up.
         """
         # (re-)calculate capacity and return
         if force_refresh or not self._bytes_to_be_backed_up:
-            if not self._pre_calc_thread or\
-                not self._pre_calc_thread.is_alive():
-                simulate = True
-                self._pre_calc_thread = threading.Thread(target=self.backup_exec,
-                                                         args=(simulate, ))
-                self._pre_calc_thread.start()
-        return self._pre_calc_thread
+            self.backup_exec(True)
+        else:
+            self._processing_finished_signal.emit()
+        return True
 
     def request_exit(self):
         """ ..
@@ -739,13 +765,41 @@ class BackupCtrl(object):
         """
         self._request_exit = True
         while True:
-            if not self._pre_calc_thread or\
-                not self._pre_calc_thread.is_alive():
+            if self._request_exit == False:
                 break
             else:
                 time.sleep(0.1)
-        self._request_exit = False
         return True
+
+
+class BackupUpdateEvent(object):
+    """ ..
+
+    :param bs.ctrl.backup.BackupFileCtrl: The file-object to send the event \
+    for.
+
+    This is an event object to send along :class:`~bs.ctrl.backup.BackupCtrl` \
+    signals e.g.
+    """
+    _file_size = None
+
+    def __init__(self, file_obj):
+        """ ..
+
+        """
+        super(BackupUpdateEvent, self).__init__()
+
+        self._file_size = file_obj.size
+
+    @property
+    def file_size(self):
+        """ ..
+
+        :type: *int*
+
+        The size of the last processed file in bytes the event is sent for.
+        """
+        return self._file_size
 
 
 class BackupFileCtrl(object):

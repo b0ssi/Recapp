@@ -257,10 +257,30 @@ class HashFile(object):
 
 
 def format_data_size(size, lock_to=None):
-    """ *
-    size: int: bytes
-    lock_to: string: name of unit (e.g. "MiB") and returns value not
-    higher than chosen unit.
+    """ ..
+
+    :param int size: The capacity in bytes to format.
+    :param str lock_to: The unit to lock to. Possible values are:
+
+        - bytes
+        - KiB
+        - MiB
+        - GiB
+        - TiB
+        - PiB
+        - EiB
+        - ZiB
+        - YiB
+    :rtype: *str*
+
+    This function formats a capacity ``size`` into the greatest unit that \
+    gives it a value of >= 1. Examples:
+
+        - *1023* would be formatted as *bytes*: *1023 bytes*
+        - *1024* would be formatted as *KiB*: *1 KiB*
+        - etc.
+
+    ``lock_to`` locks the formatting to the chosen unit.
     """
     # format byte-size
     for x in ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]:
@@ -272,11 +292,24 @@ def format_data_size(size, lock_to=None):
 
 
 def get_drives(drive_types, ignore_a=True):
-    """ *
-    Returns a list of drive root paths, depending on the desired types passed
-    in through `drive_types`, which needs to be a list of the following
-    constants:
-    win32file.DRIVE_*
+    """ ..
+
+    :param list drive_types: The drive-types to list. Valid enum members are:
+
+        - win32file.DRIVE_CDROM
+        - win32file.DRIVE_FIXED
+        - win32file.DRIVE_NO_ROOT_DIR
+        - win32file.DRIVE_RAMDISK
+        - win32file.DRIVE_REMOTE
+        - win32file.DRIVE_REMOVABLE
+        - win32file.DRIVE_UNKNOWN
+
+    :param bool ignore_a: Whether or not to ignore drive-letter *A:\\\\*.
+    :rtype: *list*
+
+    Returns a list of drive root paths (i.e. drive letters, network paths) \
+    available to the system, depending on the desired types passed in through \
+    ``drive_types``.
     """
     # VALIDATE DATA
     # drive_types

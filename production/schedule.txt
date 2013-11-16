@@ -6,14 +6,19 @@
 
 ## DAILY PROCEDURE #############
 - clean-up
-	- finish work, clean-up dev comments, tests, commented-out elements
-	- clean-up warnings/long lines
 	- sort fields/methods alphabetically
+	- add new modules/packages/classes/functions to docs
+	- check docstrings for validity (params, (r)types, description)
+	- clean-up dev comments, tests, commented-out elements
+	- clean-up warnings/long lines
 - update documentation
 - reset day-modification marks (".. x" -> "..")
 - increment version number
 - commit
 - backup
+	- create synchronicity
+	- 7zip local
+	- 7zip google drive
 
 
 # SCHEDULE
@@ -222,10 +227,13 @@
 				[X]	bind backup-set controllers to sets
 					[X] dispatch backup-set controller from backup-set into backup-manager
 				[.]	get backup-job to execute backup-set
-					[ ] on job-move into pole position
-				[ ]	get backup-set to dismiss backup-job on finish (and move-in next backup-job in queue)
+					[X] on job-move into pole position
+					[X]	on job-completed (invoke next in queue)
+					[ ]	after pre-process, get to execute actual backup
+				[X]	get backup-set to dismiss backup-job on finish (and move-in next backup-job in queue)
 				[ ]	restrict control of backup-jobs to logged in users only
-				[ ]	link up backup controller with details UI/progress, etc.
+				[.]	link up backup controller with details UI/progress, etc.
+				[ ]	LATER: logging, error handling, etc.
 		[X]	window_about: Fill with simple info
 		[ ]	refactor object/module/package/class names, implement consistent scheme
 			[ ] example!?

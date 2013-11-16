@@ -2,6 +2,13 @@
 ## DONE TODAY ##################
 ################################
 
+2013-11-14 - 15
+- fine-tunes the backup-manager queue, details display updating, chained-dispatch of jobs in queue (when current is completed)
+
+2013-11-13
+- fully implement request_exit() into all necessary GUI classes so far (to quit threads on view_sets sources)
+- optimized view_sets source pre-process (backup-ctrl) threat management
+
 2013-11-12
 - backup-monitor now opens on job dispatch
 - backup-set now gets dispatched right into backup-manager queue (no options dialog yet, just dispatches into queue 1 for now)

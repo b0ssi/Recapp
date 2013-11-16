@@ -60,6 +60,7 @@ class WindowBackupMonitor(QtGui.QMainWindow):
             self._sessions_ctrl.guis[0].main_window.frameGeometry().width()
         y = self._sessions_ctrl.guis[0].main_window.geometry().y()
         self.setGeometry(x, y, 699, 512)
+        self.setMinimumSize(699, 512)
         # layout
         self._layout = QtGui.QGridLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -78,3 +79,22 @@ class WindowBackupMonitor(QtGui.QMainWindow):
         Returns the main view widget of the backup-monitor directly.
         """
         return self._layout.itemAt(0).widget()
+
+    def request_exit(self):
+        """ ..
+
+        :rtype: *bool*
+
+        Executes exit calls to related objects and forwards request to all \
+        children.
+        """
+        # request exit for all children
+        for child in self.children() + self.centralWidget().children():
+            try:
+                if not child.request_exit():
+                    return False
+            except AttributeError as e:
+                pass
+        # close itself
+        self.close()
+        return True

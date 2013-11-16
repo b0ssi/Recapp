@@ -182,33 +182,40 @@ class WindowMain(QtGui.QMainWindow):
         self.set_view('login')
         self.show()
 
-    def set_view(self, view):
+    def check_if_exit_legal(self):
         """ ..
 
-        :param str view: The ``str`` indicating the name of the view to set.
-
-        Sets the main view to view indicated by ``view``. Possible values \
-        are:
-
-        - ``login``: The initial login-widget
-        - ``view_sets``: The set-management interface widget
+        Checks, if application can be exited. That means that there is no
+        logged in session with the optional exception of the current window's
+        session that will be automatically requested to exit.
         """
-        # clear layout
-        for i in range(self._layout.count()):
-            widget = self._layout.itemAt(i).widget()
-            self._layout.removeWidget(widget)
-            widget.deleteLater()
-        if view == "login":
-            # ui: set
-            self._view = bs.gui.view_login.ViewLogin(self._sessions,
-                                                     self._session_gui)
-            self._layout.addWidget(self._view, 0, 0, 1, 1)
-            self._view.view_login_form.input_username.setFocus()
-        elif view == "view_sets":
-            self._view = bs.gui.view_sets.BS(self, self._session_gui,
-                                             self._app)
-            self._layout.addWidget(self._view, 0, 0, 1, 1)
-        self._menu_bar.update()
+        # check if other users are currently logged on
+        for session in self._sessions.sessions:
+            if session != self._session_gui.session:
+                if session.is_logged_in:
+                    window_msg = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
+                                                   "Cannot Exit",
+                                                   "Other sessions are "\
+                                                   "active. %s can only exit "\
+                                                   "once all other sessions "\
+                                                   "are logged out."
+                                                   % (bs.config.PROJECT_NAME, )
+                                                   )
+                    window_msg.exec_()
+                    return False
+        return True
+
+    def exit(self):
+        """ ..
+
+        Exits the application.
+        """
+        if self.check_if_exit_legal():
+            while len(self._sessions.guis) > 0:
+                gui = self._sessions.guis[0]
+                if gui.main_window.view.request_exit():
+#                     self._sessions.remove_session_gui(gui)
+                    gui.main_window.close()
 
     def lock(self):
         """ ..
@@ -241,40 +248,50 @@ class WindowMain(QtGui.QMainWindow):
             return True
         return False
 
-    def exit(self):
+    def request_exit(self):
         """ ..
 
-        Exits the application.
-        """
-        if self.check_if_exit_legal():
-            while len(self._sessions.guis) > 0:
-                gui = self._sessions.guis[0]
-                if gui.main_window.view.request_exit():
-#                     self._sessions.remove_session_gui(gui)
-                    gui.main_window.close()
+        :rtype: *bool*
 
-    def check_if_exit_legal(self):
-        """ ..
-
-        Checks, if application can be exited. That means that there is no
-        logged in session with the optional exception of the current window's
-        session that will be automatically requested to exit.
+        Executes exit calls to related objects and forwards request to all \
+        children.
         """
-        # check if other users are currently logged on
-        for session in self._sessions.sessions:
-            if session != self._session_gui.session:
-                if session.is_logged_in:
-                    window_msg = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
-                                                   "Cannot Exit",
-                                                   "Other sessions are "\
-                                                   "active. %s can only exit "\
-                                                   "once all other sessions "\
-                                                   "are logged out."
-                                                   % (bs.config.PROJECT_NAME, )
-                                                   )
-                    window_msg.exec_()
+        # request exit for all children
+        for child in self.children():
+            try:
+                if not child.request_exit():
                     return False
+            except AttributeError as e:
+                pass
         return True
+
+    def set_view(self, view):
+        """ ..
+
+        :param str view: The ``str`` indicating the name of the view to set.
+
+        Sets the main view to view indicated by ``view``. Possible values \
+        are:
+
+        - ``login``: The initial login-widget
+        - ``view_sets``: The set-management interface widget
+        """
+        # clear layout
+        for i in range(self._layout.count()):
+            widget = self._layout.itemAt(i).widget()
+            self._layout.removeWidget(widget)
+            widget.deleteLater()
+        if view == "login":
+            # ui: set
+            self._view = bs.gui.view_login.ViewLogin(self._sessions,
+                                                     self._session_gui)
+            self._layout.addWidget(self._view, 0, 0, 1, 1)
+            self._view.view_login_form.input_username.setFocus()
+        elif view == "view_sets":
+            self._view = bs.gui.view_sets.BS(self, self._session_gui,
+                                             self._app)
+            self._layout.addWidget(self._view, 0, 0, 1, 1)
+        self._menu_bar.update()
 
     def closeEvent(self, e):
         """ ..
@@ -282,34 +299,38 @@ class WindowMain(QtGui.QMainWindow):
         :param QtCore.QEvent e:
 
         Override. Manages the closing procedures for the main window. Closes \
-        related windows and shuts the application down if last main-window.
+        related windows and shuts the application down if it is the last \
+        main-window.
         """
-        # close backup-monitor
-        if len(self._sessions.guis) == 1:
-            self._sessions.window_backup_monitor.close()
-        # close main-window/exit application
-        if len(self._sessions.guis) <= 1:
-            if not self.check_if_exit_legal():
-                e.ignore()
-                return False
-        if isinstance(self._view, bs.gui.view_sets.BS):
-            if not self.log_out():
-                e.ignore()
-                return False
-        self._sessions.remove_session_gui(self._session_gui)
+        if self.request_exit():
+            # close backup-monitor
+            if len(self._sessions.guis) == 1:
+                if not self._sessions.window_backup_monitor.request_exit():
+                    e.ignore()
+                    return False
+            # close main-window/exit application
+            if len(self._sessions.guis) <= 1:
+                if not self.check_if_exit_legal():
+                    e.ignore()
+                    return False
+            if isinstance(self._view, bs.gui.view_sets.BS):
+                if not self.log_out():
+                    e.ignore()
+                    return False
+            self._sessions.remove_session_gui(self._session_gui)
 
     def keyPressEvent(self, e):
         """ ..
 
         :param QtCore.QEvent e:
 
-        Override. Yet to be implemented: Hotkey detection/command execution.
+        Override. Window-wide hotkey detection/command dispatch.
         """
         if isinstance(e, QtGui.QKeyEvent):
-            # Ctrl + O
-            if e.key() == QtCore.Qt.Key_O and \
+            # Ctrl + M
+            if e.key() == QtCore.Qt.Key_M and \
                 (e.modifiers() & QtCore.Qt.ControlModifier):
-                print("Nothing to open!")
+                self._sessions.window_backup_monitor.show()
 
 
 class WindowMainMenu(QtGui.QMenuBar):

@@ -19,14 +19,13 @@
 This package contains all abstract *view-classes*.
 """
 
+from PySide import QtCore, QtGui
+
+import bs.config
 import logging
 import math
 import re
 import time
-
-from PySide import QtCore, QtGui
-
-import bs.config
 
 
 class BSFrame(QtGui.QFrame):
@@ -304,67 +303,6 @@ class BSDraggable(BSFrame):
                              y,
                              self.width(),
                              self.height())
-
-
-class BSCanvas(BSDraggable):
-    """ ..
-
-    :param PySide.QtGui.QWidget parent:
-
-    Canvas superclass. Supports certain features to manage drag & dropable \
-    :class:`BSNode` on its canvas.
-    """
-    def __init__(self, parent):
-        super(BSCanvas, self).__init__(parent)
-
-        parent.resizeSignal.connect(self.resizeEvent)
-
-    def mouseMoveEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Drags the canvas including all child nodes relative to mouse move \
-        events.
-        """
-        if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
-            for child in self.children():
-                if not isinstance(child, QtGui.QAction):
-                    child.setGeometry(child.x() - (self._pos_offset.x() - e.x()),
-                                      child.y() - (self._pos_offset.y() - e.y()),
-                                      child.width(),
-                                      child.height()
-                                      )
-            self._pos_offset = e.pos()
-            self.setGeometry(0, 0, self.width(), self.height())
-        super(BSCanvas, self).mouseMoveEvent(e)
-
-    def mouseReleaseEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Resets the canvas' geometry after a drag event to crop the parent \
-        (window).
-        """
-        self.setGeometry(0, 0, self.width(), self.height())
-        super(BSCanvas, self).mouseReleaseEvent(e)
-
-    def resizeEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Adjusts own geometry to parent when resized.
-        """
-        self.setGeometry(0,
-                         0,
-                         self.parent().width(),
-                         self.parent().height())
-        super(BSCanvas, self).resizeEvent(e)
 
 
 class BSArrow(QtGui.QWidget):
@@ -847,6 +785,94 @@ class BSArrowCarrier(BSDraggable):
             self._arrow_inbound.refresh()
 
 
+class BSCanvas(BSDraggable):
+    """ ..
+
+    :param PySide.QtGui.QWidget parent:
+
+    Canvas superclass. Supports certain features to manage drag & dropable \
+    :class:`BSNode` on its canvas.
+    """
+    def __init__(self, parent):
+        super(BSCanvas, self).__init__(parent)
+
+        parent.resizeSignal.connect(self.resizeEvent)
+
+    def mouseMoveEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Drags the canvas including all child nodes relative to mouse move \
+        events.
+        """
+        if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            for child in self.children():
+                if not isinstance(child, QtGui.QAction):
+                    child.setGeometry(child.x() - (self._pos_offset.x() - e.x()),
+                                      child.y() - (self._pos_offset.y() - e.y()),
+                                      child.width(),
+                                      child.height()
+                                      )
+            self._pos_offset = e.pos()
+            self.setGeometry(0, 0, self.width(), self.height())
+        super(BSCanvas, self).mouseMoveEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Resets the canvas' geometry after a drag event to crop the parent \
+        (window).
+        """
+        self.setGeometry(0, 0, self.width(), self.height())
+        super(BSCanvas, self).mouseReleaseEvent(e)
+
+    def resizeEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Adjusts own geometry to parent when resized.
+        """
+        self.setGeometry(0,
+                         0,
+                         self.parent().width(),
+                         self.parent().height())
+        super(BSCanvas, self).resizeEvent(e)
+
+
+class BSMessageBox(QtGui.QMessageBox):
+    """ ..
+
+    :param PySide.QtGui.QMessageBox.Icon icon:
+    :param str title:
+    :param str message:
+
+    A modal message box used to display confirmations or simple \
+    notifications. Not much different from :class:`PySide.QtGui.QMessageBox` \
+    except for its custom CSS stylizing ability.
+    """
+
+    def __init__(self, icon, title, message):
+        super(BSMessageBox, self).__init__(icon, title, message)
+
+        css = "BSMessageBox {background: #%s}"\
+              "BSMessageBox QPushButton {background: #%s; color: #%s; width: 70px; height: 20px; border-radius: 3px}"\
+              "BSMessageBox QPushButton:hover {background: #%s; color: #%s}"\
+              % (bs.config.PALETTE[2],
+                 bs.config.PALETTE[1],
+                 bs.config.PALETTE[3],
+                 bs.config.PALETTE[0],
+                 bs.config.PALETTE[4],
+                 )
+        self.setStyleSheet(css)
+
+
 class BSNode(BSDraggable):
     """ ..
 
@@ -873,6 +899,9 @@ class BSNode(BSDraggable):
     _border_hex_orig = None
 
     def __init__(self, bs, bs_sets_canvas, app, has_conn_pad=False):
+        """ ..
+
+        """
         super(BSNode, self).__init__(bs_sets_canvas)
 
         self._bs = bs
@@ -886,7 +915,25 @@ class BSNode(BSDraggable):
         # title
         self._title = QtGui.QLabel("")
         # custom_contents_container
-        self._custom_contents_container = QtGui.QWidget()
+
+        class CustomContentsContainer(QtGui.QWidget):
+            def request_exit(self):
+                """ ..
+
+                :rtype: *bool*
+
+                Executes exit calls to related objects and forwards request \
+                to all children.
+                """
+                # request exit for all children
+                for child in self.children():
+                    try:
+                        if not child.request_exit():
+                            return False
+                    except AttributeError as e:
+                        pass
+                return True
+        self._custom_contents_container = CustomContentsContainer(self)
         self._custom_contents_container._layout = QtGui.QGridLayout(self._custom_contents_container)
         # layout
         self._layout = QtGui.QGridLayout(self)
@@ -907,20 +954,6 @@ class BSNode(BSDraggable):
         self.setGraphicsEffect(gfx)
 
     @property
-    def title_text(self):
-        """
-        :type: *str*
-        :permissions: *read/write*
-
-        The title's text.
-        """
-        return self._title.text()
-
-    @title_text.setter
-    def title_text(self, text):
-        self._title.setText(text)
-
-    @property
     def arrows_inbound(self):
         """
         :type: *list*
@@ -939,30 +972,6 @@ class BSNode(BSDraggable):
         source.
         """
         return self._arrows_outbound
-
-    @property
-    def title_size(self):
-        """
-        :type: *int*
-        :permissions: *read/write*
-
-        The title's size in px.
-        """
-        return self._title_size
-
-    @title_size.setter
-    def title_size(self, size):
-        self._title_size = size
-        self._title.setStyleSheet("margin-left: 1px; margin-top: %spx; margin-bottom: %spx; font-size: %spx; color: #%s"
-                                  % (self._title_size / 9,
-                                     self._title_size - 8,
-                                     self._title_size,
-                                     bs.config.PALETTE[0]))
-        self._layout.setContentsMargins(self._layout.contentsMargins().left(),
-                                        self._layout.contentsMargins().top(),
-                                        self._layout.contentsMargins().right(),
-                                        self._layout.contentsMargins().bottom()) #self._title_size * 2 + 5)
-        self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
 
     def assign_to_arrow_as_source(self, arrow):
         """ ..
@@ -988,21 +997,6 @@ class BSNode(BSDraggable):
         if not arrow in self._arrows_inbound:
             self._arrows_inbound.append(arrow)
 
-    def unassign_from_arrow(self, arrow):
-        """ ..
-
-        :param bs.gui.lib.BSArrow arrow:
-        :rtype: *void*
-
-        Unassign `arrow` from this widget.
-        """
-        # pop from in- outbound list
-        if arrow in self._arrows_inbound:
-            self._arrows_inbound.pop(self._arrows_inbound.index(arrow))
-        elif arrow in self._arrows_outbound:
-            self._arrows_outbound.pop(self._arrows_outbound.index(arrow))
-        self._bs.set_modified()
-
     def draw_arrows(self):
         """ ..
 
@@ -1016,64 +1010,6 @@ class BSNode(BSDraggable):
         if not self._arrows_outbound == []:
             for arrow_outbound in self._arrows_outbound:
                 arrow_outbound.refresh()
-
-    def mousePressEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Raise the node above its siblings.
-        """
-        super(BSNode, self).mousePressEvent(e)
-
-#        self._mouse_press_global_pos = e.globalPos()
-        self.raise_()
-
-    def mouseMoveEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Redraw connected arrows on mouse move.
-        """
-        self.draw_arrows()
-        super(BSNode, self).mouseMoveEvent(e)
-
-    def focusInEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Mark the node visually when focusing in on it.
-        """
-        self._border_hex_orig = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
-        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (bs.config.PALETTE[9], ))
-
-    def focusOutEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Unmark the node visually when focusing out of it.
-        """
-        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._border_hex_orig, ))
-
-    def keyPressEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Perform actions on node in reaction to key-presses:
-
-        - [del]: Delete the node.
-        """
-        if e.matches(QtGui.QKeySequence.Delete):
-            self.remove_node()
 
     def remove_node(self):
         """ ..
@@ -1110,6 +1046,117 @@ class BSNode(BSDraggable):
         running on this object.
         """
         return True
+
+    @property
+    def title_text(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The title's text.
+        """
+        return self._title.text()
+
+    @title_text.setter
+    def title_text(self, text):
+        self._title.setText(text)
+
+    @property
+    def title_size(self):
+        """
+        :type: *int*
+        :permissions: *read/write*
+
+        The title's size in px.
+        """
+        return self._title_size
+
+    @title_size.setter
+    def title_size(self, size):
+        self._title_size = size
+        self._title.setStyleSheet("margin-left: 1px; margin-top: %spx; margin-bottom: %spx; font-size: %spx; color: #%s"
+                                  % (self._title_size / 9,
+                                     self._title_size - 8,
+                                     self._title_size,
+                                     bs.config.PALETTE[0]))
+        self._layout.setContentsMargins(self._layout.contentsMargins().left(),
+                                        self._layout.contentsMargins().top(),
+                                        self._layout.contentsMargins().right(),
+                                        self._layout.contentsMargins().bottom()) #self._title_size * 2 + 5)
+        self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
+
+    def unassign_from_arrow(self, arrow):
+        """ ..
+
+        :param bs.gui.lib.BSArrow arrow:
+        :rtype: *void*
+
+        Unassign `arrow` from this widget.
+        """
+        # pop from in- outbound list
+        if arrow in self._arrows_inbound:
+            self._arrows_inbound.pop(self._arrows_inbound.index(arrow))
+        elif arrow in self._arrows_outbound:
+            self._arrows_outbound.pop(self._arrows_outbound.index(arrow))
+        self._bs.set_modified()
+
+    def focusInEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Mark the node visually when focusing in on it.
+        """
+        self._border_hex_orig = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
+        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (bs.config.PALETTE[9], ))
+
+    def focusOutEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Unmark the node visually when focusing out of it.
+        """
+        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._border_hex_orig, ))
+
+    def keyPressEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Perform actions on node in reaction to key-presses:
+
+        - [del]: Delete the node.
+        """
+        if e.matches(QtGui.QKeySequence.Delete):
+            self.remove_node()
+
+    def mousePressEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Raise the node above its siblings.
+        """
+        super(BSNode, self).mousePressEvent(e)
+
+#        self._mouse_press_global_pos = e.globalPos()
+        self.raise_()
+
+    def mouseMoveEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Redraw connected arrows on mouse move.
+        """
+        self.draw_arrows()
+        super(BSNode, self).mouseMoveEvent(e)
 
 
 class BSNodeConnPad(QtGui.QFrame):
@@ -1212,7 +1259,9 @@ class BSNodeItem(BSFrame):
 
     @title_text.setter
     def title_text(self, title):
-        """ * """
+        """ ..
+
+        """
         self._title.setText(str(title))
 
     def mouseMoveEvent(self, e):
@@ -1276,33 +1325,6 @@ class BSNodeItemButton(BSFrame):
                            % (bs.config.PALETTE[6], ))
 
 
-class BSMessageBox(QtGui.QMessageBox):
-    """ ..
-
-    :param PySide.QtGui.QMessageBox.Icon icon:
-    :param str title:
-    :param str message:
-
-    A modal message box used to display confirmations or simple \
-    notifications. Not much different from :class:`PySide.QtGui.QMessageBox` \
-    except for its custom CSS stylizing ability.
-    """
-
-    def __init__(self, icon, title, message):
-        super(BSMessageBox, self).__init__(icon, title, message)
-
-        css = "BSMessageBox {background: #%s}"\
-              "BSMessageBox QPushButton {background: #%s; color: #%s; width: 70px; height: 20px; border-radius: 3px}"\
-              "BSMessageBox QPushButton:hover {background: #%s; color: #%s}"\
-              % (bs.config.PALETTE[2],
-                 bs.config.PALETTE[1],
-                 bs.config.PALETTE[3],
-                 bs.config.PALETTE[0],
-                 bs.config.PALETTE[4],
-                 )
-        self.setStyleSheet(css)
-
-
 class ScrollArea(QtGui.QFrame):
     """ ..
 
@@ -1348,6 +1370,43 @@ class ScrollArea(QtGui.QFrame):
         """
         return self._central_widget
 
+    def _calculate_scroll(self, delta_x, delta_y):
+        """ ..
+
+        :param int delta_y: Distance in px to travel. Can be negative (scroll \
+        down) or positive (scroll up).
+
+        Calculates the exact cp position (0...1) to scroll to, incl. top/end \
+        cap-offs and calls the scroll method.
+        """
+        scroll_margin_x = self._central_widget.width() - self.width()
+        scroll_margin_y = self._central_widget.height() - self.height()
+        new_x_f = 0.0
+        new_y_f = 0.0
+        # build scroll-to percentages
+        new_x = self._central_widget.x() + delta_x
+        new_y = self._central_widget.y() + delta_y
+        if scroll_margin_x > 0:
+            new_x_f = abs(self._central_widget.x() + delta_x) / scroll_margin_x
+        if scroll_margin_y > 0:
+            new_y_f = abs(self._central_widget.y() + delta_y) / scroll_margin_y
+        # call scroll_to
+        if (new_y <= 0 and \
+            new_y + self._central_widget.height() >= self.height()) or \
+            (new_x <= 0 and \
+            new_x + self._central_widget.width() >= self.width()):
+            self.scroll_to(new_x_f, new_y_f)
+        elif delta_x > new_x > 0:
+            self.scroll_to(0.0, new_y_f)
+        elif self.width() < self._central_widget.x() + self._central_widget.width() < self.width() + abs(delta_x) and \
+            delta_x < 0:
+            self.scroll_to(1.0, new_y_f)
+        elif delta_y > new_y > 0:
+            self.scroll_to(new_x_f, 0.0)
+        elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta_y) and \
+            delta_y < 0:
+            self.scroll_to(new_x_f, 1.0)
+
     def _get_scroll_bar_alpha(self):
         return 0
 
@@ -1360,34 +1419,6 @@ class ScrollArea(QtGui.QFrame):
         self._scroll_bar_h.setStyleSheet("QWidget {background: rgba(0, 0, 0, %s); border-radius: 2px}" % (arg, ))
 
     _scroll_bar_animation_property = QtCore.Property("int", _get_scroll_bar_alpha, _set_scroll_bar_alpha)
-
-    def scroll_to(self, x, y, animate=True):
-        """ ..
-
-        :param float x: The x-position (0...1) to scroll to.
-        :param float y: The y-position (0...1) to scroll to.
-        :param bool animate: Whether or not to animate the transition.
-
-        At 0, the central widget is repositioned so that the top/left border \
-        sits on the top/left border of the scroll area, respectively. If 1, \
-        the widget is repositioned so that the bottom/right border sits on \
-        the bottom/right border of the scroll widget, respectively.
-        """
-        # calc scroll attributes
-        scroll_margin_x = self._central_widget.width() - self.width()
-        if scroll_margin_x < 0: scroll_margin_x = 0
-        scroll_margin_y = self._central_widget.height() - self.height()
-        if scroll_margin_y < 0: scroll_margin_y = 0
-        new_x = 0 - x * scroll_margin_x
-        new_y = 0 - y * scroll_margin_y
-        # execute scroll
-        if animate:
-            self._central_widget_animation.setStartValue(self.central_widget.pos())
-            self._central_widget_animation.setEndValue(QtCore.QPoint(new_x, new_y))
-            self._central_widget_animation.start()
-        else:
-            self._central_widget.move(new_x, new_y)
-        self._update_scroll_bars(x, y)
 
     def _update_scroll_bars(self, scroll_to_x_f, scroll_to_y_f):
         """ ..
@@ -1426,6 +1457,51 @@ class ScrollArea(QtGui.QFrame):
             y = math.floor((self.height() - scroll_bar_v_corner_offset - height) * scroll_to_y_f)
             self._scroll_bar_v.move(x, y)
 
+    def request_exit(self):
+        """ ..
+
+        :rtype: *bool*
+
+        Executes exit calls to related objects and forwards request to all \
+        children.
+        """
+        # request exit for all children
+        for child in self.children():
+            try:
+                if not child.request_exit():
+                    return False
+            except AttributeError as e:
+                pass
+        return True
+
+    def scroll_to(self, x, y, animate=True):
+        """ ..
+
+        :param float x: The x-position (0...1) to scroll to.
+        :param float y: The y-position (0...1) to scroll to.
+        :param bool animate: Whether or not to animate the transition.
+
+        At 0, the central widget is repositioned so that the top/left border \
+        sits on the top/left border of the scroll area, respectively. If 1, \
+        the widget is repositioned so that the bottom/right border sits on \
+        the bottom/right border of the scroll widget, respectively.
+        """
+        # calc scroll attributes
+        scroll_margin_x = self._central_widget.width() - self.width()
+        if scroll_margin_x < 0: scroll_margin_x = 0
+        scroll_margin_y = self._central_widget.height() - self.height()
+        if scroll_margin_y < 0: scroll_margin_y = 0
+        new_x = 0 - x * scroll_margin_x
+        new_y = 0 - y * scroll_margin_y
+        # execute scroll
+        if animate:
+            self._central_widget_animation.setStartValue(self.central_widget.pos())
+            self._central_widget_animation.setEndValue(QtCore.QPoint(new_x, new_y))
+            self._central_widget_animation.start()
+        else:
+            self._central_widget.move(new_x, new_y)
+        self._update_scroll_bars(x, y)
+
     def set_central_widget(self, central_widget):
         """ ..
 
@@ -1442,12 +1518,6 @@ class ScrollArea(QtGui.QFrame):
         self._central_widget_animation = ScrollAreaAnimation(self._central_widget, "pos", self)
         self._central_widget_animation.setDuration(100)
 
-    def wheelEvent(self, e):
-        # scroll widget up/down
-        if e.orientation() == e.orientation().Vertical:
-            delta = e.delta() / 3
-            self._calculate_scroll(0, delta)
-
     def keyPressEvent(self, e):
         if e.matches(QtGui.QKeySequence.MoveToPreviousLine):
             self._calculate_scroll(0, 40)
@@ -1458,42 +1528,11 @@ class ScrollArea(QtGui.QFrame):
         if e.matches(QtGui.QKeySequence.MoveToNextChar):
             self._calculate_scroll(-40, 0)
 
-    def _calculate_scroll(self, delta_x, delta_y):
-        """ ..
-
-        :param int delta_y: Distance in px to travel. Can be negative (scroll \
-        down) or positive (scroll up).
-
-        Calculates the exact cp position (0...1) to scroll to, incl. top/end \
-        cap-offs and calls the scroll method.
-        """
-        scroll_margin_x = self._central_widget.width() - self.width()
-        scroll_margin_y = self._central_widget.height() - self.height()
-        new_x_f = 0.0
-        new_y_f = 0.0
-        # build scroll-to percentages
-        new_x = self._central_widget.x() + delta_x
-        new_y = self._central_widget.y() + delta_y
-        if scroll_margin_x > 0:
-            new_x_f = abs(self._central_widget.x() + delta_x) / scroll_margin_x
-        if scroll_margin_y > 0:
-            new_y_f = abs(self._central_widget.y() + delta_y) / scroll_margin_y
-        # call scroll_to
-        if (new_y <= 0 and \
-            new_y + self._central_widget.height() >= self.height()) or \
-            (new_x <= 0 and \
-            new_x + self._central_widget.width() >= self.width()):
-            self.scroll_to(new_x_f, new_y_f)
-        elif delta_x > new_x > 0:
-            self.scroll_to(0.0, new_y_f)
-        elif self.width() < self._central_widget.x() + self._central_widget.width() < self.width() + abs(delta_x) and \
-            delta_x < 0:
-            self.scroll_to(1.0, new_y_f)
-        elif delta_y > new_y > 0:
-            self.scroll_to(new_x_f, 0.0)
-        elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta_y) and \
-            delta_y < 0:
-            self.scroll_to(new_x_f, 1.0)
+    def wheelEvent(self, e):
+        # scroll widget up/down
+        if e.orientation() == e.orientation().Vertical:
+            delta = e.delta() / 3
+            self._calculate_scroll(0, delta)
 
 
 class ScrollAreaAnimation(QtCore.QPropertyAnimation):
