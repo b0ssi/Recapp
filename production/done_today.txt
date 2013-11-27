@@ -2,6 +2,29 @@
 ## DONE TODAY ##################
 ################################
 
+2013-11-27
+- BackupCtrl:
+	- Now emits more signals and in a more systemized fashion (byte_count_current/-_total, file_count_current/-_total, etc)
+	- All contracting classes (FileObj, Event etc.) now use new Signal scheme
+- view_sets:
+	- Update-processing now uses new signals as well as new event-loop event-injection
+- view_backup_monitor:
+	- Now uses new signals to update GUI
+- hash function now sends update events
+
+2013-11-19 - 26
+- Backup-Monitor
+	- Adds numerous threading- and concurrency-work and -fixes
+	- Ensures stability, GUI operations pushed back into GUI event-loop through queued signals
+	- Progress now updates in response to "update_signal" signals on backup ctrl
+- BackupCtrl
+	- Several adjustments
+	- New events and -handling
+	- Progress publishes on signals
+
+2013-11-18 - 20
+- Major design-work on backup-monitor
+
 2013-11-14 - 15
 - fine-tunes the backup-manager queue, details display updating, chained-dispatch of jobs in queue (when current is completed)
 

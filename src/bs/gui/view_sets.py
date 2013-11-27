@@ -20,15 +20,12 @@
 """
 
 from PySide import QtCore, QtGui
+
 import bs.config
 import bs.ctrl.session
 import bs.gui.lib
-import bs.messages.general
-import json
 import logging
-import re
-import threading
-import time
+import os
 
 
 class BS(QtGui.QFrame):
@@ -1054,8 +1051,17 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
 
         Loads a :class:`~bs.ctrl.session.BackupSetCtrl` onto the canvas.
         """
-        if not self.close_set():
+        # Check for database existence
+        try:
+            backup_set.set_db_path
+        except IOError as e:
+            out = "The set database could not be found at location %s (%s)." \
+                  % (os.path.realpath(e.filename), e.strerror, )
+            msg_window = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error",
+                                           out)
+            msg_window.exec_()
             return False
+        self.close_set()
         # set new current set
         self._bs.backup_set_current = backup_set
         # LOAD NODES
@@ -1336,6 +1342,8 @@ class BSSource(bs.gui.lib.BSNode):
         self._backup_entity.backup_entity_ass.pop(self._backup_set)
         # remove from set-ctrl
         self._backup_set.backup_sources.pop(self._backup_set.backup_sources.index(self._backup_entity))
+        # remove backup-ctrl
+        self._backup_set.backup_ctrls.pop(self.backup_entity)
         # remove from canvas
         self._bs_sets_canvas.bs_source_widgets.pop(self._bs_sets_canvas.bs_source_widgets.index(self))
         self.deleteLater()
@@ -1384,6 +1392,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
     _backup_set = None
 
     _update_thread = None
+    _update_worker = None
 
     def __init__(self, bs_source, backup_source, backup_set):
         """ ..
@@ -1409,10 +1418,10 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                      (
                       (bs.config.PALETTE[1], ),
                       (bs.config.PALETTE[0], ),
-                      (bs.config.PALETTE[0], ),
-                      (bs.config.PALETTE[0], ),
-                      (bs.config.PALETTE[0], ),
-                      (bs.config.PALETTE[0], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
+                      (bs.config.PALETTE[1], ),
                       )
                      ),
                      (self.title,
@@ -1421,10 +1430,10 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                       (
                        (bs.config.PALETTE[3], ),
                        (bs.config.PALETTE[4], ),
-                       (bs.config.PALETTE[4], ),
-                       (bs.config.PALETTE[4], ),
-                       (bs.config.PALETTE[4], ),
-                       (bs.config.PALETTE[4], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
+                       (bs.config.PALETTE[3], ),
                       )
                      )
                     )
@@ -1463,18 +1472,36 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         """
         # only run if pre-processing not already running
         if not self._update_thread or \
-            not self._update_thread.is_alive():
+            not self._update_thread.isRunning():
+            # thread
+            self._update_thread = QtCore.QThread()
 
-            # connect update signal
-            def update_ui_data(e=None):
-                bytes_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_entity].bytes_to_be_backed_up
-                files_num_to_be_backed_up = self._backup_set.backup_ctrls[self._backup_entity].files_num_to_be_backed_up
-                self.title_text = "%s | %s files" % (bs.utils.format_data_size(bytes_to_be_backed_up),
-                                                     files_num_to_be_backed_up, )
-            self._backup_set.backup_ctrls[self._backup_entity].update_signal.connect(update_ui_data)
-            self._backup_set.backup_ctrls[self._backup_entity].processing_finished_signal.connect(update_ui_data)
-            # run update thread
-            self._update_thread = threading.Thread(target=self._backup_set.backup_ctrls[self._backup_entity].pre_process_data)
+            # reset self._update_thread ref to "None" when thread
+            # (underlying C++ obj) destroyed
+            def reset_refs():
+                self._update_thread = None
+                self._update_worker = None
+
+            def update_ui_data(e):
+                self.title_text = "%s | %s files" \
+                                  % (bs.utils.format_data_size(e.byte_count_current),
+                                     e.file_count_current, )
+            self._update_thread.started.connect(self.setDisabled,
+                                                QtCore.Qt.QueuedConnection)
+            self._update_thread.finished.connect(self.setEnabled,
+                                                QtCore.Qt.QueuedConnection)
+            self._update_thread.finished.connect(reset_refs,
+                                                 QtCore.Qt.QueuedConnection)
+            # worker
+            self._update_worker = bs.ctrl.backup.BackupThreadWorker(self._update_thread,
+                                                                    self._backup_set.backup_ctrls[self._backup_entity].pre_process_data,
+                                                                    (True, ))
+            self._update_worker.process_updated.connect(update_ui_data,
+                                                        QtCore.Qt.QueuedConnection)
+            self._update_worker.process_finished.connect(update_ui_data,
+                                                         QtCore.Qt.QueuedConnection)
+
+            # start thread
             self._update_thread.start()
         return True
 

@@ -14,13 +14,12 @@
 ##    Usage:                                                                 ##
 ##                                                                           ##
 ###############################################################################
+""" ..
 
-"""
 This is the *controller* package that contains the application's business \
 logic.
 """
 
-from PySide import QtCore, QtGui
 import binascii
 import bs.config
 import bs.ctrl.backup
@@ -28,7 +27,6 @@ import bs.gui.window_main
 import bs.gui.window_backup_monitor
 import bs.messages
 import bs.model.models
-import Crypto.Hash.SHA256
 import Crypto.Protocol.KDF
 import hashlib
 import json
@@ -39,1233 +37,6 @@ import re
 import sqlite3
 import time
 import win32file
-
-
-class SessionsCtrl(object):
-    """
-    :param bool gui_mode: Indicated whether or not to run the application \
-    with a graphical user interface. If set to *False* it will be run from \
-    the console.
-
-    Stores and manages sessions for all is_unlocked users.
-    """
-    _sessions = None  # holds currently is_unlocked sessions
-    # gui
-    _app = None
-    _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
-    _window_backup_monitor = None
-    _gui_mode = None
-
-    def __init__(self, gui_mode=False):
-        super(SessionsCtrl, self).__init__()
-        self._gui_mode = gui_mode
-
-        self._sessions = []
-        self._guis = []
-        # gui stuff
-        if self._gui_mode:
-            self._app = bs.gui.window_main.Application("recapp")
-            self.add_session_gui()
-            self._window_backup_monitor = bs.gui.window_backup_monitor.WindowBackupMonitor(self)
-            self._app.exec_()
-
-    def __repr__(self):
-        return str(self._sessions)
-
-    @property
-    def app(self):
-        """
-        :type: :class:`~bs.gui.window_main.Application`
-
-        The central :class:`~bs.gui.window_main.Application` hosting this \
-        application gui-instance.
-        """
-        return self._app
-
-    @property
-    def guis(self):
-        """
-        :type: *list*
-
-        A list of :class:`~bs.ctrl.session.SessionGuiCtrl` hosted by this \
-        session.
-        """
-        return self._guis
-
-    @property
-    def window_backup_monitor(self):
-        """ ..
-
-        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
-
-        The central Backup-Monitor window that displays stati of and \
-        management options for all dispatched backup-jobs.
-        """
-        return self._window_backup_monitor
-
-    @property
-    def sessions(self):
-        """
-        :type: :class:`~bs.ctrl.session.SessionsCtrl`
-
-        The :class:`~bs.ctrl.session.SessionsCtrl` this session is associated with.
-        """
-        return self._sessions
-
-    def add_session(self, username, password):
-        """
-        :param str username: The username for the session to be created.
-
-        :param str password: The password for the user.
-
-        :rtype: :class:`~bs.ctrl.session.SessionCtrl`
-
-        If attributed credentials are valid, return logged on, unlocked session
-        for user.
-        Returns existing session if one was previously created (used) for user.
-        Fails if session for requested user is already logged in and unlocked.
-        """
-        logging.info("%s: Creating session for user %s..."
-                     % (self.__class__.__name__,
-                        username, ))
-        # check if session for user already exists
-        new_session = None
-        for session in self._sessions:
-            if session.user.username == username:
-                new_session = session
-                break
-        # if no existing session for user was found
-        if not new_session:
-            # create new session
-            new_session = SessionCtrl()
-        # verify scenarios
-        if new_session.is_logged_in:
-            if not new_session.is_unlocked:
-                if new_session.log_in(username, password):
-                    # add new_session to self._sessions
-                    if new_session not in self._sessions:
-                        self._sessions.append(new_session)
-                    logging.info("%s: New session successfully unlocked."
-                                 % (self.__class__.__name__, ))
-                    return new_session
-                else:
-                    logging.warning("%s: No session created: Log-on failed."
-                                 % (self.__class__.__name__, ))
-                    return False
-            else:
-                logging.warning("%s: The session for this user is already active."
-                             % (self.__class__.__name__, ))
-                return -1
-        else:
-            if new_session.log_in(username, password):
-                # add new_session to self._sessions
-                if new_session not in self._sessions:
-                    self._sessions.append(new_session)
-                logging.info("%s: New session successfully logged in and unlocked."
-                             % (self.__class__.__name__, ))
-                return new_session
-            else:
-                logging.warning("%s: No session created: Log-on failed."
-                             % (self.__class__.__name__, ))
-                return False
-
-    def remove_session(self, session):
-        """ ..
-
-        :param bs.ctrl.session.SessionCtrl SessionCtrl: The \
-        :class:`~bs.ctrl.session.SessionCtrl` to remove.
-
-        :rtype: *bool*
-
-        Removes an existing session including all of its associated objects. \
-        This is usually used when a user logs out and the session is destroyed.
-        """
-        if session:
-            self._sessions.pop(self._sessions.index(session))
-            logging.info("%s: Session successfully removed: %s"
-                         % (self.__class__.__name__, session, ))
-        else:
-            logging.warning("%s: The session does not exist: %s"
-                            % (self.__class__.__name__, session, ))
-
-    def add_session_gui(self):
-        """ ..
-
-        :rtype: :class:`~bs.ctrl.session.SessionGuiCtrl`
-
-        Adds a new UI instance to host a separate *gui-session*.
-        """
-        session_gui = SessionGuiCtrl(self, self._app)
-        self._guis.append(session_gui)
-        return session_gui
-
-    def remove_session_gui(self, session_gui):
-        """ ..
-
-        :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-        :class:`~bs.ctrl.session.SessionGuiCtrl` to remove.
-
-        :rtype: *bool*
-
-        Removes the session_gui instance from this Sessions. This is usually \
-        done after a GUI window is being closed.
-        """
-        self._guis.pop(self._guis.index(session_gui))
-        return True
-
-
-class SessionGuiCtrl(object):
-    """ ..
-
-    :param bs.ctrl.session.SessionsCtrl sessions: The \
-    :class:`~bs.ctrl.session.SessionsCtrl` to associate with this :class:`~bs.ctrl.session.SessionGuiCtrl`.
-
-    :param bs.gui.window_main.Application app: The central \
-    :class:`~bs.gui.window_main.Application` that is running this GUI \
-    instance.
-
-    This is a container that hosts a single GUI session. A unique instance is \
-    required for each GUI instance that is requested by the user.
-    """
-    _sessions = None
-    _app = None
-
-    _main_window = None
-    _session = None
-
-    def __init__(self, sessions, app):
-
-        self._sessions = sessions
-        self._app = app
-
-        self._main_window = bs.gui.window_main.WindowMain(self._sessions, self, self._app)
-
-    @property
-    def main_window(self):
-        """
-        :type: :class:`~bs.gui.window_main.WindowMain`
-
-        The :class:`~bs.gui.window_main.WindowMain` associated with this
-        (*gui-*)*session*.
-        """
-        return self._main_window
-
-    @property
-    def sessions(self):
-        """
-        :type: :class:`~bs.ctrl.session.SessionsCtrl`
-
-        The central :class:`~bs.ctrl.session.SessionsCtrl` managing this application instance.
-        """
-        return self._sessions
-
-    @property
-    def session(self):
-        """
-        :type: :class:`~bs.ctrl.session.SessionCtrl`
-        :permissions: *read/write*
-
-        The :class:`~bs.ctrl.session.SessionCtrl` representing the current session.
-        """
-        return self._session
-
-    @session.setter
-    def session(self, session):
-        """ * """
-        if not isinstance(session, SessionCtrl) and session:
-            logging.warning("%s: The first argument needs to be of type "\
-                            "`SessionCtrl`."
-                            % (self.__class__.__name__, ))
-            return False
-        self._session = session
-        return session
-
-
-class SessionCtrl(object):
-    """
-    Stores and manages contents of a single session. user, sources, targets,
-    filters, sets, etc..
-
-    This class is not to be instantiated directly.
-    :meth:`SessionsCtrl.add_session` should be used to add sessions.
-    """
-    _user = None
-    _backup_sources = None
-    _backup_targets = None
-    _backup_filters = None
-    _backup_sets = None
-    _is_unlocked = None
-    _is_logged_in = None
-
-    def __init__(self):
-        super(SessionCtrl, self).__init__()
-
-        self._user = UserCtrl(self)
-        self._backup_sources = BackupSourcesCtrl(self)
-        self._backup_targets = BackupTargetsCtrl(self)
-        self._backup_filters = BackupFiltersCtrl(self)
-        self._backup_sets = BackupSetsCtrl(self)
-        self._is_unlocked = False
-        self._is_logged_in = False
-
-    def __repr__(self):
-        return(str((self._user,
-                    self._backup_sources,
-                    self._backup_targets,
-                    self._backup_filters,
-                    self._backup_sets))
-               )
-
-    @property
-    def user(self):
-        """
-        :type: :class:`~bs.ctrl.session.UserCtrl`
-
-        The :class:`~bs.ctrl.session.UserCtrl` associated with this *backup-session*.
-        """
-        return self._user
-
-    @property
-    def backup_sources(self):
-        """
-        :type: *list*
-
-        A list of *backup-sources* associated with this session.
-        """
-        return self._backup_sources
-
-    @property
-    def backup_targets(self):
-        """
-        :type: *list*
-
-        A list of *backup-targets* associated with this session.
-        """
-        return self._backup_targets
-
-    @property
-    def backup_filters(self):
-        """
-        :type: *list*
-
-        A list of *backup-filters* associated with this session.
-        """
-        return self._backup_filters
-
-    @property
-    def backup_sets(self):
-        """
-        :type: *list*
-
-        A list of *backup-sets* associated with this session.
-        """
-        return self._backup_sets
-
-    @property
-    def is_unlocked(self):
-        """
-        :type: *bool*
-        :permissions: *read/write*
-
-        `False`, if this session is locked, `True` if unlocked.
-        """
-        return self._is_unlocked
-
-    @is_unlocked.setter
-    def is_unlocked(self, arg):
-        if not isinstance(arg, bool):
-            logging.warning("%s: The first argument needs to be of type "\
-                            "boolean."
-                            % (self.__class__.__name__, ))
-            return False
-        self._is_unlocked = arg
-        return True
-
-    @property
-    def is_logged_in(self):
-        """
-        :type: *bool*
-        :permissions: *read/write*
-
-        `True`, if this session's user is logged in, `False` if not.
-        """
-        return self._is_logged_in
-
-    @is_logged_in.setter
-    def is_logged_in(self, arg):
-        if not isinstance(arg, bool):
-            logging.warning("%s: Argument one needs to be of type boolean."
-                            % (self.__class__.__name__, ))
-            return False
-        self._is_logged_in = arg
-        return True
-
-    def log_in(self, username, password):
-        """ ..
-
-        :param str username: The user's username to log-in with.
-        :param str password: The user's password to log-in with.
-
-        :rtype: *bool*
-
-        Logs the user associated with this *backup-session* in.
-        """
-        # VALIDATE DATA
-        # username
-        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
-            logging.warning("%s: The username is invalid. A valid username "\
-                             "needs to start with an alphabetic, "\
-                             "contain alphanumeric plus '_' "\
-                             "and have a length between 4 and 32 characters."
-                             % (self.__class__.__name__, ))
-            return False
-        # CONTEXT CHECKS & SET-UP
-        if not self.is_logged_in or\
-            self.is_logged_in and not self._is_unlocked:
-            if self.user._validate_credentials(self, username, password):
-                self.is_unlocked = True
-                self.is_logged_in = True
-                logging.info("%s: Session successfully logged in."
-                             % (self.__class__.__name__, ))
-                return True
-            else:
-                logging.warning("%s: Session login failed: Invalid credentials."
-                                % (self.__class__.__name__, ))
-                return False
-        elif self.is_unlocked:
-            logging.warning("%s: Session already logged in."
-                            % (self.__class__.__name__, ))
-            return False
-
-    def log_out(self):
-        """ ..
-
-        :rtype: *bool*
-
-        Logs the logged-in user out of this session.
-        """
-        if self.is_logged_in:
-            # save sets
-            for backup_set in self._backup_sets.sets:
-                backup_set.save_to_db()
-            self.is_unlocked = False
-            self.is_logged_in = False
-            logging.info("%s: Session successfully logged out."
-                         % (self.__class__.__name__, ))
-            return True
-        else:
-            logging.warning("%s: Session logout failed: Already logged out."
-                            % (self.__class__.__name__, ))
-            return False
-
-    def lock(self):
-        """ ..
-
-        :rtype: *bool*
-
-        Locks the session.
-        """
-        if self.is_logged_in:
-            if self.is_unlocked:
-                self.is_unlocked = False
-                logging.info("%s: Session successfully locked."
-                             % (self.__class__.__name__, ))
-                return True
-            else:
-                logging.warning("%s: Session lock failed: Already locked."
-                                % (self.__class__.__name__, ))
-                return False
-        else:
-            logging.warning("%s: Session lock failed: Not logged in."
-                            % (self.__class__.__name__, ))
-            return False
-
-    def unlock(self, username, password):
-        """ ..
-
-        :param str username: The user's username to log-in with.
-        :param str password: The user's password to log-in with.
-
-        :rtype: *bool*
-
-        Unlocks the session.
-        """
-        # VALIDATE DATA
-        # username
-        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
-            logging.warning("%s: The username is invalid. A valid username "\
-                             "needs to start with an alphabetic, "\
-                             "contain alphanumeric plus '_' "\
-                             "and have a length between 4 and 32 characters."
-                             % (self.__class__.__name__, ))
-            return False
-        if self.is_logged_in:
-            if not self.is_unlocked:
-                if self.user._validate_credentials(self, username, password):
-                    self.is_unlocked = True
-                    logging.info("%s: Session successfully unlocked."
-                                 % (self.__class__.__name__, ))
-                    return True
-                else:
-                    logging.warning("%s: Session unlock failed: Invalid "\
-                                    "credentials."
-                                    % (self.__class__.__name__, ))
-            else:
-                logging.warning("%s: Session unlock failed: Already "\
-                                "unlocked."
-                                % (self.__class__.__name__, ))
-                return False
-        else:
-            logging.warning("%s: Session unlock failed: Not logged in."
-                            % (self.__class__.__name__, ))
-            return False
-
-
-class UserCtrl(bs.model.models.Users):
-    """ ..
-
-    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-    :class:`~bs.ctrl.session.SessionGuiCtrl` associated with the session this user is \
-    associated with.
-
-    Represents a user in the system.
-    """
-    _id = None
-    _username = None
-    _session = None
-
-    def __init__(self, session_gui):
-        super(UserCtrl, self).__init__()
-        self._session = session_gui
-
-        self._id = -1
-        self._username = ""
-        # create default user
-        if len(self._get("*", no_auth_required=True)) == 0:
-            self._add("username, password",
-                     [['alpha', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']],
-                     no_auth_required=True)
-            self._add("username, password",
-                     [['bravo', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']],
-                     no_auth_required=True)
-
-    def __repr__(self):
-        return "User '%s' <%s>" % (self._username, self.__class__.__name__, )
-
-    @property
-    def id(self):
-        """
-        :type: *int*
-
-        The user's ID.
-        """
-        return self._id
-
-    @property
-    def username(self):
-        """
-        :type: *str*
-
-        The user's name.
-        """
-        return self._username
-
-    # OVERLOADS
-    def _add_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
-        """
-        if self._session.is_logged_in:
-            return True
-        else:
-            return False
-
-    def _get_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
-        """
-        if self._session.is_logged_in:
-            return True
-        else:
-            return False
-
-    def _remove_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
-        """
-        if self._session.is_logged_in:
-            return True
-        else:
-            return False
-    # /OVERLOADS
-
-    def _validate_credentials(self, parent, username, password):
-        """ *
-        Verifies `username`, `password` for correctness and returns boolean.
-        This method can only be called from `parent=isinstance(SessionCtrl)`
-        """
-        if isinstance(parent, SessionCtrl):
-            password_hash = hashlib.sha512(password.encode())
-            res = self._get("id", (("username", "=", username),
-                                  ("password", "=", password_hash.hexdigest(), ), ),
-                           no_auth_required=True
-                           )
-            if len(res) == 1:
-                self._id = res[0][0]
-                self._username = username
-                logging.debug("%s: Credentials valid for user: '%s'."
-                             % (self.__class__.__name__, self._username, ))
-                return True
-            elif len(res) > 1:
-                logging.critical("%s: More than one user exist with the same "\
-                                 "username/password combination! Please "\
-                                 "check the integrity of the database."
-                                 % (self.__class__.__name__, ))
-                raise SystemExit()
-                return False
-            elif len(res) < 1:
-                logging.debug("%s: Credentials invalid for user: '%s'"
-                                % (self.__class__.__name__, self._username, ))
-                return False
-        else:
-            logging.warning("%s: This method can only be called from certain"\
-                            "classes (SessionCtrl(, ...))"
-                            % (self.__class__.__name__, ))
-            return False
-
-
-class BackupSourceCtrl(bs.model.models.Sources):
-    """ ..
-
-    :param bs.ctrl.session.SessionGuiCtrl session_gui: The GUI controller \
-    associated with current session.
-
-    :param int backup_source_id: The *backup-source's* ID.
-
-    :param str source_name: The *backup-source's* name.
-
-    :param str source_path: The absolute folder-path that defines the \
-    *backup-source*.
-
-    This class defines a single source in the file-system, which is usually a \
-    folder-location.
-    """
-    _session = None
-    _backup_source_id = None
-    _source_name = None
-    _source_path = None
-
-    _backup_entity_ass = None
-
-    def __init__(self, session_gui, backup_source_id, source_name, source_path):
-        self._session = session_gui
-        self._backup_source_id = backup_source_id
-        self._source_name = source_name
-        self._source_path = source_path
-        # if backup_source_id == None, this is a new source, add to database
-        if not self._backup_source_id:
-            res = self._add("user_id, source_name, source_path",
-                            (self._session.user.id,
-                            self._source_name,
-                            self._source_path, ))
-            self._backup_source_id = res.lastrowid
-
-        self._backup_entity_ass = []
-
-    def __repr__(self):
-        return "Source #%d <%s>" % (self._backup_source_id, self.__class__.__name__, )
-
-    @property
-    def backup_source_id(self):
-        """
-        :type: *int*
-
-        The *backup-source*'s ID.
-        """
-        return self._backup_source_id
-
-    @property
-    def source_name(self):
-        """
-        :type: *str*
-        :permissions: *read/write*
-
-        The *backup-source*'s name.
-        """
-        return self._source_name
-
-    @source_name.setter
-    def source_name(self, source_name):
-        # VALIDATE DATA
-        # source_name
-        if not re.match(bs.config.REGEX_PATTERN_NAME, source_name):
-            logging.warning("%s: The source_name contains invalid "\
-                            "characters. It needs to start  with an "\
-                            "alphabetic and contain alphanumerical "\
-                            "characters plus '\_\-\#' and space."
-                            % (self.__class__.__name__, ))
-            return False
-        # change data in db
-        self._update(
-                     (("source_name", source_name), ),
-                     (("id", "=", self._backup_source_id), )
-                     )
-        self._source_name = source_name
-        # out
-        return True
-
-    @property
-    def source_path(self):
-        """
-        :type: *str*
-        :permissions: *read/write*
-
-        The *backup_source*'s absolute folder-path in the file-system.
-        """
-        return self._source_path
-
-    @source_path.setter
-    def source_path(self, source_path):
-        # VALIDATE DATA
-        # source_path
-        if not os.path.isdir(source_path):
-            logging.warning("%s: The source-path is invalid. It needs to be "\
-                            "a valid directory-path on the current system."
-                            % (self.__class__.__name__, ))
-            return False
-        # change data in db
-        self._update(
-                     (("source_path", source_path), ),
-                     (("id", "=", self._backup_source_id), )
-                     )
-        self._source_path = source_path
-        # out
-        return True
-
-    @property
-    def backup_entity_ass(self):
-        """ ..
-
-        :type: *dict*
-
-        Returns an associative array (dictionary) in the following format: \
-        {:class:`~bs.ctrl.session.BackupSetCtrl`::class:`~bs.ctrl.session.BackupSourceCtrl`} or \
-        {:class:`~bs.ctrl.session.BackupSetCtrl`::class:`~bs.ctrl.session.BackupTargetCtrl`}.
-        """
-        if not self._backup_entity_ass:
-            backup_entity_ass = {}
-            # Follows the "dumb" model: Sets don't know the associations, have to check the sets table here to get them
-            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
-            res = conn.execute("SELECT id, source_ass FROM sets WHERE user_id = ?", (self._session.user.id, )).fetchall()
-            # run through set-results
-            for dataset in res:
-                set_id = dataset[0]
-                source_ass_dict = json.loads(dataset[1])
-                # get set object
-                backup_set_obj = [x for x in self._session.backup_sets.sets if x.backup_set_id == set_id][0]
-                # run through associations in set
-                for backup_source_id in source_ass_dict:
-                    if self.backup_source_id == int(backup_source_id):
-                        # list to store associations for set in
-                        if not backup_set_obj in backup_entity_ass.keys():
-                            backup_entity_ass[backup_set_obj] = []
-                        # this can be either -1 for the set's target set or a natural number as a source id
-                        ass_ids = source_ass_dict[backup_source_id]
-                        for ass_id in ass_ids:
-                            # target set associated
-                            if ass_id == -1:
-                                backup_entity_ass[backup_set_obj].append(backup_set_obj.backup_targets)
-                            # source associated
-                            else:
-                                # get source object with id that was found
-                                for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
-                                    if backup_filter_obj_iter.backup_filter_id == ass_id:
-                                        backup_entity_ass[backup_set_obj].append(backup_filter_obj_iter)
-            self._backup_entity_ass = backup_entity_ass
-        return self._backup_entity_ass
-
-    def associate(self, backp_set, backup_entity):
-        """ ..
-
-        :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
-        which to associate the *backup-entity* with this *backup-source*.
-
-        :param bs.model.models_master.BSModel backup_entity: The \
-        *backup-entity* to associate with this *backup-source* on the \
-        *backup-set*. This is one of the following: \
-        :class:`~bs.ctrl.session.BackupFilterCtrl`, :class:`~bs.ctrl.session.BackupTargetsCtrl`
-
-        :rtype: *void*
-
-        Associates a *backup-entity* with this *backup-source*.
-        """
-        self._backup_entity_ass[backp_set].append(backup_entity)
-
-    def disassociate(self, backup_set, backup_entity):
-        """ ..
-
-        :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
-        which to disassociate the *backup-entity* with this *backup-source*.
-
-        :param bs.model.models_master.BSModel backup_entity: The \
-        *backup-entity* to dissociate from this *backup-source*.
-
-        :rtype: *void*
-
-        Breaks connection to a given backup_entity_ass
-        """
-        self._backup_entity_ass[backup_set].pop(self._backup_entity_ass[backup_set].index(backup_entity))
-
-
-class BackupSourcesCtrl(bs.model.models.Sources):
-    """ ..
-
-    :param SessionCtrl session: The :class:`~bs.ctrl.session.SessionCtrl` these \
-    *backup-sources* are associated with.
-
-    This class groups and manages all *backup-sources* for one *session*.
-    """
-    _session = None
-    _backup_sources = None
-
-    def __init__(self, session):
-        """
-        *
-        """
-        super(BackupSourcesCtrl, self).__init__()
-        self._session = session
-
-        self._backup_sources = []
-
-    def __repr__(self):
-        return "Sources <%s>" % (self.__class__.__name__, )
-
-    @property
-    def backup_sources(self):
-        """ ..
-
-        :type: *list*
-
-        Returns all source objects that are associated with this \
-        :class:`~bs.ctrl.session.BackupSourcesCtrl` and :class:`~bs.ctrl.session.SessionCtrl`.
-        """
-        # sources list is empty, load from db
-        if not len(self._backup_sources):
-            res = self._get("id, source_name, source_path",
-                            (("user_id", "=", self._session.user.id, ), ))
-            for data_set in res:
-                source_id = data_set[0]
-                source_name = data_set[1]
-                source_path = data_set[2]
-                new_source_obj = BackupSourceCtrl(self._session,
-                                                  source_id,
-                                                  source_name,
-                                                  source_path)
-                self._backup_sources.append(new_source_obj)
-        return self._backup_sources
-
-    # OVERLOADS
-    @property
-    def _add_is_permitted(self, *args, **kwargs):
-        """..
-
-        Reimplemented from BSModel()
-        """
-        if self._session._is_logged_in:
-            return True
-        else:
-            return False
-
-    @property
-    def _get_is_permitted(self, *args, **kwargs):
-        """
-        *
-        Reimplemented from BSModel()
-        """
-        if self._session._is_logged_in:
-            return True
-        else:
-            return False
-
-    @property
-    def _remove_is_permitted(self, *args, **kwargs):
-        """
-        *
-        Reimplemented from BSModel()
-        """
-        if self._session._is_logged_in:
-            return True
-        else:
-            return False
-    # /OVERLOADS
-
-    def create_backup_source(self, source_name, source_path):
-        """ ..
-
-        :param str source_name: Name for the new *backup-source*.
-
-        :param str source_path: Absolute file-system folder-path pointing \
-        to the location to be defined as the new source.
-
-        :rtype: *bool*
-
-        Creates a new :class:`~bs.ctrl.session.BackupSourceCtrl`.
-        """
-        # VALIDATE DATA
-        # source_name
-        if not re.search(bs.config.REGEX_PATTERN_NAME, source_name):
-            logging.warning("%s: The name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
-                            "space." % (self.__class__.__name__, ))
-            return False
-        # source_path
-        if not os.path.isdir(source_path):
-            logging.warning("%s: The source-path is invalid. It needs to be "\
-                            "a valid directory-path on the current system."
-                            % (self.__class__.__name__, ))
-            return False
-        logging.info("%s: Adding source: '%s' (%s)"
-                        % (self.__class__.__name__, source_name, source_path,))
-        # check that the path does not already exist for current user.
-        res = self._get("id", (("user_id", "=", self._session.user.id, ),
-                               ("source_path", "=", source_path, ), ))
-        if len(res) > 0:
-            logging.warning("%s: This source-path is already defined: %s"
-                            % (self.__class__.__name__, source_path, ))
-            return False
-        # add object
-        source_id = None
-        new_source_obj = BackupSourceCtrl(self._session,
-                                          source_id,
-                                          source_name,
-                                          source_path)
-        self._backup_sources.append(new_source_obj)
-        logging.info("%s: Source successfully added: '%s' (%s)"
-                        % (self.__class__.__name__, source_name, source_path))
-        # out
-        return True
-
-    def delete_backup_source(self, source_obj):
-        """ ..
-
-        :param bs.ctrl.session.BackupSourceCtrl source_obj: The \
-        *backup-source* to be deleted.
-
-        :rtype: *bool*
-
-        Deletes an existing :class:`~bs.ctrl.session.BackupSourceCtrl`.
-        """
-        # VALIDATE DATA
-        # source_obj
-        if not isinstance(source_obj, BackupSourceCtrl):
-            logging.warning("%s: The first argument needs to be a backup "\
-                            "source object."
-                            % (self.__class__.__name__, ))
-            return False
-        # remove data from database
-        self._remove((("id", "=", source_obj._source_id, ), ))
-        # delete obj
-        self._backup_sources.pop(self._backup_sources.index(source_obj))
-        # out
-        logging.info("%s: Source has been successfully deleted: %s"
-                     % (self.__class__.__name__, source_obj, ))
-        return True
-
-
-class BackupTargetCtrl(bs.model.models.Targets):
-    """ ..
-
-    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-    :class:`~bs.ctrl.session.SessionGuiCtrl` associated with the :class:`~bs.ctrl.session.SessionCtrl` this \
-    *backup-target* is associated with.
-
-    :param int target_id: The target's ID as used as a unique ID in the \
-    database.
-
-    :param str target_name: The target's literal name.
-
-    :param str target_device_id: The *device-id* this target uses to uniquely \
-    mark its location on the file-system. This decouples the target from the \
-    physical drive-letter and makes it resistant against changing \
-    drive-letters, which easily happens with removable storage e.g..
-
-    This class defines a single target in the file-system, which is usually \
-    needs to be the root of a drive that has valid backup-data on it.
-    """
-    _session = None
-    _target_id = None
-    _target_name = None
-    _target_device_id = None
-    # enums
-    #: ..
-    status_online = "status_online"
-    #: ..
-    status_offline = "status_offline"
-    #: ..
-    status_in_use = "status_in_use"
-
-    def __init__(self, session_gui, target_id, target_name, target_device_id):
-        self._session = session_gui
-        self._target_id = target_id
-        self._target_name = target_name
-        self._target_device_id = target_device_id
-        # if target_id == None, this is a new target, add to database
-        if not self._target_id:
-            res = self._add("user_id, target_name, target_device_id",
-                            (self._session.user.id,
-                            self._target_name,
-                            self._target_device_id, ))
-            self._target_id = res.lastrowid
-
-    def __repr__(self):
-        return "Target #%d <%s>" % (self._target_id, self.__class__.__name__, )
-
-    @property
-    def target_name(self):
-        """
-        :type: *str*
-        :permissions: *read/write*
-
-        The target's literal name.
-        """
-        return self._target_name
-
-    @target_name.setter
-    def target_name(self, target_name):
-        """ * """
-        # VALIDATE DATA
-        # target_name
-        if not re.match(bs.config.REGEX_PATTERN_NAME, target_name):
-            logging.warning("%s: The target_name contains invalid "\
-                            "characters. It needs to start  with an "\
-                            "alphabetic and contain alphanumerical "\
-                            "characters plus '\_\-\#' and space."
-                            % (self.__class__.__name__, ))
-            return False
-        # change data in db
-        self._update(
-                     (("target_name", target_name), ),
-                     (("id", "=", self._target_id), )
-                     )
-        self._target_name = target_name
-        # out
-        return True
-
-    @property
-    def target_path(self):
-        """ ..
-
-        :type: *str*
-
-        Gets physical path that currently points to target.
-
-        Scans all connected drives and looks for valid backup folders that \
-        contain the identifying metadata file with this target's \
-        *target-device-ID*.
-
-        Returns physical path that currently points to the target.
-        """
-        out = []
-        for drive_root_path in bs.utils.get_drives((win32file.DRIVE_FIXED, )):
-            target_config_file_path = os.path.join(drive_root_path,
-                                                   bs.config.PROJECT_NAME,
-                                                   "volume.json")
-            if os.path.isfile(target_config_file_path):
-                f = open(target_config_file_path, "r")
-                data = f.read()
-                target_device_id_drive = json.loads(data)[1]
-                # if current target_device_id same as own device_id...
-                if target_device_id_drive == self._target_device_id:
-                    out.append(os.path.join(drive_root_path,
-                                            bs.config.PROJECT_NAME))
-                f.close()
-        # out
-        if len(out) > 1:
-            logging.critical("%s: More than one drive carry the same ID. "\
-                            "Please make sure there are no duplicates on the "\
-                            "system: %s" % (self.__class__.__name__,
-                                            out, ))
-            raise SystemExit
-        elif len(out) == 0:
-            logging.info("%s: The physical location of this target could "\
-                            "not be found. The volume is probably offline "\
-                            " (target_device_id: %s)"
-                            % (self.__class__.__name__,
-                               self._target_device_id, ))
-            return ""
-        else:
-            return out[0]
-
-
-class BackupTargetsCtrl(bs.model.models.Targets):
-    """ ..
-
-    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
-    :class:`~bs.ctrl.session.SessionCtrl` these *backup-targets* are associated with.
-
-    This class groups and manages all *backup-targets* for one *session*.
-    """
-    _session = None
-    _targets = None
-
-    def __init__(self, session):
-        super(BackupTargetsCtrl, self).__init__()
-        self._session = session
-
-        self._targets = []
-
-    def __repr__(self):
-        return "Targets <%s>" % (self.__class__.__name__)
-
-    @property
-    def targets(self):
-        """ ..
-
-        :type: *list*
-
-        Returns a list of all targets objects.
-        """
-        # targets list is empty, load from db
-        if len(self._targets) == 0:
-            res = self._get("id, target_name, target_device_id",
-                            (("user_id", "=", self._session.user.id, ), ))
-            for data_set in res:
-                target_id = data_set[0]
-                target_name = data_set[1]
-                target_device_id = data_set[2]
-                new_target_obj = BackupTargetCtrl(self._session,
-                                                  target_id,
-                                                  target_name,
-                                                  target_device_id)
-                self._targets.append(new_target_obj)
-        return self._targets
-
-    # OVERLOADS
-    @property
-    def _add_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
-        """
-        if self._session._is_logged_in:
-            return True
-        else:
-            return False
-
-    @property
-    def _get_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
-        """
-        if self._session._is_logged_in:
-            return True
-        else:
-            return False
-
-    @property
-    def _remove_is_permitted(self, *args, **kwargs):
-        """ *
-        Reimplemented from BSModel()
-        """
-        if self._session._is_logged_in:
-            return True
-        else:
-            return False
-    # /OVERLOADS
-
-    def create_backup_target(self, target_name, target_path):
-        """ ..
-
-        :param str target_name: The literal name to give to the new target.
-
-        :param str target_path: The absolute drive-letter-path of the drive \
-        to define the as the new target.
-
-        :rtype: *bool*
-
-        Creates a new *backup-target*.
-        """
-        # VERIFY DATA
-        # target_name
-        if not re.search(bs.config.REGEX_PATTERN_NAME, target_name):
-            logging.warning("%s: The name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
-                            "space." % (self.__class__.__name__, ))
-            return False
-        # target_path
-        if not re.search("^[a-zA-Z]\:\\\\$", target_path):
-            logging.warning("%s: This is not a valid target path. Only "\
-                            "partition roots can be defined as targets."
-                            % (self.__class__.__name__, ))
-            return False
-        # check if volume is already defined as target
-        root_path = os.path.join(target_path,
-                                 bs.config.PROJECT_NAME.capitalize())
-        root_config_file_path = os.path.join(root_path, "volume.json")
-        if not os.path.isdir(root_path) and\
-            not os.path.isfile(root_config_file_path):
-            # generate target_device_id
-            # timestamp at high sub-second-precision as string appended by
-            # random 16-bit integer as string, encoded as HEX-SHA512
-            timestamp = str(int(time.time() * 1000000))
-            random_num = str(random.randint(1000000000000000, 9999999999999999))
-            timestamp_random_num = timestamp + random_num
-            target_device_id = hashlib.sha512(timestamp_random_num.encode()).hexdigest()
-            # add obj
-            target_id = None
-            new_target_obj = BackupTargetCtrl(self._session,
-                                              target_id,
-                                              target_name,
-                                              target_device_id)
-            self._targets.append(new_target_obj)
-            # create BS root directory on volume
-            try:
-                # create root_folder
-                os.mkdir(root_path)
-                with open(root_config_file_path, "w") as f:
-                    json.dump([target_name, target_device_id], f)
-                logging.info("%s: Target has been successfully created: %s"
-                             % (self.__class__.__name__,
-                                target_path, ))
-                return True
-            except Exception as e:
-                logging.warning(bs.messages.general.general_error(e)[0])
-                return False
-        else:
-            logging.warning("%s: This volume is already defined as a "\
-                             "target. Please try to importing it: %s"
-                             % (self.__class__.__name__, target_path, ))
-            return False
-
-    def delete_backup_target(self, target_obj):
-        """ ..
-
-        :param bs.ctrl.session.BackupTargetCtrl target_obj: The \
-        *backup-target* to delete.
-
-        :rtype: *bool*
-
-        Deletes an existing *backup-target*. Does **not** delete any \
-        file-system data.
-        """
-        # VALIDATE DATA
-        # target_obj
-        if not isinstance(target_obj, BackupTargetCtrl):
-            logging.warning("%s: The first argument needs to be a backup "\
-                            "target object."
-                            % (self.__class__.__name__, ))
-            return False
-        # delete from DB
-        self._remove((("id", "=", target_obj._target_id, ), ))
-        # remove obj
-        self._targets.pop(self._targets.index(target_obj))
-        # out
-        logging.info("%s: Target has been successfully removed; file-system "\
-                     "data has not been changed/removed: %s"
-                     % (self.__class__.__name__,
-                        target_obj, ))
-        return True
 
 
 class BackupFilterCtrl(bs.model.models.Filters):
@@ -2138,7 +909,7 @@ class BackupSetCtrl(bs.model.models.Sets):
     _is_authenticated = None
     _key_hash_32 = None
 
-    def __init__(self, session, set_id, set_uid, set_name, salt_dk, \
+    def __init__(self, session, set_id, set_uid, set_name, salt_dk,
                  set_db_path, source_objs, filter_objs, target_objs):
         self._session = session
         self._backup_set_id = set_id
@@ -2239,24 +1010,38 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     @property
     def set_db_path(self):
-        """
+        """ ..
+
         :type: *str*
         :permissions: *read/write*
 
         The absolute file-system path that points to the set's database.
         """
-        if not os.path.isfile(self._set_db_path):
-            self.set_db_path = self._set_db_path
-        return self._set_db_path
+        if os.path.exists(self._set_db_path):
+            if not os.path.isfile(self._set_db_path):
+                e = IOError()
+                e.filename = self._set_db_path
+                e.strerror = "Not a file or file not accessible."
+                raise e
+            else:
+                return self._set_db_path
+        else:
+            e = IOError()
+            e.filename = self._set_db_path
+            e.strerror = "File not found."
+            raise e
 
     @set_db_path.setter
     def set_db_path(self, set_db_path):
+        """ ..
+
+        """
         # validate existence of path
         if not os.path.isfile(self._set_db_path):
             set_db_path_new = ""
             while not os.path.isfile(set_db_path_new):
-                set_db_path_new = input("The last used path ('%s') is "\
-                                        "invalid; please enter the current "\
+                set_db_path_new = input("The last used path ('%s') is " \
+                                        "invalid; please enter the current " \
                                         "path of this set's database:"
                                         % (self._set_db_path, ))
             self._set_db_path = set_db_path_new
@@ -2485,17 +1270,18 @@ class BackupSetCtrl(bs.model.models.Sets):
         Authenticates user with the backup-set and unlocks it.
         """
         # Calculate PBKDF2 ciphers
-        key_hash_32 = Crypto.Protocol.KDF.PBKDF2(key_raw,
-                                                 binascii.unhexlify(self.salt_dk[:128]),
-                                                 dkLen=32,
-                                                 count=64000)
+        dk_bin = Crypto.Protocol.KDF.PBKDF2(key_raw,
+                                            binascii.unhexlify(self.salt_dk[:128]),
+                                            dkLen=32,
+                                            count=64000)
         # compare hash of entered key against hash_64 in db/on set-obj
-        dk_hex = binascii.hexlify(key_hash_32).decode("utf-8")
+        dk_hex = binascii.hexlify(dk_bin).decode("utf-8")
         if dk_hex == self.salt_dk[128:]:
             self._is_authenticated = True
-            self._key_hash_32 = hashlib.sha512(key_raw.encode()).hexdigest()
+            self._key_hash_32 = hashlib.sha256(key_raw.encode()).hexdigest()
         else:
-            logging.warning("%s: The password is invalid." % (self.__class__.__name__, ))
+            logging.warning("%s: The password is invalid."
+                            % (self.__class__.__name__, ))
 
 
 class BackupSetsCtrl(bs.model.models.Sets):
@@ -2734,3 +1520,1230 @@ class BackupSetsCtrl(bs.model.models.Sets):
                 self._sets.pop(self._sets.index(set))
         # out
         return True
+
+
+class BackupSourceCtrl(bs.model.models.Sources):
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The GUI controller \
+    associated with current session.
+
+    :param int backup_source_id: The *backup-source's* ID.
+
+    :param str source_name: The *backup-source's* name.
+
+    :param str source_path: The absolute folder-path that defines the \
+    *backup-source*.
+
+    This class defines a single source in the file-system, which is usually a \
+    folder-location.
+    """
+    _session = None
+    _backup_source_id = None
+    _source_name = None
+    _source_path = None
+
+    _backup_entity_ass = None
+
+    def __init__(self, session_gui, backup_source_id, source_name, source_path):
+        self._session = session_gui
+        self._backup_source_id = backup_source_id
+        self._source_name = source_name
+        self._source_path = source_path
+        # if backup_source_id == None, this is a new source, add to database
+        if not self._backup_source_id:
+            res = self._add("user_id, source_name, source_path",
+                            (self._session.user.id,
+                            self._source_name,
+                            self._source_path, ))
+            self._backup_source_id = res.lastrowid
+
+        self._backup_entity_ass = []
+
+    def __repr__(self):
+        return "Source #%d <%s>" % (self._backup_source_id, self.__class__.__name__, )
+
+    @property
+    def backup_source_id(self):
+        """
+        :type: *int*
+
+        The *backup-source*'s ID.
+        """
+        return self._backup_source_id
+
+    @property
+    def source_name(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The *backup-source*'s name.
+        """
+        return self._source_name
+
+    @source_name.setter
+    def source_name(self, source_name):
+        # VALIDATE DATA
+        # source_name
+        if not re.match(bs.config.REGEX_PATTERN_NAME, source_name):
+            logging.warning("%s: The source_name contains invalid "\
+                            "characters. It needs to start  with an "\
+                            "alphabetic and contain alphanumerical "\
+                            "characters plus '\_\-\#' and space."
+                            % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update(
+                     (("source_name", source_name), ),
+                     (("id", "=", self._backup_source_id), )
+                     )
+        self._source_name = source_name
+        # out
+        return True
+
+    @property
+    def source_path(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The *backup_source*'s absolute folder-path in the file-system.
+        """
+        return self._source_path
+
+    @source_path.setter
+    def source_path(self, source_path):
+        # VALIDATE DATA
+        # source_path
+        if not os.path.isdir(source_path):
+            logging.warning("%s: The source-path is invalid. It needs to be "\
+                            "a valid directory-path on the current system."
+                            % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update(
+                     (("source_path", source_path), ),
+                     (("id", "=", self._backup_source_id), )
+                     )
+        self._source_path = source_path
+        # out
+        return True
+
+    @property
+    def backup_entity_ass(self):
+        """ ..
+
+        :type: *dict*
+
+        Returns an associative array (dictionary) in the following format: \
+        {:class:`~bs.ctrl.session.BackupSetCtrl`::class:`~bs.ctrl.session.BackupSourceCtrl`} or \
+        {:class:`~bs.ctrl.session.BackupSetCtrl`::class:`~bs.ctrl.session.BackupTargetCtrl`}.
+        """
+        if not self._backup_entity_ass:
+            backup_entity_ass = {}
+            # Follows the "dumb" model: Sets don't know the associations, have to check the sets table here to get them
+            conn = sqlite3.connect(bs.config.CONFIGDB_PATH)
+            res = conn.execute("SELECT id, source_ass FROM sets WHERE user_id = ?", (self._session.user.id, )).fetchall()
+            # run through set-results
+            for dataset in res:
+                set_id = dataset[0]
+                source_ass_dict = json.loads(dataset[1])
+                # get set object
+                backup_set_obj = [x for x in self._session.backup_sets.sets if x.backup_set_id == set_id][0]
+                # run through associations in set
+                for backup_source_id in source_ass_dict:
+                    if self.backup_source_id == int(backup_source_id):
+                        # list to store associations for set in
+                        if not backup_set_obj in backup_entity_ass.keys():
+                            backup_entity_ass[backup_set_obj] = []
+                        # this can be either -1 for the set's target set or a natural number as a source id
+                        ass_ids = source_ass_dict[backup_source_id]
+                        for ass_id in ass_ids:
+                            # target set associated
+                            if ass_id == -1:
+                                backup_entity_ass[backup_set_obj].append(backup_set_obj.backup_targets)
+                            # source associated
+                            else:
+                                # get source object with id that was found
+                                for backup_filter_obj_iter in self._session.backup_filters.backup_filters:
+                                    if backup_filter_obj_iter.backup_filter_id == ass_id:
+                                        backup_entity_ass[backup_set_obj].append(backup_filter_obj_iter)
+            self._backup_entity_ass = backup_entity_ass
+        return self._backup_entity_ass
+
+    def associate(self, backp_set, backup_entity):
+        """ ..
+
+        :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
+        which to associate the *backup-entity* with this *backup-source*.
+
+        :param bs.model.models_master.BSModel backup_entity: The \
+        *backup-entity* to associate with this *backup-source* on the \
+        *backup-set*. This is one of the following: \
+        :class:`~bs.ctrl.session.BackupFilterCtrl`, :class:`~bs.ctrl.session.BackupTargetsCtrl`
+
+        :rtype: *void*
+
+        Associates a *backup-entity* with this *backup-source*.
+        """
+        self._backup_entity_ass[backp_set].append(backup_entity)
+
+    def disassociate(self, backup_set, backup_entity):
+        """ ..
+
+        :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* for \
+        which to disassociate the *backup-entity* with this *backup-source*.
+
+        :param bs.model.models_master.BSModel backup_entity: The \
+        *backup-entity* to dissociate from this *backup-source*.
+
+        :rtype: *void*
+
+        Breaks connection to a given backup_entity_ass
+        """
+        self._backup_entity_ass[backup_set].pop(self._backup_entity_ass[backup_set].index(backup_entity))
+
+
+class BackupSourcesCtrl(bs.model.models.Sources):
+    """ ..
+
+    :param SessionCtrl session: The :class:`~bs.ctrl.session.SessionCtrl` these \
+    *backup-sources* are associated with.
+
+    This class groups and manages all *backup-sources* for one *session*.
+    """
+    _session = None
+    _backup_sources = None
+
+    def __init__(self, session):
+        """
+        *
+        """
+        super(BackupSourcesCtrl, self).__init__()
+        self._session = session
+
+        self._backup_sources = []
+
+    def __repr__(self):
+        return "Sources <%s>" % (self.__class__.__name__, )
+
+    @property
+    def backup_sources(self):
+        """ ..
+
+        :type: *list*
+
+        Returns all source objects that are associated with this \
+        :class:`~bs.ctrl.session.BackupSourcesCtrl` and :class:`~bs.ctrl.session.SessionCtrl`.
+        """
+        # sources list is empty, load from db
+        if not len(self._backup_sources):
+            res = self._get("id, source_name, source_path",
+                            (("user_id", "=", self._session.user.id, ), ))
+            for data_set in res:
+                source_id = data_set[0]
+                source_name = data_set[1]
+                source_path = data_set[2]
+                new_source_obj = BackupSourceCtrl(self._session,
+                                                  source_id,
+                                                  source_name,
+                                                  source_path)
+                self._backup_sources.append(new_source_obj)
+        return self._backup_sources
+
+    # OVERLOADS
+    @property
+    def _add_is_permitted(self, *args, **kwargs):
+        """..
+
+        Reimplemented from BSModel()
+        """
+        if self._session._is_logged_in:
+            return True
+        else:
+            return False
+
+    @property
+    def _get_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session._is_logged_in:
+            return True
+        else:
+            return False
+
+    @property
+    def _remove_is_permitted(self, *args, **kwargs):
+        """
+        *
+        Reimplemented from BSModel()
+        """
+        if self._session._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
+
+    def create_backup_source(self, source_name, source_path):
+        """ ..
+
+        :param str source_name: Name for the new *backup-source*.
+
+        :param str source_path: Absolute file-system folder-path pointing \
+        to the location to be defined as the new source.
+
+        :rtype: *bool*
+
+        Creates a new :class:`~bs.ctrl.session.BackupSourceCtrl`.
+        """
+        # VALIDATE DATA
+        # source_name
+        if not re.search(bs.config.REGEX_PATTERN_NAME, source_name):
+            logging.warning("%s: The name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # source_path
+        if not os.path.isdir(source_path):
+            logging.warning("%s: The source-path is invalid. It needs to be "\
+                            "a valid directory-path on the current system."
+                            % (self.__class__.__name__, ))
+            return False
+        logging.info("%s: Adding source: '%s' (%s)"
+                        % (self.__class__.__name__, source_name, source_path,))
+        # check that the path does not already exist for current user.
+        res = self._get("id", (("user_id", "=", self._session.user.id, ),
+                               ("source_path", "=", source_path, ), ))
+        if len(res) > 0:
+            logging.warning("%s: This source-path is already defined: %s"
+                            % (self.__class__.__name__, source_path, ))
+            return False
+        # add object
+        source_id = None
+        new_source_obj = BackupSourceCtrl(self._session,
+                                          source_id,
+                                          source_name,
+                                          source_path)
+        self._backup_sources.append(new_source_obj)
+        logging.info("%s: Source successfully added: '%s' (%s)"
+                        % (self.__class__.__name__, source_name, source_path))
+        # out
+        return True
+
+    def delete_backup_source(self, source_obj):
+        """ ..
+
+        :param bs.ctrl.session.BackupSourceCtrl source_obj: The \
+        *backup-source* to be deleted.
+
+        :rtype: *bool*
+
+        Deletes an existing :class:`~bs.ctrl.session.BackupSourceCtrl`.
+        """
+        # VALIDATE DATA
+        # source_obj
+        if not isinstance(source_obj, BackupSourceCtrl):
+            logging.warning("%s: The first argument needs to be a backup "\
+                            "source object."
+                            % (self.__class__.__name__, ))
+            return False
+        # remove data from database
+        self._remove((("id", "=", source_obj._source_id, ), ))
+        # delete obj
+        self._backup_sources.pop(self._backup_sources.index(source_obj))
+        # out
+        logging.info("%s: Source has been successfully deleted: %s"
+                     % (self.__class__.__name__, source_obj, ))
+        return True
+
+
+class BackupTargetCtrl(bs.model.models.Targets):
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`~bs.ctrl.session.SessionGuiCtrl` associated with the :class:`~bs.ctrl.session.SessionCtrl` this \
+    *backup-target* is associated with.
+
+    :param int target_id: The target's ID as used as a unique ID in the \
+    database.
+
+    :param str target_name: The target's literal name.
+
+    :param str target_device_id: The *device-id* this target uses to uniquely \
+    mark its location on the file-system. This decouples the target from the \
+    physical drive-letter and makes it resistant against changing \
+    drive-letters, which easily happens with removable storage e.g..
+
+    This class defines a single target in the file-system, which is usually \
+    needs to be the root of a drive that has valid backup-data on it.
+    """
+    _session = None
+    _target_id = None
+    _target_name = None
+    _target_device_id = None
+    # enums
+    #: ..
+    status_online = "status_online"
+    #: ..
+    status_offline = "status_offline"
+    #: ..
+    status_in_use = "status_in_use"
+
+    def __init__(self, session_gui, target_id, target_name, target_device_id):
+        self._session = session_gui
+        self._target_id = target_id
+        self._target_name = target_name
+        self._target_device_id = target_device_id
+        # if target_id == None, this is a new target, add to database
+        if not self._target_id:
+            res = self._add("user_id, target_name, target_device_id",
+                            (self._session.user.id,
+                            self._target_name,
+                            self._target_device_id, ))
+            self._target_id = res.lastrowid
+
+    def __repr__(self):
+        return "Target #%d <%s>" % (self._target_id, self.__class__.__name__, )
+
+    @property
+    def target_name(self):
+        """
+        :type: *str*
+        :permissions: *read/write*
+
+        The target's literal name.
+        """
+        return self._target_name
+
+    @target_name.setter
+    def target_name(self, target_name):
+        """ * """
+        # VALIDATE DATA
+        # target_name
+        if not re.match(bs.config.REGEX_PATTERN_NAME, target_name):
+            logging.warning("%s: The target_name contains invalid "\
+                            "characters. It needs to start  with an "\
+                            "alphabetic and contain alphanumerical "\
+                            "characters plus '\_\-\#' and space."
+                            % (self.__class__.__name__, ))
+            return False
+        # change data in db
+        self._update(
+                     (("target_name", target_name), ),
+                     (("id", "=", self._target_id), )
+                     )
+        self._target_name = target_name
+        # out
+        return True
+
+    @property
+    def target_path(self):
+        """ ..
+
+        :type: *str*
+
+        Gets physical path that currently points to target.
+
+        Scans all connected drives and looks for valid backup folders that \
+        contain the identifying metadata file with this target's \
+        *target-device-ID*.
+
+        Returns physical path that currently points to the target.
+        """
+        out = []
+        for drive_root_path in bs.utils.get_drives((win32file.DRIVE_FIXED, )):
+            target_config_file_path = os.path.join(drive_root_path,
+                                                   bs.config.PROJECT_NAME,
+                                                   "volume.json")
+            if os.path.isfile(target_config_file_path):
+                f = open(target_config_file_path, "r")
+                data = f.read()
+                target_device_id_drive = json.loads(data)[1]
+                # if current target_device_id same as own device_id...
+                if target_device_id_drive == self._target_device_id:
+                    out.append(os.path.join(drive_root_path,
+                                            bs.config.PROJECT_NAME))
+                f.close()
+        # out
+        if len(out) > 1:
+            logging.critical("%s: More than one drive carry the same ID. "\
+                            "Please make sure there are no duplicates on the "\
+                            "system: %s" % (self.__class__.__name__,
+                                            out, ))
+            raise SystemExit
+        elif len(out) == 0:
+            logging.info("%s: The physical location of this target could "\
+                            "not be found. The volume is probably offline "\
+                            " (target_device_id: %s)"
+                            % (self.__class__.__name__,
+                               self._target_device_id, ))
+            return ""
+        else:
+            return out[0]
+
+
+class BackupTargetsCtrl(bs.model.models.Targets):
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`~bs.ctrl.session.SessionCtrl` these *backup-targets* are associated with.
+
+    This class groups and manages all *backup-targets* for one *session*.
+    """
+    _session = None
+    _targets = None
+
+    def __init__(self, session):
+        super(BackupTargetsCtrl, self).__init__()
+        self._session = session
+
+        self._targets = []
+
+    def __repr__(self):
+        return "Targets <%s>" % (self.__class__.__name__)
+
+    @property
+    def targets(self):
+        """ ..
+
+        :type: *list*
+
+        Returns a list of all targets objects.
+        """
+        # targets list is empty, load from db
+        if len(self._targets) == 0:
+            res = self._get("id, target_name, target_device_id",
+                            (("user_id", "=", self._session.user.id, ), ))
+            for data_set in res:
+                target_id = data_set[0]
+                target_name = data_set[1]
+                target_device_id = data_set[2]
+                new_target_obj = BackupTargetCtrl(self._session,
+                                                  target_id,
+                                                  target_name,
+                                                  target_device_id)
+                self._targets.append(new_target_obj)
+        return self._targets
+
+    # OVERLOADS
+    @property
+    def _add_is_permitted(self, *args, **kwargs):
+        """ *
+        Reimplemented from BSModel()
+        """
+        if self._session._is_logged_in:
+            return True
+        else:
+            return False
+
+    @property
+    def _get_is_permitted(self, *args, **kwargs):
+        """ *
+        Reimplemented from BSModel()
+        """
+        if self._session._is_logged_in:
+            return True
+        else:
+            return False
+
+    @property
+    def _remove_is_permitted(self, *args, **kwargs):
+        """ *
+        Reimplemented from BSModel()
+        """
+        if self._session._is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
+
+    def create_backup_target(self, target_name, target_path):
+        """ ..
+
+        :param str target_name: The literal name to give to the new target.
+
+        :param str target_path: The absolute drive-letter-path of the drive \
+        to define the as the new target.
+
+        :rtype: *bool*
+
+        Creates a new *backup-target*.
+        """
+        # VERIFY DATA
+        # target_name
+        if not re.search(bs.config.REGEX_PATTERN_NAME, target_name):
+            logging.warning("%s: The name contains invalid characters. It "\
+                            "needs to start  with an alphabetic and contain "\
+                            "alphanumerical characters plus '\_\-\#' and "\
+                            "space." % (self.__class__.__name__, ))
+            return False
+        # target_path
+        if not re.search("^[a-zA-Z]\:\\\\$", target_path):
+            logging.warning("%s: This is not a valid target path. Only "\
+                            "partition roots can be defined as targets."
+                            % (self.__class__.__name__, ))
+            return False
+        # check if volume is already defined as target
+        root_path = os.path.join(target_path,
+                                 bs.config.PROJECT_NAME.capitalize())
+        root_config_file_path = os.path.join(root_path, "volume.json")
+        if not os.path.isdir(root_path) and\
+            not os.path.isfile(root_config_file_path):
+            # generate target_device_id
+            # timestamp at high sub-second-precision as string appended by
+            # random 16-bit integer as string, encoded as HEX-SHA512
+            timestamp = str(int(time.time() * 1000000))
+            random_num = str(random.randint(1000000000000000, 9999999999999999))
+            timestamp_random_num = timestamp + random_num
+            target_device_id = hashlib.sha512(timestamp_random_num.encode()).hexdigest()
+            # add obj
+            target_id = None
+            new_target_obj = BackupTargetCtrl(self._session,
+                                              target_id,
+                                              target_name,
+                                              target_device_id)
+            self._targets.append(new_target_obj)
+            # create BS root directory on volume
+            try:
+                # create root_folder
+                os.mkdir(root_path)
+                with open(root_config_file_path, "w") as f:
+                    json.dump([target_name, target_device_id], f)
+                logging.info("%s: Target has been successfully created: %s"
+                             % (self.__class__.__name__,
+                                target_path, ))
+                return True
+            except Exception as e:
+                logging.warning(bs.messages.general.general_error(e)[0])
+                return False
+        else:
+            logging.warning("%s: This volume is already defined as a "\
+                             "target. Please try to importing it: %s"
+                             % (self.__class__.__name__, target_path, ))
+            return False
+
+    def delete_backup_target(self, target_obj):
+        """ ..
+
+        :param bs.ctrl.session.BackupTargetCtrl target_obj: The \
+        *backup-target* to delete.
+
+        :rtype: *bool*
+
+        Deletes an existing *backup-target*. Does **not** delete any \
+        file-system data.
+        """
+        # VALIDATE DATA
+        # target_obj
+        if not isinstance(target_obj, BackupTargetCtrl):
+            logging.warning("%s: The first argument needs to be a backup "\
+                            "target object."
+                            % (self.__class__.__name__, ))
+            return False
+        # delete from DB
+        self._remove((("id", "=", target_obj._target_id, ), ))
+        # remove obj
+        self._targets.pop(self._targets.index(target_obj))
+        # out
+        logging.info("%s: Target has been successfully removed; file-system "\
+                     "data has not been changed/removed: %s"
+                     % (self.__class__.__name__,
+                        target_obj, ))
+        return True
+
+
+class SessionCtrl(object):
+    """
+    Stores and manages contents of a single session. user, sources, targets,
+    filters, sets, etc..
+
+    This class is not to be instantiated directly.
+    :meth:`SessionsCtrl.add_session` should be used to add sessions.
+    """
+    _user = None
+    _backup_sources = None
+    _backup_targets = None
+    _backup_filters = None
+    _backup_sets = None
+    _is_unlocked = None
+    _is_logged_in = None
+
+    def __init__(self):
+        super(SessionCtrl, self).__init__()
+
+        self._user = UserCtrl(self)
+        self._backup_sources = BackupSourcesCtrl(self)
+        self._backup_targets = BackupTargetsCtrl(self)
+        self._backup_filters = BackupFiltersCtrl(self)
+        self._backup_sets = BackupSetsCtrl(self)
+        self._is_unlocked = False
+        self._is_logged_in = False
+
+    def __repr__(self):
+        return(str((self._user,
+                    self._backup_sources,
+                    self._backup_targets,
+                    self._backup_filters,
+                    self._backup_sets))
+               )
+
+    @property
+    def user(self):
+        """
+        :type: :class:`~bs.ctrl.session.UserCtrl`
+
+        The :class:`~bs.ctrl.session.UserCtrl` associated with this *backup-session*.
+        """
+        return self._user
+
+    @property
+    def backup_sources(self):
+        """
+        :type: *list*
+
+        A list of *backup-sources* associated with this session.
+        """
+        return self._backup_sources
+
+    @property
+    def backup_targets(self):
+        """
+        :type: *list*
+
+        A list of *backup-targets* associated with this session.
+        """
+        return self._backup_targets
+
+    @property
+    def backup_filters(self):
+        """
+        :type: *list*
+
+        A list of *backup-filters* associated with this session.
+        """
+        return self._backup_filters
+
+    @property
+    def backup_sets(self):
+        """
+        :type: *list*
+
+        A list of *backup-sets* associated with this session.
+        """
+        return self._backup_sets
+
+    @property
+    def is_unlocked(self):
+        """
+        :type: *bool*
+        :permissions: *read/write*
+
+        `False`, if this session is locked, `True` if unlocked.
+        """
+        return self._is_unlocked
+
+    @is_unlocked.setter
+    def is_unlocked(self, arg):
+        if not isinstance(arg, bool):
+            logging.warning("%s: The first argument needs to be of type "\
+                            "boolean."
+                            % (self.__class__.__name__, ))
+            return False
+        self._is_unlocked = arg
+        return True
+
+    @property
+    def is_logged_in(self):
+        """
+        :type: *bool*
+        :permissions: *read/write*
+
+        `True`, if this session's user is logged in, `False` if not.
+        """
+        return self._is_logged_in
+
+    @is_logged_in.setter
+    def is_logged_in(self, arg):
+        if not isinstance(arg, bool):
+            logging.warning("%s: Argument one needs to be of type boolean."
+                            % (self.__class__.__name__, ))
+            return False
+        self._is_logged_in = arg
+        return True
+
+    def log_in(self, username, password):
+        """ ..
+
+        :param str username: The user's username to log-in with.
+        :param str password: The user's password to log-in with.
+
+        :rtype: *bool*
+
+        Logs the user associated with this *backup-session* in.
+        """
+        # VALIDATE DATA
+        # username
+        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
+            logging.warning("%s: The username is invalid. A valid username "\
+                             "needs to start with an alphabetic, "\
+                             "contain alphanumeric plus '_' "\
+                             "and have a length between 4 and 32 characters."
+                             % (self.__class__.__name__, ))
+            return False
+        # CONTEXT CHECKS & SET-UP
+        if not self.is_logged_in or\
+            self.is_logged_in and not self._is_unlocked:
+            if self.user._validate_credentials(self, username, password):
+                self.is_unlocked = True
+                self.is_logged_in = True
+                logging.info("%s: Session successfully logged in."
+                             % (self.__class__.__name__, ))
+                return True
+            else:
+                logging.warning("%s: Session login failed: Invalid credentials."
+                                % (self.__class__.__name__, ))
+                return False
+        elif self.is_unlocked:
+            logging.warning("%s: Session already logged in."
+                            % (self.__class__.__name__, ))
+            return False
+
+    def log_out(self):
+        """ ..
+
+        :rtype: *bool*
+
+        Logs the logged-in user out of this session.
+        """
+        if self.is_logged_in:
+            # save sets
+            for backup_set in self._backup_sets.sets:
+                backup_set.save_to_db()
+            self.is_unlocked = False
+            self.is_logged_in = False
+            logging.info("%s: Session successfully logged out."
+                         % (self.__class__.__name__, ))
+            return True
+        else:
+            logging.warning("%s: Session logout failed: Already logged out."
+                            % (self.__class__.__name__, ))
+            return False
+
+    def lock(self):
+        """ ..
+
+        :rtype: *bool*
+
+        Locks the session.
+        """
+        if self.is_logged_in:
+            if self.is_unlocked:
+                self.is_unlocked = False
+                logging.info("%s: Session successfully locked."
+                             % (self.__class__.__name__, ))
+                return True
+            else:
+                logging.warning("%s: Session lock failed: Already locked."
+                                % (self.__class__.__name__, ))
+                return False
+        else:
+            logging.warning("%s: Session lock failed: Not logged in."
+                            % (self.__class__.__name__, ))
+            return False
+
+    def unlock(self, username, password):
+        """ ..
+
+        :param str username: The user's username to log-in with.
+        :param str password: The user's password to log-in with.
+
+        :rtype: *bool*
+
+        Unlocks the session.
+        """
+        # VALIDATE DATA
+        # username
+        if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
+            logging.warning("%s: The username is invalid. A valid username "\
+                             "needs to start with an alphabetic, "\
+                             "contain alphanumeric plus '_' "\
+                             "and have a length between 4 and 32 characters."
+                             % (self.__class__.__name__, ))
+            return False
+        if self.is_logged_in:
+            if not self.is_unlocked:
+                if self.user._validate_credentials(self, username, password):
+                    self.is_unlocked = True
+                    logging.info("%s: Session successfully unlocked."
+                                 % (self.__class__.__name__, ))
+                    return True
+                else:
+                    logging.warning("%s: Session unlock failed: Invalid "\
+                                    "credentials."
+                                    % (self.__class__.__name__, ))
+            else:
+                logging.warning("%s: Session unlock failed: Already "\
+                                "unlocked."
+                                % (self.__class__.__name__, ))
+                return False
+        else:
+            logging.warning("%s: Session unlock failed: Not logged in."
+                            % (self.__class__.__name__, ))
+            return False
+
+
+class SessionsCtrl(object):
+    """
+    :param bool gui_mode: Indicated whether or not to run the application \
+    with a graphical user interface. If set to *False* it will be run from \
+    the console.
+
+    Stores and manages sessions for all is_unlocked users.
+    """
+    _sessions = None  # holds currently is_unlocked sessions
+    # gui
+    _app = None
+    _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
+    _window_backup_monitor = None
+    _gui_mode = None
+
+    def __init__(self, gui_mode=False):
+        super(SessionsCtrl, self).__init__()
+        self._gui_mode = gui_mode
+
+        self._sessions = []
+        self._guis = []
+        # gui stuff
+        if self._gui_mode:
+            self._app = bs.gui.window_main.Application("recapp")
+            self.add_session_gui()
+            self._window_backup_monitor = bs.gui.window_backup_monitor.WindowBackupMonitor(self)
+            self._app.exec_()
+
+    def __repr__(self):
+        return str(self._sessions)
+
+    @property
+    def app(self):
+        """
+        :type: :class:`~bs.gui.window_main.Application`
+
+        The central :class:`~bs.gui.window_main.Application` hosting this \
+        application gui-instance.
+        """
+        return self._app
+
+    @property
+    def guis(self):
+        """
+        :type: *list*
+
+        A list of :class:`~bs.ctrl.session.SessionGuiCtrl` hosted by this \
+        session.
+        """
+        return self._guis
+
+    @property
+    def window_backup_monitor(self):
+        """ ..
+
+        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
+
+        The central Backup-Monitor window that displays stati of and \
+        management options for all dispatched backup-jobs.
+        """
+        return self._window_backup_monitor
+
+    @property
+    def sessions(self):
+        """
+        :type: :class:`~bs.ctrl.session.SessionsCtrl`
+
+        The :class:`~bs.ctrl.session.SessionsCtrl` this session is associated with.
+        """
+        return self._sessions
+
+    def add_session(self, username, password):
+        """
+        :param str username: The username for the session to be created.
+
+        :param str password: The password for the user.
+
+        :rtype: :class:`~bs.ctrl.session.SessionCtrl`
+
+        If attributed credentials are valid, return logged on, unlocked session
+        for user.
+        Returns existing session if one was previously created (used) for user.
+        Fails if session for requested user is already logged in and unlocked.
+        """
+        logging.info("%s: Creating session for user %s..."
+                     % (self.__class__.__name__,
+                        username, ))
+        # check if session for user already exists
+        new_session = None
+        for session in self._sessions:
+            if session.user.username == username:
+                new_session = session
+                break
+        # if no existing session for user was found
+        if not new_session:
+            # create new session
+            new_session = SessionCtrl()
+        # verify scenarios
+        if new_session.is_logged_in:
+            if not new_session.is_unlocked:
+                if new_session.log_in(username, password):
+                    # add new_session to self._sessions
+                    if new_session not in self._sessions:
+                        self._sessions.append(new_session)
+                    logging.info("%s: New session successfully unlocked."
+                                 % (self.__class__.__name__, ))
+                    return new_session
+                else:
+                    logging.warning("%s: No session created: Log-on failed."
+                                 % (self.__class__.__name__, ))
+                    return False
+            else:
+                logging.warning("%s: The session for this user is already active."
+                             % (self.__class__.__name__, ))
+                return -1
+        else:
+            if new_session.log_in(username, password):
+                # add new_session to self._sessions
+                if new_session not in self._sessions:
+                    self._sessions.append(new_session)
+                logging.info("%s: New session successfully logged in and unlocked."
+                             % (self.__class__.__name__, ))
+                return new_session
+            else:
+                logging.warning("%s: No session created: Log-on failed."
+                             % (self.__class__.__name__, ))
+                return False
+
+    def remove_session(self, session):
+        """ ..
+
+        :param bs.ctrl.session.SessionCtrl SessionCtrl: The \
+        :class:`~bs.ctrl.session.SessionCtrl` to remove.
+
+        :rtype: *bool*
+
+        Removes an existing session including all of its associated objects. \
+        This is usually used when a user logs out and the session is destroyed.
+        """
+        if session:
+            self._sessions.pop(self._sessions.index(session))
+            logging.info("%s: Session successfully removed: %s"
+                         % (self.__class__.__name__, session, ))
+        else:
+            logging.warning("%s: The session does not exist: %s"
+                            % (self.__class__.__name__, session, ))
+
+    def add_session_gui(self):
+        """ ..
+
+        :rtype: :class:`~bs.ctrl.session.SessionGuiCtrl`
+
+        Adds a new UI instance to host a separate *gui-session*.
+        """
+        session_gui = SessionGuiCtrl(self, self._app)
+        self._guis.append(session_gui)
+        return session_gui
+
+    def remove_session_gui(self, session_gui):
+        """ ..
+
+        :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+        :class:`~bs.ctrl.session.SessionGuiCtrl` to remove.
+
+        :rtype: *bool*
+
+        Removes the session_gui instance from this Sessions. This is usually \
+        done after a GUI window is being closed.
+        """
+        self._guis.pop(self._guis.index(session_gui))
+        return True
+
+
+class SessionGuiCtrl(object):
+    """ ..
+
+    :param bs.ctrl.session.SessionsCtrl sessions: The \
+    :class:`~bs.ctrl.session.SessionsCtrl` to associate with this :class:`~bs.ctrl.session.SessionGuiCtrl`.
+
+    :param bs.gui.window_main.Application app: The central \
+    :class:`~bs.gui.window_main.Application` that is running this GUI \
+    instance.
+
+    This is a container that hosts a single GUI session. A unique instance is \
+    required for each GUI instance that is requested by the user.
+    """
+    _sessions = None
+    _app = None
+
+    _main_window = None
+    _session = None
+
+    def __init__(self, sessions, app):
+
+        self._sessions = sessions
+        self._app = app
+
+        self._main_window = bs.gui.window_main.WindowMain(self._sessions, self, self._app)
+
+    @property
+    def main_window(self):
+        """
+        :type: :class:`~bs.gui.window_main.WindowMain`
+
+        The :class:`~bs.gui.window_main.WindowMain` associated with this
+        (*gui-*)*session*.
+        """
+        return self._main_window
+
+    @property
+    def sessions(self):
+        """
+        :type: :class:`~bs.ctrl.session.SessionsCtrl`
+
+        The central :class:`~bs.ctrl.session.SessionsCtrl` managing this application instance.
+        """
+        return self._sessions
+
+    @property
+    def session(self):
+        """
+        :type: :class:`~bs.ctrl.session.SessionCtrl`
+        :permissions: *read/write*
+
+        The :class:`~bs.ctrl.session.SessionCtrl` representing the current session.
+        """
+        return self._session
+
+    @session.setter
+    def session(self, session):
+        """ * """
+        if not isinstance(session, SessionCtrl) and session:
+            logging.warning("%s: The first argument needs to be of type "\
+                            "`SessionCtrl`."
+                            % (self.__class__.__name__, ))
+            return False
+        self._session = session
+        return session
+
+
+class UserCtrl(bs.model.models.Users):
+    """ ..
+
+    :param bs.ctrl.session.SessionGuiCtrl session_gui: The \
+    :class:`~bs.ctrl.session.SessionGuiCtrl` associated with the session this user is \
+    associated with.
+
+    Represents a user in the system.
+    """
+    _id = None
+    _username = None
+    _session = None
+
+    def __init__(self, session_gui):
+        super(UserCtrl, self).__init__()
+        self._session = session_gui
+
+        self._id = -1
+        self._username = ""
+        # create default user
+        if len(self._get("*", no_auth_required=True)) == 0:
+            self._add("username, password",
+                     [['alpha', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']],
+                     no_auth_required=True)
+            self._add("username, password",
+                     [['bravo', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']],
+                     no_auth_required=True)
+
+    def __repr__(self):
+        return "User '%s' <%s>" % (self._username, self.__class__.__name__, )
+
+    @property
+    def id(self):
+        """
+        :type: *int*
+
+        The user's ID.
+        """
+        return self._id
+
+    @property
+    def username(self):
+        """
+        :type: *str*
+
+        The user's name.
+        """
+        return self._username
+
+    # OVERLOADS
+    def _add_is_permitted(self, *args, **kwargs):
+        """ *
+        Reimplemented from BSModel()
+        """
+        if self._session.is_logged_in:
+            return True
+        else:
+            return False
+
+    def _get_is_permitted(self, *args, **kwargs):
+        """ *
+        Reimplemented from BSModel()
+        """
+        if self._session.is_logged_in:
+            return True
+        else:
+            return False
+
+    def _remove_is_permitted(self, *args, **kwargs):
+        """ *
+        Reimplemented from BSModel()
+        """
+        if self._session.is_logged_in:
+            return True
+        else:
+            return False
+    # /OVERLOADS
+
+    def _validate_credentials(self, parent, username, password):
+        """ *
+        Verifies `username`, `password` for correctness and returns boolean.
+        This method can only be called from `parent=isinstance(SessionCtrl)`
+        """
+        if isinstance(parent, SessionCtrl):
+            password_hash = hashlib.sha512(password.encode())
+            res = self._get("id", (("username", "=", username),
+                                  ("password", "=", password_hash.hexdigest(), ), ),
+                           no_auth_required=True
+                           )
+            if len(res) == 1:
+                self._id = res[0][0]
+                self._username = username
+                logging.debug("%s: Credentials valid for user: '%s'."
+                             % (self.__class__.__name__, self._username, ))
+                return True
+            elif len(res) > 1:
+                logging.critical("%s: More than one user exist with the same "\
+                                 "username/password combination! Please "\
+                                 "check the integrity of the database."
+                                 % (self.__class__.__name__, ))
+                raise SystemExit()
+                return False
+            elif len(res) < 1:
+                logging.debug("%s: Credentials invalid for user: '%s'"
+                                % (self.__class__.__name__, self._username, ))
+                return False
+        else:
+            logging.warning("%s: This method can only be called from certain"\
+                            "classes (SessionCtrl(, ...))"
+                            % (self.__class__.__name__, ))
+            return False

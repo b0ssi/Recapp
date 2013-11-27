@@ -49,8 +49,9 @@ class BSModel(object):
         return out
 
     def _get_model_superclass(self, parent=None):
-        """ *
-        Returns the Model superclass (meant to be directly subclassed by
+        """ ..
+
+        Returns the Model superclass (meant to be directly subclassed by \
         this BSModel).
         """
         if not parent:
@@ -66,10 +67,10 @@ class BSModel(object):
     def _add_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param *args: Arbitrary arguments passed in by overloading \
+        :param arbitrary args: Arbitrary arguments passed in by overloading \
         implementations.
 
-        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        :param dict kwargs: A `dict` containing arbitrary data passed in by \
         overloading implementations.
 
         :type: *bool*
@@ -92,7 +93,7 @@ class BSModel(object):
         one dataset is to be added or it can be a list of lists/tuple of \
         tuples, if multiple datasets are to be added.
 
-        :param dict **kwargs: A dictionary holding extra-control-data. Valid \
+        :param dict kwargs: A dictionary holding extra-control-data. Valid \
         keys and values are: `bool no_auth_requred`: If `True`, bypasses the \
         authentication check.
 
@@ -164,12 +165,10 @@ class BSModel(object):
     def _get_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param *args: Arbitrary arguments passed in by overloading \
+        :param args: Arbitrary arguments passed in by overloading \
         implementations.
-
-        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        :param dict kwargs: A `dict` containing arbitrary data passed in by \
         overloading implementations.
-
         :type: *bool*
 
         This method is designed to be overloaded by inheriting classes to
@@ -181,13 +180,10 @@ class BSModel(object):
     def _get(self, columns, conditions="", **kwargs):
         """ ..
 
-        :param columns:
-
-        :param conditions:
-
-        :param **kwargs:
-
-        :rtype:
+        :param str columns:
+        :param tuple conditions: ! NB: not sure about type
+        :param arbitrary kwargs:
+        :rtype: *tuple*
 
         Loads and returns dataset from selected `columns` in associated table
         under selection-conditions `conditions`, `conds_neg`.
@@ -259,12 +255,10 @@ class BSModel(object):
     def _remove_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param *args: Arbitrary arguments passed in by overloading \
+        :param arbitrary args: Arbitrary arguments passed in by overwriting \
         implementations.
-
-        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        :param dict kwargs: A `dict` containing arbitrary data passed in by \
         overloading implementations.
-
         :type: *bool*
 
         This method is designed to be overloaded by inheriting classes to
@@ -330,17 +324,15 @@ class BSModel(object):
     def _update_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param *args: Arbitrary arguments passed in by overloading \
+        :param args: Arbitrary arguments passed in by overloading \
         implementations.
-
-        :param dict **kwargs: A `dict` containing arbitrary data passed in by \
+        :param dict kwargs: A ``dict`` containing arbitrary data passed in by \
         overloading implementations.
-
         :type: *bool*
 
-        This method is designed to be overloaded by inheriting classes to
-        implement individual access checks to be performed to grant
-        self._update() permissions to execute. The return value must be a
+        This method is designed to be overloaded by inheriting classes to \
+        implement individual access checks to be performed to grant \
+        self._update() permissions to execute. The return value must be a \
         boolean.
         """
         return True

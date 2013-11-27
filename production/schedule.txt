@@ -14,6 +14,7 @@
 - update documentation
 - reset day-modification marks (".. x" -> "..")
 - increment version number
+- build
 - commit
 - backup
 	- create synchronicity
@@ -226,14 +227,15 @@
 			[.] integration with controllers, backup-sets interface
 				[X]	bind backup-set controllers to sets
 					[X] dispatch backup-set controller from backup-set into backup-manager
-				[.]	get backup-job to execute backup-set
+				[X]	get backup-job to execute backup-set
 					[X] on job-move into pole position
 					[X]	on job-completed (invoke next in queue)
-					[ ]	after pre-process, get to execute actual backup
+					[X]	after pre-process, get to execute actual backup
 				[X]	get backup-set to dismiss backup-job on finish (and move-in next backup-job in queue)
 				[ ]	restrict control of backup-jobs to logged in users only
 				[.]	link up backup controller with details UI/progress, etc.
 				[ ]	LATER: logging, error handling, etc.
+			[ ]	make UIs loop through all BackupCtrl that are processed
 		[X]	window_about: Fill with simple info
 		[ ]	refactor object/module/package/class names, implement consistent scheme
 			[ ] example!?

@@ -20,14 +20,12 @@
 """
 
 from PySide import QtCore, QtGui
-from bs.gui.window_about import WindowAbout
+
 import bs.config
 import bs.gui.view_login
 import bs.gui.view_sets
 import bs.gui.window_about
 import logging
-import platform
-import time
 
 
 class Application(QtGui.QApplication):
@@ -108,6 +106,7 @@ class WindowMain(QtGui.QMainWindow):
     and interactively managed in separate instances of this GUI class \
     simultaneously.
     """
+
     _sessions = None
     _session_gui = None
     _app = None

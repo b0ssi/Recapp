@@ -13,7 +13,6 @@
 ##    Usage:                                                                 ##
 ##                                                                           ##
 ###############################################################################
-# import bs.gui.view_sets
 """ ..
 
 This package contains all abstract *view-classes*.
@@ -25,7 +24,6 @@ import bs.config
 import logging
 import math
 import re
-import time
 
 
 class BSFrame(QtGui.QFrame):
@@ -287,6 +285,8 @@ class BSDraggable(BSFrame):
         this class.
         """
         self._pos_offset = e.pos()
+
+        super(BSDraggable, self).mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
         """ ..
@@ -1133,6 +1133,8 @@ class BSNode(BSDraggable):
         """
         if e.matches(QtGui.QKeySequence.Delete):
             self.remove_node()
+
+        super(BSNode, self).keyPressEvent(e)
 
     def mousePressEvent(self, e):
         """ ..

@@ -25,7 +25,11 @@ import win32file
 
 
 class Signal(object):
-    """ * """
+    """ ..
+
+    """
+    handlers = None
+
     def __init__(self):
         self.handlers = set()
 
@@ -49,7 +53,8 @@ class Signal(object):
                           "dispatcher."
                           % (self.__class__.__name__,
                              handler, ))
-        except:
+        except Exception as e:
+            raise(e)
             logging.warning("%s: This handler is not currently registered "\
                             "with the event and can therefore not be detached."
                             % (self.__class__.__name__, ))
@@ -94,21 +99,6 @@ class Signal(object):
     __isub__ = disconnect
     __call__ = emit
     __len__ = num_handlers
-
-#class MyTrigger(object):
-#    def __init__(self):
-#        self.event = Event()
-#
-#    def click(self, arg):
-#        self.event(arg)
-#
-## install event listener on object
-#my_trigger = MyTrigger()
-## add event(s)
-#my_trigger.event += print
-#my_trigger.event += testionation
-## fire the trigger
-#my_trigger.click("boooo!!!")
 
 
 class BSString(object):
@@ -181,67 +171,91 @@ class BSString(object):
 
 
 class HashFile(object):
-    """ *
-    _sleeping_time: The smaller the value the higher the speed and the higher
-    the number of files, the higher the effective gain. Using no sleep at all
-    maximizes CPU usage for that thread (unthrottled while loops...)
+    """ ..
 
-    _buffer_size: Profiling tests have shown that the ideal buffer-size is a
-    size smaller but as close to the size of the hashed file itself as
-    possible. For memory-usage to not spike, the buffer should be limited to
-    a maximum value though.
+    :param str file_path: The absolute path to the file to be hashed.
+    :param hashlib.HASH hash_obj: The hash object to be used for hashing. \
+    This needs to be from Python's native ``hashlib`` module.
     """
-    _file_path = ""
+    _file_path = None
     _hash_obj = None
     _data = None
-    _status = 0
+    _data_lock = None
+    _send_signal_handler = None
+    _status = None
+    # The smaller the value the higher the speed and the higher
+    # the number of files, the higher the effective gain. Using no sleep at all
+    # maximizes CPU usage for that thread (unthrottled while loops...)
     _sleeping_time = 0.005
+    # Profiling tests have shown that the ideal buffer-size is a
+    # size smaller but as close to the size of the hashed file itself as
+    # possible. For memory-usage to not spike, the buffer should be limited to
+    # a maximum value though.
     _buffer_size = 1024 * 1024 * 1
-    _hash = ""
+    _hash = None
 
-    def __init__(self, file_path, hash_obj=None):
+    def __init__(self, file_path, **kwargs):
+        """ ..
+
+        """
         self._file_path = file_path
         # instantiate default _hash_obj
-        if not hash_obj:
-            self._hash_obj = hashlib.sha512()
+        self._hash_obj = kwargs.get("hash_obj", hashlib.sha512())
+        self._send_signal_handler = kwargs.get("send_signal_handler", None)
         self._data = []
+        self._data_lock = threading.Lock()
+        self._status = 1
 
     def _read_data(self):
-        """ * """
+        """ ..
+
+        """
         f = open(self._file_path, "rb")
-        logging.info("%s: Reading of data-stream started."
+        logging.debug("%s: Reading of data-stream started."
                      % (self.__class__.__name__, ))
         while True:
             if not len(self._data) > 2:
-#                logging.debug("%s: Reading more data... (%s)"
-#                              % (self.__class__.__name__, len(self._data), ))
+                logging.debug("%s: Reading more data... (%s)"
+                              % (self.__class__.__name__, len(self._data), ))
                 data = f.read(self._buffer_size)
-                if not data:
+                if len(data) == 0:
                     break
-                self._data.append(data)
+                with self._data_lock:
+                    self._data.append(data)
             else:
-#                logging.debug("%s: Sleeping... (%s)"
-#                              % (self.__class__.__name__, len(self._data), ))
+                logging.debug("%s: Sleeping... (%s)"
+                              % (self.__class__.__name__, len(self._data), ))
                 time.sleep(self._sleeping_time)
-        self._status = 1
+        self._status = 0
+        f.close()
 
     def _calc_hash(self):
-        """ * """
-        logging.info("%s: Hash-calculation started."
-                     % (self.__class__.__name__, ))
-        file_hash = self._hash_obj
+        """ ..
 
-        while self._status == 0 or self._data:
+        """
+        logging.debug("%s: Hash-calculation started."
+                     % (self.__class__.__name__, ))
+
+        while self._status == 1 or len(self._data) > 0:
             if len(self._data) > 0:
-                file_hash.update(self._data[0])
-                self._data.pop(0)
+                with self._data_lock:
+                    data_block = self._data[0]
+                self._hash_obj.update(data_block)
+                with self._data_lock:
+                    self._data.pop(0)
+                # send signal
+                if self._send_signal_handler:
+                    self._send_signal_handler("updated",
+                                              len(data_block),
+                                              False,
+                                              event_source="hash")
             else:
                 time.sleep(self._sleeping_time)
-        self._hash = file_hash.hexdigest()
+        self._hash = self._hash_obj.hexdigest()
 
     def start(self):
         """ * """
-        logging.info("%s: Starting to hash file: %s"
+        logging.debug("%s: Starting to hash file: %s"
                      % (self.__class__.__name__, self._file_path, ))
         # fire _data/_hash wrangler threads
         s = threading.Thread(target=self._read_data)
@@ -250,7 +264,7 @@ class HashFile(object):
         t.start()
         s.join()
         t.join()
-        logging.info("%s: Hash successfully calculated: %s"
+        logging.debug("%s: Hash successfully calculated: %s"
                      % (self.__class__.__name__,
                         self._hash), )
         return self._hash

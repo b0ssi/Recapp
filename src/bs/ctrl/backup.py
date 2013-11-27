@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 ###############################################################################
 ##    bs.ctrl.backup                                                         ##
 ###############################################################################
@@ -14,17 +13,18 @@
 ##    Usage:                                                                 ##
 ##                                                                           ##
 ###############################################################################
+""" ..
 
-"""
 Hosts all backup- and restore-logics and procedures.
 """
 
-import Crypto.Cipher.AES
-import Crypto.Protocol.KDF
-import Crypto.Random
-import Crypto.Util.Counter
+from PySide import QtCore
+
 import binascii
 import bs.utils
+import Crypto.Cipher.AES
+import Crypto.Random
+import Crypto.Util.Counter
 import getpass
 import hashlib
 import logging
@@ -32,7 +32,6 @@ import os
 import re
 import sqlite3
 import tempfile
-import threading
 import time
 import zipfile
 import zlib
@@ -45,19 +44,29 @@ class BackupCtrl(object):
     handle.
     :param bs.ctrl.session.BackupSourceCtrl backukp_source: The \
     *backup-source* to handle.
+    :ivar enum MODE_BACKUP: Enum used to indicate that backup-controller is \
+    in *backup* mode.
+    :ivar enum MODE_SIMULATE: Enum used to indicate that backup-controller is \
+    in *backup* mode.
 
     Manages and runs a backup-job.
     """
     _backup_set = None
     _backup_source = None
 
+    _byte_count_current = None
+    _byte_count_total = None
+    _file_count_current = None
+    _file_count_total = None
+    _finished_signal = None
+    _mode = None
+    _request_exit = None
     _targets = None
     _tmp_dir = None
-    _bytes_to_be_backed_up = None
-    _files_num_to_be_backed_up = None
-    _request_exit = None
-    _update_signal = None
-    _processing_finished_signal = None
+    _updated_signal = None
+
+    MODE_BACKUP = 0
+    MODE_SIMULATE = 1
 
     def __init__(self, backup_set, backup_source):
         self._backup_set = backup_set
@@ -66,39 +75,21 @@ class BackupCtrl(object):
         self._targets = backup_set.backup_targets
         self._tmp_dir = tempfile.TemporaryDirectory()
         self._request_exit = False
-        self._update_signal = bs.utils.Signal()
-        self._processing_finished_signal = bs.utils.Signal()
+        self._updated_signal = bs.utils.Signal()
+        self._finish_signal = bs.utils.Signal()
 
     @property
-    def bytes_to_be_backed_up(self):
-        """
-        :type: *int*
-
-        The accumulated data in bytes that is due for backup. [#f1]_
-        """
-        return self._bytes_to_be_backed_up
-
-    @property
-    def files_num_to_be_backed_up(self):
-        """
-        :type: *int*
-
-        The number of files pending to be backed up. [#f1]_
-        """
-        return self._files_num_to_be_backed_up
-
-    @property
-    def processing_finished_signal(self):
+    def finished_signal(self):
         """ ..
 
         :type: :class:`~bs.utils.Signal`
 
         This signal emits when the pre-process- or backup-execution finishes.
         """
-        return self._processing_finished_signal
+        return self._finish_signal
 
     @property
-    def update_signal(self):
+    def updated_signal(self):
         """ ..
 
         :type: :class:`~bs.utils.Signal`
@@ -107,7 +98,7 @@ class BackupCtrl(object):
         happens for each file that is processed). It emits with \
         :class:`~bs.ctrl.backup.BackupUpdateEvent` as event-parameter.
         """
-        return self._update_signal
+        return self._updated_signal
 
     def _update_db(self, conn):
         """ ..
@@ -356,9 +347,16 @@ class BackupCtrl(object):
         Main backup-exec: Runs through a set of sources, applying filters,
         determining the state of an entity and backing up those that change \
         has been detected in.
-
         Will log error messages for entities of unknown state.
+        This method can run in ``simulate`` mode, where quantities of \
+        entities and capacity are only evaluated and, like in unrestricted \
+        mode, sent out via this class's signals.
         """
+        # set mode
+        if simulate:
+            self._mode = self.MODE_SIMULATE
+        else:
+            self._mode = self.MODE_BACKUP
         # check if set is encrypted and request authorization status if so.
         # If not authorized, abort.
         if self._backup_set.salt_dk:
@@ -369,68 +367,71 @@ class BackupCtrl(object):
                 return False
         # update database
         conn = sqlite3.connect(self._backup_set.set_db_path)
-        if not simulate:
+        if self._mode == self.MODE_BACKUP:
             new_column_name = self._update_db(conn)
         time_start = time.time()
         backup_source_path = self._backup_source.source_path
-        self._bytes_to_be_backed_up = 0
-        self._files_num_to_be_backed_up = 0
+        # reset counters
+        if self._mode == self.MODE_SIMULATE:
+            self._byte_count_total = None
+            self._file_count_total = None
+        self._byte_count_current = 0
+        self._file_count_current = 0
+        # iterate through file-system
         for folder_path, folders, files in os.walk(backup_source_path):
             for file in files:
                 # exit thread prematurely on request
                 if self._request_exit:
-                    self._bytes_to_be_backed_up = None
-                    self._files_num_to_be_backed_up = None
+                    self._byte_count_current = None
+                    self._byte_count_total = None
+                    self._file_count_current = None
+                    self._file_count_total = None
                     self._request_exit = False
                     return False
                 # create file object
-                file_obj = BackupFileCtrl(self._backup_set,
-                                      os.path.join(folder_path, file),
-                                      self._targets,
-                                      self._tmp_dir,
-                                      self._backup_set.key_hash_32)
-
-                entity_datas = conn.execute("SELECT id, path, ctime, mtime, atime, inode, size, sha512 FROM lookup WHERE path = ?",
+                file_obj = BackupFileCtrl(self,
+                                          self._backup_set,
+                                          os.path.join(folder_path, file),
+                                          self._targets,
+                                          self._tmp_dir,
+                                          self._backup_set.key_hash_32,
+                                          conn)
+                sql = "SELECT id, path, ctime, mtime, atime, inode, size, "\
+                      "sha512 FROM lookup WHERE path = ?"
+                entity_datas = conn.execute(sql,
                                             (file_obj.path, )).fetchall()
+                # for simulate: trigger if backup required, take action below
+                # following conditional blocks
+                file_requires_backup = False
+                data_to_update_in_db_kwargs = {}
                 # new path
                 if len(entity_datas) == 0:
-                    if not simulate:
-                        # create new entity
-                        # AQUIRE NEW ID
-                        entity_id = conn.execute("SELECT MAX(rowid) AS rowid FROM lookup").fetchone()[0]
-                        if not entity_id:
-                            entity_id = 1
-                        else:
-                            entity_id += 1
-                        logging.info("%s: Entity %s is new: %s"
-                                     % (self.__class__.__name__,
-                                        entity_id, file_obj.path, ))
-                        # this might still be an identical data-stream that
-                        # existed under a different path/entity before, so only
-                        # back-up if hash is unique
-                        if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
-                                            (file_obj.sha512, )).fetchall()) == 0:
-                            # BACKUP
-                            file_obj.backup()
-                            self._bytes_to_be_backed_up += file_obj.size
-                            self._files_num_to_be_backed_up += 1
-                        # UPDATE DB
-                        self._update_data_in_db(conn,
-                                                new_column_name,
-                                                entity_id=entity_id,
-                                                file_atime=file_obj.atime,
-                                                file_ctime=file_obj.ctime,
-                                                file_inode=file_obj.inode,
-                                                file_mtime=file_obj.mtime,
-                                                file_path=file_obj.path,
-                                                file_size=file_obj.size,
-                                                file_sha512=file_obj.sha512,
-                                                backup_archive_name=file_obj.current_backup_archive_name)
+                    # create new entity
+                    # AQUIRE NEW ID
+                    sql = "SELECT MAX(rowid) AS rowid FROM lookup"
+                    entity_id = conn.execute(sql).fetchone()[0]
+                    if not entity_id:
+                        entity_id = 1
                     else:
-                        if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
-                                            (file_obj.sha512, )).fetchall()) == 0:
-                            self._bytes_to_be_backed_up += file_obj.size
-                            self._files_num_to_be_backed_up += 1
+                        entity_id += 1
+                    logging.info("%s: Entity %s is new: %s"
+                                 % (self.__class__.__name__,
+                                    entity_id, file_obj.path, ))
+                    sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                    if len(conn.execute(sql,
+                                        (file_obj.sha512, )).fetchall()) == 0:
+                        file_requires_backup = True
+                    if self._mode == self.MODE_BACKUP:
+                        # UPDATE DB
+                        data_to_update_in_db_kwargs["entity_id"] = entity_id
+                        data_to_update_in_db_kwargs["file_atime"] = file_obj.atime
+                        data_to_update_in_db_kwargs["file_ctime"] = file_obj.ctime
+                        data_to_update_in_db_kwargs["file_inode"] = file_obj.inode
+                        data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                        data_to_update_in_db_kwargs["file_path"] = file_obj.path
+                        data_to_update_in_db_kwargs["file_size"] = file_obj.size
+                        data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                        data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                 # existing path
                 elif len(entity_datas) == 1:
                     entity_id = entity_datas[0][0]
@@ -589,19 +590,31 @@ class BackupCtrl(object):
                         # e.g. previously existing file was absent
                         # temporarily and has been moved/copied back in
                         # without change in data
+                        # OR
+                        # Two files, A and B, with same size have been
+                        # created at same time in different locations. A has
+                        # been backed-up before. Now, A has been overwritten
+                        # by B. mtime and size are the same, atime might have
+                        # changed, ctime certainly has and data definetaly
+                        # might have as well.
                         logging.info("%s: OK: %s: %s"
                                      % (self.__class__.__name__,
                                         combinations,
                                         file_obj.path, ))
-                        # update DB
-                        if not simulate:
-                            self._update_data_in_db(conn,
-                                                    new_column_name,
-                                                    entity_id=entity_id,
-                                                    file_ctime=file_obj.ctime,
-                                                    file_atime=file_obj.atime)
-                        self._bytes_to_be_backed_up += file_obj.size
-                        self._files_num_to_be_backed_up += 1
+                        # BACKUP
+                        sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                        if len(conn.execute(sql,
+                                            (file_obj.sha512, )).fetchall()
+                               ) == 0:
+                            file_requires_backup = True
+                        # Update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_ctime"] = file_obj.ctime
+                            data_to_update_in_db_kwargs["file_atime"] = file_obj.atime
+                            if entity_sha512 != file_obj.sha512:
+                                data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                                data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                     if combinations == "10110":
                         # ERROR: inode same but ctime changed
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -609,11 +622,32 @@ class BackupCtrl(object):
                                            combinations,
                                            file_obj.path, ))
                     if combinations == "10111":
-                        # ERROR: inode same but ctime changed
-                        logging.warning("%s: Unhandled combination: %s: %s"
-                                        % (self.__class__.__name__,
-                                           combinations,
-                                           file_obj.path, ))
+                        # OK: Same file (no change in mtime, atime, size)
+                        # moved in again/overridden. Results in update of
+                        # ctime only.
+                        # OR
+                        # Two files, A and B, with same size have been
+                        # created at same time in different locations. A has
+                        # been backed-up before. Now, A has been overwritten
+                        # by B. mtime, atime and size are the same changed,
+                        # ctime certainly has and data definetaly
+                        # might have as well.
+                        logging.info("%s: OK: %s: %s"
+                                     % (self.__class__.__name__,
+                                        combinations,
+                                        file_obj.path, ))
+                        # BACKUP
+                        sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                        if len(conn.execute(sql,
+                                            (file_obj.sha512, )).fetchall()) == 0:
+                            file_requires_backup = True
+                        # update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_ctime"] = file_obj.ctime
+                            if entity_sha512 != file_obj.sha512:
+                                data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                                data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                     if combinations == "11000":
                         # OK: mtime, atime, size changed, rest same
                         logging.info("%s: OK: %s: %s"
@@ -621,21 +655,18 @@ class BackupCtrl(object):
                                         combinations,
                                         file_obj.path, ))
                         # BACKUP
-                        if not simulate:
-                            if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
-                                                (file_obj.sha512, )).fetchall()) == 0:
-                                file_obj.backup()
-                            # update DB
-                            self._update_data_in_db(conn,
-                                                    new_column_name,
-                                                    entity_id=entity_id,
-                                                    file_mtime=file_obj.mtime,
-                                                    file_atime=file_obj.atime,
-                                                    file_size=file_obj.size,
-                                                    file_sha512=file_obj.sha512,
-                                                    backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_to_be_backed_up += file_obj.size
-                        self._files_num_to_be_backed_up += 1
+                        sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                        if len(conn.execute(sql,
+                                            (file_obj.sha512, )).fetchall()) == 0:
+                            file_requires_backup = True
+                        # Update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                            data_to_update_in_db_kwargs["file_atime"] = file_obj.atime
+                            data_to_update_in_db_kwargs["file_size"] = file_obj.size
+                            data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                            data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                     if combinations == "11001":
                         # OK: mtime and atime changed, rest same
                         logging.info("%s: OK: %s: %s"
@@ -643,20 +674,18 @@ class BackupCtrl(object):
                                         combinations,
                                         file_obj.path, ))
                         # BACKUP
-                        if not simulate:
-                            if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
-                                                (file_obj.sha512, )).fetchall()) == 0:
-                                file_obj.backup()
-                            # update DB
-                            self._update_data_in_db(conn,
-                                                    new_column_name,
-                                                    entity_id=entity_id,
-                                                    file_mtime=file_obj.mtime,
-                                                    file_atime=file_obj.atime,
-                                                    file_sha512=file_obj.sha512,
-                                                    backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_to_be_backed_up += file_obj.size
-                        self._files_num_to_be_backed_up += 1
+                        sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                        if len(conn.execute(sql,
+                                            (file_obj.sha512, )).fetchall()) == 0:
+                            file_requires_backup = True
+                        # Update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                            data_to_update_in_db_kwargs["file_atime"] = file_obj.atime
+                            if entity_sha512 != file_obj.sha512:
+                                data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                                data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                     if combinations == "11010":
                         # OK: regular edit, mtime, size changed, rest same
                         logging.info("%s: OK: %s: %s"
@@ -664,20 +693,17 @@ class BackupCtrl(object):
                                         combinations,
                                         file_obj.path, ))
                         # BACKUP
-                        if not simulate:
-                            if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
-                                                (file_obj.sha512, )).fetchall()) == 0:
-                                file_obj.backup()
-                            # update DB
-                            self._update_data_in_db(conn,
-                                                    new_column_name,
-                                                    entity_id=entity_id,
-                                                    file_mtime=file_obj.mtime,
-                                                    file_size=file_obj.size,
-                                                    file_sha512=file_obj.sha512,
-                                                    backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_to_be_backed_up += file_obj.size
-                        self._files_num_to_be_backed_up += 1
+                        sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                        if len(conn.execute(sql,
+                                            (file_obj.sha512, )).fetchall()) == 0:
+                            file_requires_backup = True
+                        # Update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                            data_to_update_in_db_kwargs["file_size"] = file_obj.size
+                            data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                            data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                     if combinations == "11011":
                         # OK: only mtime changed. size same
                         logging.info("%s: OK: %s: %s"
@@ -685,19 +711,17 @@ class BackupCtrl(object):
                                         combinations,
                                         file_obj.path, ))
                         # BACKUP
-                        if not simulate:
-                            if len(conn.execute("SELECT sha512 FROM sha512_index WHERE sha512 = ?",
-                                                (file_obj.sha512, )).fetchall()) == 0:
-                                file_obj.backup()
-                            # update DB
-                            self._update_data_in_db(conn,
-                                                    new_column_name,
-                                                    entity_id=entity_id,
-                                                    file_mtime=file_obj.mtime,
-                                                    file_sha512=file_obj.sha512,
-                                                    backup_archive_name=file_obj.current_backup_archive_name)
-                        self._bytes_to_be_backed_up += file_obj.size
-                        self._files_num_to_be_backed_up += 1
+                        sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                        if len(conn.execute(sql,
+                                            (file_obj.sha512, )).fetchall()) == 0:
+                            file_requires_backup = True
+                        # Update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                            if entity_sha512 != file_obj.sha512:
+                                data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                                data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
                     if combinations == "11100":
                         # ERROR: size and only atime have changed
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -710,6 +734,10 @@ class BackupCtrl(object):
                                      % (self.__class__.__name__,
                                         combinations,
                                         file_obj.path, ))
+                        # Update DB
+                        if self._mode == self.MODE_BACKUP:
+                            data_to_update_in_db_kwargs["entity_id"] = entity_id
+                            data_to_update_in_db_kwargs["file_atime"] = file_obj.atime
                     if combinations == "11110":
                         # ERROR: size has changed but rest is unchanged
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -722,20 +750,27 @@ class BackupCtrl(object):
                                      % (self.__class__.__name__,
                                         combinations,
                                         file_obj.path, ))
-                        # update DB
-                        if not simulate:
-                            self._update_data_in_db(conn,
-                                                    new_column_name,
-                                                    entity_id=entity_id)
-                if self._files_num_to_be_backed_up % 1000 == 0:
-                    conn.commit()
-                # fire updated signal
-                e = BackupUpdateEvent(file_obj)
-                self._update_signal.emit(e)
+                if self._mode == self.MODE_BACKUP:
+                    # update db
+                    if len(data_to_update_in_db_kwargs) > 0:
+                        self._update_data_in_db(conn,
+                                                new_column_name,
+                                                **data_to_update_in_db_kwargs)
+                    if self._file_count_current % 1000 == 0:
+                        conn.commit()
+                    # execute backup
+                    if file_requires_backup:
+                        file_obj.backup()
+                # increment counters, fire updated signal
+                if file_requires_backup:
+                    # send update signal
+                    self.send_signal("updated", file_obj.size, True)
+        self._file_count_total = self._file_count_current
+        self._byte_count_total = self._byte_count_current
         conn.commit()
         conn.close()
         # fire processing finished signal
-        self._processing_finished_signal.emit()
+        self.send_signal("finished", file_obj.size, False)
         return True
 
     def pre_process_data(self, force_refresh=False):
@@ -749,10 +784,11 @@ class BackupCtrl(object):
         Accumulates the total capacity (in bytes) that is due for back-up.
         """
         # (re-)calculate capacity and return
-        if force_refresh or not self._bytes_to_be_backed_up:
+        if force_refresh or not self._byte_count_total:
+            self._mode = self.MODE_SIMULATE
             self.backup_exec(True)
         else:
-            self._processing_finished_signal.emit()
+            self._finish_signal.emit()
         return True
 
     def request_exit(self):
@@ -771,63 +807,86 @@ class BackupCtrl(object):
                 time.sleep(0.1)
         return True
 
-
-class BackupUpdateEvent(object):
-    """ ..
-
-    :param bs.ctrl.backup.BackupFileCtrl: The file-object to send the event \
-    for.
-
-    This is an event object to send along :class:`~bs.ctrl.backup.BackupCtrl` \
-    signals e.g.
-    """
-    _file_size = None
-
-    def __init__(self, file_obj):
+    def send_signal(self, event_type, byte_count_delta, file_num_increment,
+                    **kwargs):
         """ ..
 
+        :param str event_type: Type of signal to send:
+
+            - ``update`` if an update signal is to be sent
+            - ``finish`` if a finish signal is to be sent
+
+        :param int byte_count_delta: The number of processed bytes since the \
+        last signal the signal is to report.
+        :param bool file_num_increment: Whether or not this update is to \
+        increment the current file-count or just a partial (capacity-delta) \
+        update.
+        :param arbitrary kwargs: The following keyword-attributes are \
+        available:
+
+            - **event_source** (*enum*): Defines the source-process the \
+            update call is coming from. Needs to be of either of the following:
+
+                - ``hash``, if this method is called from a hashing process
+                - ``backup``, if this method is called from a backup process
+
+        Central event dispatch manager that acts as central \
+        report-and-dispatch point for reporting objects (such as \
+        BackupFileCtrl, hash-objects, etc.).
         """
-        super(BackupUpdateEvent, self).__init__()
-
-        self._file_size = file_obj.size
-
-    @property
-    def file_size(self):
-        """ ..
-
-        :type: *int*
-
-        The size of the last processed file in bytes the event is sent for.
-        """
-        return self._file_size
+        event_source = kwargs.get("event_source", None)
+        if event_type == "updated":
+            if file_num_increment:
+                self._file_count_current += 1
+            else:
+                if self._mode == self.MODE_BACKUP:
+                    if event_source == "backup":
+                        self._byte_count_current += byte_count_delta
+                elif self._mode == self.MODE_SIMULATE:
+                    self._byte_count_current += byte_count_delta
+        if self._mode == self.MODE_BACKUP:
+            simulate = False
+        elif self._mode == self.MODE_SIMULATE:
+            simulate = True
+        e = BackupUpdateEvent(self._byte_count_total,
+                              self._byte_count_current,
+                              byte_count_delta,
+                              self._file_count_total,
+                              self._file_count_current,
+                              simulate)
+        if event_type == "finished":
+            self.finished_signal.emit(e)
+        elif event_type == "updated":
+            self.updated_signal.emit(e)
 
 
 class BackupFileCtrl(object):
     """ ..
 
+    :param bs.ctrl.session.BackupCtrl backup_ctrl:
     :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* \
     assocaited with this backup-file instance.
-
     :param str file_path: This file's absolute *file-path* on the file-system.
-
     :param list targets: The *list* of \
     :class:`bs.ctrl.session.BackupTargetCtrl` s that are associated with this \
     *session's* :class:`bs.ctrl.session.BackupTargetsCtrl`
-
     :param tempfile.TemporaryDirectory tmp_dir: A temporary location on disk \
     to use as temporary storage location for compression- and encryption \
     purposes.
-
     :param str key_hash_32: A valid 256-bit/32byte hex-key used as encryption \
     key for the associated *backup-targets*. If an invalid key is given, \
     backup to the target(s) will fail.
+    :param Sqlite3.Cursor conn: An open cursor to the database managing the \
+    file-entities' states and -history.
 
     Representation of a backup-file during a backup-job execution.
     """
+    _backup_ctrl = None
     _backup_set = None
     _path = None
     _targets = None
-    _target_archive_max_size = 1024 * 1024 * 12  # This is currently a soft-limit
+    # This is currently a soft-limit
+    _target_archive_max_size = 1024 * 1024 * 12
     _sha512 = None
     _ctime = None
     _mtime = None
@@ -837,11 +896,14 @@ class BackupFileCtrl(object):
     _compression_level = 6
     _buffer_size = 1024 * 1024
     _key_hash_32 = None
+    _conn = None
     _tmp_dir = None
     _tmp_file_path = None
     _current_backup_archive_name = None
 
-    def __init__(self, backup_set, file_path, targets, tmp_dir, key_hash_32):
+    def __init__(self, backup_ctrl, backup_set, file_path, targets, tmp_dir,
+                 key_hash_32, conn):
+        self._backup_ctrl = backup_ctrl
         self._backup_set = backup_set
         self._path = os.path.realpath(file_path)
         self._targets = targets
@@ -854,39 +916,13 @@ class BackupFileCtrl(object):
         self._size = stat.st_size
         self._tmp_dir = tmp_dir
         self._key_hash_32 = key_hash_32
+        self._conn = conn
 
     def __del__(self):
         """ *
         Removes the associated temporary file when this object is deleted.
         """
         self._remove_tmp_file()
-
-    @property
-    def path(self):
-        """
-        :type: *str*
-
-        This backup-file's absolute path on the file-system.
-        """
-        return self._path
-
-    @property
-    def ctime(self):
-        """
-        :type: *float*
-
-        This file's *creation time stamp*.
-        """
-        return self._ctime
-
-    @property
-    def mtime(self):
-        """
-        :type: *float*
-
-        This backup-file's *modification time*
-        """
-        return self._mtime
 
     @property
     def atime(self):
@@ -898,6 +934,122 @@ class BackupFileCtrl(object):
         return self._atime
 
     @property
+    def ctime(self):
+        """
+        :type: *float*
+
+        This file's *creation time stamp*.
+        """
+        return self._ctime
+
+    @property
+    def current_backup_archive_name(self):
+        """ ..
+
+        :type: *str*
+
+        The name of the latest archive-file found in the targets that will be \
+        used to backup this file to. If this file (hash) already exists in \
+        the set's database, the stored archive-name is returned. If a \
+        soft-limit on backup-archive file-size is set, this is necessary to \
+        find the last archive-file that has not yet reached its soft-limit.
+        """
+        if self._current_backup_archive_name:
+            return self._current_backup_archive_name
+        else:
+            ## ABSTRACT ####################
+            ################################
+            # if sha_512 already in db index (already backed-up), get corresponding archive name
+            # else if not backed-up yet (not in db)
+                # scan all targets, select latest archive name of all of them
+                # construct path for latest backup archive, if found
+                # if latest archive found and size below threshold, use this latest archive
+                    # on all targets:
+                        # create archive on all targets/check for valid file if exists
+                        # on fail: SystemExit
+                # if no archive found at all or latest found archive exceeds size threshold:
+                    # create new archive name
+                    # for all targets
+                        # create set path, archive
+                        # on fail: SystemExit
+                # return latest/new archive name
+
+            # try to get archive-name from db
+            sql = "SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?"
+            res = self._conn.execute(sql,
+                               (self.sha512, )).fetchall()
+            if len(res) == 1:
+                return res[0][0]
+            else:
+                latest_archive_name = None
+                # scan all targets, select latest archive name of all of them
+                for target in self._targets:
+                    target_path = target.target_path
+                    # create set dir
+                    backup_set_path = os.path.join(target_path, self._backup_set.set_uid)
+                    if not os.path.isdir(backup_set_path):
+                        os.makedirs(backup_set_path)
+                    for folder_path, folders, files in os.walk(backup_set_path):
+                        folders = []
+                        for file in sorted(files, reverse=True):
+                            try:
+                                file_path = os.path.join(folder_path, file)
+                                # if found latest archive (name) is "newer" than
+                                # current latest_archive_name, replace with current
+                                if not latest_archive_name or \
+                                    int(os.path.splitext(file)[0]) > int(os.path.splitext(latest_archive_name)[0]):
+                                    latest_archive_name = file
+                                break
+                            except:
+                                pass
+                # construct path for latest backup archive, if found
+                backup_archive_path = None
+                try:
+                    backup_archive_path = os.path.join(backup_set_path,
+                                                       latest_archive_name)
+                except: pass
+                # if latest archive found and size below threshold, use this
+                # latest archive
+                if latest_archive_name and\
+                    backup_archive_path and\
+                    os.path.getsize(backup_archive_path) < self._target_archive_max_size:
+                    # on all targets:
+                    for target in self._targets:
+                        target_path = target.target_path
+                        backup_set_path = os.path.join(target_path,
+                                                       self._backup_set.set_uid)
+                        # create archive on all targets/check for valid file if
+                        # exists
+                        if not os.path.isfile(backup_archive_path):
+                            try:
+                                f = zipfile.ZipFile(backup_archive_path, "w")
+                                f.close()
+                            # on fail: SystemExit
+                            except Exception as e:
+                                raise SystemExit(e)
+                # if no archive found at all or latest found archive exceeds
+                # size threshold:
+                else:
+                    # create new archive name
+                    new_archive_name = str(int(time.time())) + ".zip"
+                    # for all targets
+                    for target in self._targets:
+                        target_path = target.target_path
+                        new_archive_path = os.path.join(target_path,
+                                                        self._backup_set.set_uid,
+                                                        new_archive_name)
+                        # create set path, archive
+                        try:
+                            f = zipfile.ZipFile(new_archive_path, "w")
+                            f.close()
+                            latest_archive_name = new_archive_name
+                        # on fail: SystemExit
+                        except Exception as e:
+                            raise SystemExit(e)
+                self._current_backup_archive_name = latest_archive_name
+                return self._current_backup_archive_name
+
+    @property
     def inode(self):
         """
         :type: *int*
@@ -905,6 +1057,39 @@ class BackupFileCtrl(object):
         This backup-file's *inode* value.
         """
         return self._inode
+
+    @property
+    def mtime(self):
+        """
+        :type: *float*
+
+        This backup-file's *modification time*
+        """
+        return self._mtime
+
+    @property
+    def path(self):
+        """
+        :type: *str*
+
+        This backup-file's absolute path on the file-system.
+        """
+        return self._path
+
+    @property
+    def sha512(self):
+        """ ..
+
+        :type: *str*
+
+        This backup-file's *SHA512 hexadecimal hash-value*. This is a \
+        lazy property.
+        """
+        if not self._sha512:
+            self._sha512 = bs.utils.HashFile(self._path,
+                                             send_signal_handler=self._backup_ctrl.send_signal
+                                             ).start()
+        return self._sha512
 
     @property
     def size(self):
@@ -915,126 +1100,6 @@ class BackupFileCtrl(object):
         """
         return self._size
 
-    @property
-    def sha512(self):
-        """
-        :type: *str*
-
-        This backup-file's *SHA512 hexadecimal hash-value*. This is a \
-        lazy property.
-        """
-        if self._sha512:
-            return self._sha512
-        else:
-            self._sha512 = bs.utils.HashFile(self._path).start()
-            return self._sha512
-
-    @property
-    def current_backup_archive_name(self):
-        """ ..
-
-        :type: *str*
-
-        The name of the latest archive-file found in the targets that will be \
-        used to backup this file to. If a soft-limit on backup-archive \
-        file-size is set, this is necessary to find the last archive-file \
-        that has not yet reached its soft-limit.
-        """
-        if self._current_backup_archive_name:
-            return self._current_backup_archive_name
-        else:
-            ## ABSTRACT ####################
-            ################################
-            # scan all targets, select latest archive name of all of them
-            # construct path for latest backup archive, if found
-            # if latest archive found and size below threshold, use this latest archive
-                # on all targets:
-                    # create archive on all targets/check for valid file if exists
-                    # on fail: SystemExit
-            # if no archive found at all or latest found archive exceeds size threshold:
-                # create new archive name
-                # for all targets
-                    # create set path, archive
-                    # on fail: SystemExit
-            # return latest/new archive name
-
-            latest_archive_name = None
-            # scan all targets, select latest archive name of all of them
-            for target in self._targets:
-                target_path = target.target_path
-                # create set dir
-                backup_set_path = os.path.join(target_path, self._backup_set.set_uid)
-                if not os.path.isdir(backup_set_path):
-                    os.makedirs(backup_set_path)
-                for folder_path, folders, files in os.walk(backup_set_path):
-                    folders = []
-                    for file in sorted(files, reverse=True):
-                        try:
-                            file_path = os.path.join(folder_path, file)
-                            # if found latest archive (name) is "newer" than
-                            # current latest_archive_name, replace with current
-                            if not latest_archive_name or \
-                                int(os.path.splitext(file)[0]) > int(os.path.splitext(latest_archive_name)[0]):
-                                latest_archive_name = file
-                            break
-                        except:
-                            pass
-            # construct path for latest backup archive, if found
-            backup_archive_path = None
-            try:
-                backup_archive_path = os.path.join(backup_set_path,
-                                                   latest_archive_name)
-            except: pass
-            # if latest archive found and size below threshold, use this latest
-            # archive
-            if latest_archive_name and\
-                backup_archive_path and\
-                os.path.getsize(backup_archive_path) < self._target_archive_max_size:
-                # on all targets:
-                for target in self._targets:
-                    target_path = target.target_path
-                    backup_set_path = os.path.join(target_path,
-                                                   self._backup_set.set_uid)
-                    # create archive on all targets/check for valid file if
-                    # exists
-                    if not os.path.isfile(backup_archive_path):
-                        try:
-                            f = zipfile.ZipFile(backup_archive_path, "w")
-                            f.close()
-                        # on fail: SystemExit
-                        except Exception as e:
-                            raise SystemExit(e)
-            # if no archive found at all or latest found archive exceeds size
-            # threshold:
-            else:
-                # create new archive name
-                new_archive_name = str(int(time.time())) + ".zip"
-                # for all targets
-                for target in self._targets:
-                    target_path = target.target_path
-                    new_archive_path = os.path.join(target_path,
-                                                    self._backup_set.set_uid,
-                                                    new_archive_name)
-                    # create set path, archive
-                    try:
-                        f = zipfile.ZipFile(new_archive_path, "w")
-                        f.close()
-                        latest_archive_name = new_archive_name
-                    # on fail: SystemExit
-                    except Exception as e:
-                        raise SystemExit(e)
-            self._current_backup_archive_name = latest_archive_name
-            return self._current_backup_archive_name
-
-    def backup(self):
-        """ ..
-
-        :rtype: *void*
-
-        Executes the backup of this *backup-file*.
-        """
-        self._compress_zlib_encrypt_aes()
-
     def _remove_tmp_file(self):
         """ * """
         try:
@@ -1044,7 +1109,12 @@ class BackupFileCtrl(object):
             return False
 
     def _compress_zlib_encrypt_aes(self):
-        """ * """
+        """ ..
+
+        :rtype: *void*
+
+        Encrypts and compresses the file and stores it into all targets.
+        """
         time_start = time.time()
         logging.debug("%s: Compressing (zlib)/encrypting (AES) file: %s" \
                       % (self.__class__.__name__, self._path, ))
@@ -1058,11 +1128,12 @@ class BackupFileCtrl(object):
 
         iv = Crypto.Random.new().read(Crypto.Cipher.AES.block_size)
         counter = Crypto.Util.Counter.new(128)
-        aes = Crypto.Cipher.AES.new(self._key_hash_32,
-                                    Crypto.Cipher.AES.MODE_CTR, iv, counter)
+        aes = Crypto.Cipher.AES.new(binascii.unhexlify(self._key_hash_32),
+                                    Crypto.Cipher.AES.MODE_CTR,
+                                    iv,
+                                    counter)
 
         f_out.write(iv)
-#        data_processed = 0
         while True:
             data = f_in.read(self._buffer_size)
             if not data:
@@ -1071,6 +1142,11 @@ class BackupFileCtrl(object):
             data_compressed_unencrypted += compression_obj.flush(zlib.Z_SYNC_FLUSH)
             data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
             f_out.write(data_compressed_encrypted)
+            # emit updated signal
+            self._backup_ctrl.send_signal("updated",
+                                          len(data),
+                                          False,
+                                          event_source="backup")
 
         data_compressed_unencrypted = compression_obj.flush(zlib.Z_FINISH)
         data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
@@ -1119,7 +1195,7 @@ class BackupFileCtrl(object):
                 f_archive.close()
 
                 time_elapsed = time.time() - time_start
-                logging.debug("%s: Successfully added to target archive(s) "\
+                logging.info("%s: Successfully added to target archive(s) "\
                               "(%.2fs)."
                               % (self.__class__.__name__,
                                  time_elapsed))
@@ -1128,6 +1204,191 @@ class BackupFileCtrl(object):
                                 "current archive file: %s"
                                 % (self.__class__.__name__,
                                    self.sha512))
+
+    def backup(self):
+        """ ..
+
+        :rtype: *void*
+
+        Executes the backup of this *backup-file*.
+        """
+        self._compress_zlib_encrypt_aes()
+
+
+class BackupThreadWorker(QtCore.QObject):
+    """ ..
+
+    :param QtCore.QThread thread: The :class:`QtCore.QThread` this worker is \
+    to run on.
+    :param object handler: The handler to the method the worker is to execute.
+    :param tuple args: A tuple of arguments to pass to the ``handler`` method.
+
+    This class inheriting from :class:`QtCore.QObject` is to be used to \
+    execute methods from :class:`BackupCtrl` on a :class:`QtCore.QThread`.
+    This enables :class:`BackupCtrl` to send signals that update objects on \
+    the Qt-GUI-thread.
+    """
+    _args = None
+    _handler = None
+    _thread = None
+    _finished = QtCore.Signal()
+    _process_finished = QtCore.Signal(bs.utils.Signal)
+    _process_updated = QtCore.Signal(bs.utils.Signal)
+
+    def __init__(self, thread, handler, args):
+        """ ..
+
+        """
+        super(BackupThreadWorker, self).__init__()
+        self._args = args
+        self._handler = handler
+        self._thread = thread
+
+        self.moveToThread(self._thread)
+        self._handler.__self__.updated_signal.connect(self._emit_process_updated)
+        self._handler.__self__.finished_signal.connect(self._emit_process_finished)
+        self._thread.started.connect(self._process)
+        self.finished.connect(self._thread.quit)
+        self.finished.connect(self.deleteLater)
+        self._thread.finished.connect(self._thread.deleteLater)
+
+    @property
+    def finished(self):
+        """ ..
+
+        :type: *QtCore.Signal*
+        """
+        return self._finished
+
+    @property
+    def process_finished(self):
+        """ ..
+
+        :type: :class:`~bs.utils.Signal`
+        """
+        return self._process_finished
+
+    @property
+    def process_updated(self):
+        """ ..
+
+        :type: :class:`~bs.utils.Signal`
+        """
+        return self._process_updated
+
+    def _emit_process_finished(self, e):
+        """ ..
+
+        Necessary as Qt crashes if a signal is connected to another signal \
+        directly.
+        """
+        self.process_finished.emit(e)
+
+    def _emit_process_updated(self, e):
+        """ ..
+
+        Necessary as Qt crashes if a signal is connected to another signal \
+        directly.
+        """
+        self.process_updated.emit(e)
+
+    def _process(self):
+        """ ..
+
+        """
+        # execute handle
+        self._handler(*self._args)
+        self.finished.emit()
+
+
+class BackupUpdateEvent(object):
+    """ ..
+
+    :param int byte_count_total:
+    :param int byte_count_current:
+    :param int byte_count_delta:
+    :param int file_count_total:
+    :param int file_count_current:
+    :param int simulate:
+
+    This is an event object to send along :class:`~bs.ctrl.backup.BackupCtrl` \
+    signals e.g.
+    """
+    _byte_count_total = None
+    _byte_count_current = None
+    _byte_count_delta = None
+    _file_count_total = None
+    _file_count_current = None
+    _simulate = None
+
+    def __init__(self,
+                 byte_count_total,
+                 byte_count_current,
+                 byte_count_delta,
+                 file_count_total,
+                 file_count_current,
+                 simulate):
+        """ ..
+
+        """
+        super(BackupUpdateEvent, self).__init__()
+
+        self._byte_count_total = byte_count_total
+        self._byte_count_current = byte_count_current
+        self._byte_count_delta = byte_count_delta
+        self._file_count_total = file_count_total
+        self._file_count_current = file_count_current
+        self._simulate = simulate
+
+    @property
+    def byte_count_current(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_current
+
+    @property
+    def byte_count_delta(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_delta
+
+    @property
+    def byte_count_total(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_total
+
+    @property
+    def file_count_current(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._file_count_current
+
+    @property
+    def file_count_total(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._file_count_total
+
+    @property
+    def simulate(self):
+        """ ..
+
+        :type: *bool*
+
+        Whether or not backup-ctrl is in simulation mode.
+        """
+        return self._simulate
 
 
 class BackupRestoreCtrl(object):

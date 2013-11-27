@@ -14,8 +14,12 @@
 ##    Usage:                                                                 ##
 ##                                                                           ##
 ###############################################################################
+""" ..
+
+"""
 
 from PySide import QtGui
+
 import bs.ctrl._db
 import bs.ctrl.session
 import logging
@@ -49,7 +53,6 @@ logging.basicConfig(format="%(asctime)s %(levelname)s: \t%(message)s [Module: %(
                     filename=logging_filename,
                     datefmt="%Y-%m-%d %H:%M:%S")
 
-
 if __name__ == '__main__':
     """ * """
     ## INITIAL CHECKS ##
@@ -78,7 +81,7 @@ if __name__ == '__main__':
             msg_window = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error",
                                            out)
             app.setWindowIcon(QtGui.QIcon("img\\recapp_emblem_noname.png"))
-            msg_window.show()
+            msg_window.exec_()
             app.exec_()
             sys.exit()
     if dev_mode:
