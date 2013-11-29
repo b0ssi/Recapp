@@ -22,6 +22,7 @@
 from PySide import QtCore, QtGui
 
 import bs.config
+import bs.ctrl.backup
 import bs.ctrl.session
 import bs.gui.lib
 import logging
@@ -966,15 +967,17 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         Adds a new node.
         """
         if isinstance(backup_entity, bs.ctrl.session.BackupSourceCtrl):
-            widget = BSSource(self, self._bs, backup_entity, backup_set, self._app)
-            self._bs_source_widgets.append(widget)
             # add entity on ctrl level
             backup_set.add_backup_source(backup_entity)
+            # add widget
+            widget = BSSource(self, self._bs, backup_entity, backup_set, self._app)
+            self._bs_source_widgets.append(widget)
         elif isinstance(backup_entity, bs.ctrl.session.BackupFilterCtrl):
-            widget = BSFilter(self, self._bs, backup_entity, backup_set, self._app)
-            self._bs_filter_widgets.append(widget)
             # add entity on ctrl level
             backup_set.add_backup_filter(backup_entity)
+            # add widget
+            widget = BSFilter(self, self._bs, backup_entity, backup_set, self._app)
+            self._bs_filter_widgets.append(widget)
         elif isinstance(backup_entity, list) and\
             isinstance(backup_entity[0], bs.ctrl.session.BackupTargetCtrl):
             widget = BSTarget(self, self._bs, backup_entity, backup_set, self._app)
@@ -1388,11 +1391,15 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
     """
     _bs_source = None
+    _backup_ctrl = None
     _backup_entity = None
     _backup_set = None
 
     _update_thread = None
     _update_worker = None
+
+    _finished_signal = QtCore.Signal(bs.ctrl.backup.BackupUpdateEvent)
+    _updated_signal = QtCore.Signal(bs.ctrl.backup.BackupUpdateEvent)
 
     def __init__(self, bs_source, backup_source, backup_set):
         """ ..
@@ -1403,6 +1410,10 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         self._bs_source = bs_source
         self._backup_entity = backup_source
         self._backup_set = backup_set
+        self._backup_ctrl = self._backup_set.backup_ctrls[self._backup_entity]
+
+        self._backup_ctrl.finished_signal.connect(self._finished_signal.emit)
+        self._backup_ctrl.updated_signal.connect(self._updated_signal.emit)
 
         self._init_ui()
 
@@ -1446,14 +1457,8 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         Executes exit calls to related objects and forwards request to all \
         children.
         """
-        # exit backup-ctrl pre-calc threads
-        if self._update_thread and \
-            self._update_thread.is_alive():
-            if self._backup_set.backup_ctrls[self._backup_entity].request_exit():
-                self._update_thread.join(None)
-                pass
         # request exit for all children
-        for child in self.children():
+        for child in self.children() + [self._backup_ctrl]:
             try:
                 if not child.request_exit():
                     return False
@@ -1470,39 +1475,24 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         backup controller to accumulate # of files and -bytes that are due \
         to be backed up.
         """
-        # only run if pre-processing not already running
-        if not self._update_thread or \
-            not self._update_thread.isRunning():
-            # thread
-            self._update_thread = QtCore.QThread()
+        backup_ctrl = self._backup_set.backup_ctrls[self._backup_entity]
 
-            # reset self._update_thread ref to "None" when thread
-            # (underlying C++ obj) destroyed
-            def reset_refs():
-                self._update_thread = None
-                self._update_worker = None
-
-            def update_ui_data(e):
+        def update_ui_data(e):
+            if not e.byte_count_total == None and\
+                not e.file_count_total == None:
                 self.title_text = "%s | %s files" \
-                                  % (bs.utils.format_data_size(e.byte_count_current),
-                                     e.file_count_current, )
-            self._update_thread.started.connect(self.setDisabled,
-                                                QtCore.Qt.QueuedConnection)
-            self._update_thread.finished.connect(self.setEnabled,
-                                                QtCore.Qt.QueuedConnection)
-            self._update_thread.finished.connect(reset_refs,
-                                                 QtCore.Qt.QueuedConnection)
-            # worker
-            self._update_worker = bs.ctrl.backup.BackupThreadWorker(self._update_thread,
-                                                                    self._backup_set.backup_ctrls[self._backup_entity].pre_process_data,
-                                                                    (True, ))
-            self._update_worker.process_updated.connect(update_ui_data,
-                                                        QtCore.Qt.QueuedConnection)
-            self._update_worker.process_finished.connect(update_ui_data,
-                                                         QtCore.Qt.QueuedConnection)
-
-            # start thread
-            self._update_thread.start()
+                                  % (bs.utils.format_data_size(e.byte_count_total),
+                                     e.file_count_total, )
+        worker, thread = backup_ctrl.simulate()
+        worker.started.connect(self.setDisabled,
+                               QtCore.Qt.QueuedConnection)
+        worker.finished.connect(self.setEnabled,
+                                QtCore.Qt.QueuedConnection)
+        self._updated_signal.connect(update_ui_data,
+                                     QtCore.Qt.QueuedConnection)
+        self._finished_signal.connect(update_ui_data,
+                                      QtCore.Qt.QueuedConnection)
+        worker.start()
         return True
 
     def mouseReleaseEvent(self, e):

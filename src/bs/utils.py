@@ -245,9 +245,8 @@ class HashFile(object):
                     self._data.pop(0)
                 # send signal
                 if self._send_signal_handler:
-                    self._send_signal_handler("updated",
-                                              len(data_block),
-                                              False,
+                    self._send_signal_handler(event_type="updated",
+                                              byte_count_delta=len(data_block),
                                               event_source="hash")
             else:
                 time.sleep(self._sleeping_time)

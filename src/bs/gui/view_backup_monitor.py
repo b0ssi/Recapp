@@ -154,7 +154,7 @@ class BMQueueView(QtGui.QFrame):
             backup_job_to_move.move(0, 334)
             backup_job_to_move.show()
             backup_job_to_move.expand()
-            backup_job_to_move.pre_process_data(0)
+            backup_job_to_move.simulate()
 
     def _set_activity_led_state(self, state):
         """ ..
@@ -333,10 +333,15 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
     _progress_bar = None
     _title = None
     # queue of backup_ctrl that are due for processing
-    _backup_ctrls_to_process_cached = None
+    __backup_ctrls_to_process = None
     _backup_ctrl_being_processed = None
     _pre_process_data_thread = None
     _pre_process_data_worker = None
+    # these are global counts for all backup-controllers
+    _byte_count_current = None
+    _byte_count_total = None
+    _updated_signal = QtCore.Signal(bs.ctrl.backup.BackupUpdateEvent)
+    _finished_signal = QtCore.Signal(bs.ctrl.backup.BackupUpdateEvent)
 
     def __init__(self, parent, backup_set):
         """ ..
@@ -346,8 +351,26 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         self._backup_set = backup_set
         self._title = self._backup_set.set_name
+        self._byte_count_current = 0
+        self._byte_count_total = 0
+
+        # connect signals
+        for backup_ctrl in self._backup_ctrls_to_process:
+            backup_ctrl.updated_signal.connect(self._updated_signal.emit)
+            backup_ctrl.finished_signal.connect(self._finished_signal.emit)
+        self._updated_signal.connect(self.update_details_view_event,
+                                     QtCore.Qt.QueuedConnection)
 
         self._init_ui()
+
+    def __del__(self):
+        """ ..
+
+        """
+        # disconnect signals
+        for backup_ctrl in self._backup_ctrls_to_process:
+            backup_ctrl.updated_signal.disconnect(self._updated_signal.emit)
+            backup_ctrl.finished_signal.disconnect(self._finished_signal.emit)
 
     @property
     def _backup_ctrls_to_process(self):
@@ -357,10 +380,10 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         A live list of backup-controllers to be processed.
         """
-        if not self._backup_ctrls_to_process_cached:
+        if not self.__backup_ctrls_to_process:
             l = [self.backup_set.backup_ctrls[x] for x in self.backup_set.backup_sources]
-            self._backup_ctrls_to_process_cached = l
-        return self._backup_ctrls_to_process_cached
+            self.__backup_ctrls_to_process = l
+        return self.__backup_ctrls_to_process
 
     @property
     def backup_set(self):
@@ -419,48 +442,31 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         self._title = QtGui.QLabel(self._title, self)
         self._title.move(11, 8)
 
-    def backup_exec(self, index):
+    def backup(self):
         """ ..
 
-        :param int index: Index of associated \
-        :class:`~bs.ctrl.backup.BackupCtrl` to process.
         :rtype: *void*
 
-        Runs full the backup on :class:`~bs.ctrl.backup.BackupCtrl`. All \
-        :class:`~bs.ctrl.backup.BackupCtrl` to be processed are stored in an \
-        internal list, thus the ``index``.
+        Runs a full backup on its associated \
+        :class:`~bs.ctrl.backup.BackupCtrl`.
         """
+        if self._backup_ctrl_being_processed == None:
+            index = 0
+        else:
+            index = self._backup_ctrls_to_process.index(self._backup_ctrl_being_processed) + 1
         # update details UI
-        self.details_view.current_item_path = "Backing-up..."
-        # disconnect previously assigned signals
-        for backup_ctrl in self._backup_ctrls_to_process:
-            handlers = copy.copy(backup_ctrl.finished_signal.handlers)
-            for ref in handlers:
-                backup_ctrl.finished_signal.disconnect(ref)
-        # thread
-        self._pre_process_data_thread = QtCore.QThread()
-        # execute backup
         if index < len(self._backup_ctrls_to_process):
             backup_ctrl = self._backup_ctrls_to_process[index]
-            self._backup_ctrl_being_processed = self._backup_ctrls_to_process_cached[index]
-            # worker
-            self._pre_process_data_worker = bs.ctrl.backup.BackupThreadWorker(self._pre_process_data_thread,
-                                                                              backup_ctrl.backup_exec,
-                                                                              ())
-            # update signal
-            ref = self.update_details_view_event
-            self._pre_process_data_worker.process_updated.connect(ref,
-                                                                  QtCore.Qt.QueuedConnection)
-            # processing finished signal
-            ref = lambda: self.backup_exec(index + 1)
-            self._pre_process_data_worker.finished.connect(ref,
-                                                           QtCore.Qt.QueuedConnection)
-            self._pre_process_data_thread.start()
+            self._backup_ctrl_being_processed = backup_ctrl
+            worker, thread = backup_ctrl.backup()
+            worker.finished.connect(self.backup,
+                                    QtCore.Qt.QueuedConnection)
+            worker.start()
         else:
+            self._backup_ctrl_being_processed = None
             # update details UI
             self.details_view.current_item_path = "Done."
             # move on to next backup-job
-            self.details_view.progress_bar.set_progress(0, 0)
             self._get_queue().next_backup_job_to_pole_position()
 
     def expand(self):
@@ -469,48 +475,6 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         Expands the widget to show extra details in pole-position.
         """
         self.resize(self.width(), 38)
-
-    def pre_process_data(self, index):
-        """ ..
-
-        :param int index: Index of associated \
-        :class:`~bs.ctrl.backup.BackupCtrl` to process.
-        :rtype: *void*
-
-        Initiates threaded pre-processing of this backup-job. When completed, \
-        invoke execution of next backup-job in queue. All \
-        :class:`~bs.ctrl.backup.BackupCtrl` to be processed are stored in an \
-        internal list, thus the ``index``.
-        """
-        # update details UI
-        self.details_view.current_item_path = "Pre-Processing..."
-        # disconnect previously assigned signals
-        for backup_ctrl in self._backup_ctrls_to_process:
-            handlers = copy.copy(backup_ctrl.finished_signal.handlers)
-            for ref in handlers:
-                backup_ctrl.finished_signal.disconnect(ref)
-        # thread
-        self._pre_process_data_thread = QtCore.QThread()
-        if index < len(self._backup_ctrls_to_process):
-            # pre-process data
-            backup_ctrl = self._backup_ctrls_to_process[index]
-            self._backup_ctrl_being_processed = self._backup_ctrls_to_process[index]
-            # worker
-            self._pre_process_data_worker = bs.ctrl.backup.BackupThreadWorker(self._pre_process_data_thread,
-                                                                              backup_ctrl.pre_process_data,
-                                                                              (True, ))
-            # update signal
-            ref = self.update_details_view_event
-            self._pre_process_data_worker.process_updated.connect(ref,
-                                                          QtCore.Qt.QueuedConnection)
-            # processing finished signal
-            ref = lambda: self.pre_process_data(index + 1)
-            self._pre_process_data_thread.finished.connect(ref,
-                                                           QtCore.Qt.QueuedConnection)
-            self._pre_process_data_thread.start()
-        else:
-            # execute backup
-            self.backup_exec(0)
 
     def request_exit(self):
         """ ..
@@ -521,7 +485,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         children.
         """
         # request exit for all children
-        for child in self.children():
+        for child in self.children() + self._backup_ctrls_to_process:
             try:
                 if not child.request_exit():
                     return False
@@ -534,16 +498,49 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
                 return False
         return True
 
-    def set_progress(self, percentage):
+    def set_progress(self, current, total):
         """ ..
 
-        :param int percentage: The percentage to set the progress-bar to.
+        :param int current: Current number of bytes processed.
+        :param int total: Total number of bytes processed.
 
         Updates the widget to represent the progress in percent in its UI.
         """
-        width = round((self.width() - 2) * (percentage / 100))
+        s = 0.0
+        if total != 0:
+            s = current / total
+        width = round((self.width() - 2) * s)
         height = self._progress_bar.height()
         self._progress_bar.resize(width, height)
+
+    def simulate(self):
+        """ ..
+
+        :rtype: *void*
+
+        Initiates threaded pre-processing of this backup-job including all \
+        associated :class:`~bs.ctrl.backup.BackupCtrl`. When completed, \
+        invokes execution of the next next \
+        :class:`~bs.gui.view_backup_monitor.BMQueueJobView` in queue.
+        """
+        if self._backup_ctrl_being_processed == None:
+            index = 0
+        else:
+            index = self._backup_ctrls_to_process.index(self._backup_ctrl_being_processed) + 1
+        # update details UI
+        if index < len(self._backup_ctrls_to_process):
+            self.details_view.current_item_path = "Pre-Processing %s..."\
+                                                  % (index, )
+            backup_ctrl = self._backup_ctrls_to_process[index]
+            self._backup_ctrl_being_processed = backup_ctrl
+            worker, thread = backup_ctrl.simulate()
+            worker.finished.connect(self.simulate,
+                                    QtCore.Qt.QueuedConnection)
+            worker.start()
+        else:
+            self._backup_ctrl_being_processed = None
+            # execute backup
+            self.backup()
 
     def focusInEvent(self, e):
         """ ..
@@ -592,18 +589,34 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         :rtype: *void*
 
         This event emits when the currently running backup-execution updates \
-        (this usually happens after a single file has been processed). \
-        Populates the *details-view* of the *backup-monitor* with details \
-        about the last processed file.
+        (this happens after each fractional process has been completed; this \
+        could be the hashing- or encryption-/compression-/packing-process \
+        etc. and the step is dependent on the corresponding buffer-size \
+        used; gets evoked often throughout the processing of one (especially \
+        larger) file). Populates the *details-view* of the *backup-monitor* \
+        with details about the last processed file.
         """
-        # pre_process: update progress in details view
-        if e.simulate:
-            current = 0
-            total = e.byte_count_current
+        if e.file_path:
+            self.details_view.current_item_path = "Processing %s..."\
+                                                  % (e.file_path, )
         else:
-            current = e.byte_count_current
-            total = e.byte_count_total
-        self.details_view.progress_bar.set_progress(current, total)
+            current = 0
+            total = 0
+            for backup_ctrl in self._backup_ctrls_to_process:
+                if not backup_ctrl.byte_count_current == None:
+                    current += backup_ctrl.byte_count_current
+                if not backup_ctrl.byte_count_total == None:
+                    total += backup_ctrl.byte_count_total
+            # all done, reset counts
+            if current == total:
+                for backup_ctrl in self._backup_ctrls_to_process:
+                    backup_ctrl.reset()
+                current = 0
+                total = 0
+            # update GUI
+            self.details_view.progress_bar.set_progress(current,
+                                                        total)
+            self.set_progress(current, total)
 
 
 class BMDetailsView(QtGui.QWidget):
@@ -639,6 +652,7 @@ class BMDetailsView(QtGui.QWidget):
         widget.move(15, 20)
         self._current_item_path_label = QtGui.QLabel(self)
         self._current_item_path_label.move(112, 20)
+        self._current_item_path_label.setMinimumWidth(400)
         self._current_item_path_label.setStyleSheet("color: #%s"
                                                     % (bs.config.PALETTE[9], ))
         self.current_item_path = "C:\\sldkfj"
@@ -747,7 +761,7 @@ class BMDetailsProgressBarView(QtGui.QWidget):
         self._bar_capacity_max_label = QtGui.QLabel(bs.utils.format_data_size(0),
                                                     self)
         self._bar_capacity_max_label.setStyleSheet("color: #%s"
-                                             % (bs.config.PALETTE[9]))
+                                                   % (bs.config.PALETTE[9]))
         self._bar_capacity_max_label.move(600, 0)
         self._bar_capacity_max_label.resize(75, 30)
         self._bar_capacity_max_label.setAlignment(QtCore.Qt.AlignTop)
@@ -756,10 +770,10 @@ class BMDetailsProgressBarView(QtGui.QWidget):
         self._bar_capacity_current_label.setStyleSheet("color: #%s"
                                                  % (bs.config.PALETTE[9]))
         self._bar_capacity_current_label.resize(50,
-                                          self._bar_capacity_current_label.height())
+                                                self._bar_capacity_current_label.height())
         self._bar_capacity_current_label.setAlignment(QtCore.Qt.AlignRight)
         self._bar_capacity_current_label.move(0, 22)
-        self.set_progress(0, 100)
+        self.set_progress(0, 0)
 
     def set_progress(self, current, total):
         """ ..

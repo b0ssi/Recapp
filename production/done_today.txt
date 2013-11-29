@@ -2,6 +2,17 @@
 ## DONE TODAY ##################
 ################################
 
+- thread/worker: hide process method as private member, try to move signal setup-hooks from instantiation code into constructor
+- when already simulating (view_sets) and submitting to  queue, make thread to be delivered to queue and work be picked up from where it is at
+
+2013-11-28
+- BackupCtrl:
+	- Thread-Worker management is reorganized: Clearer and *stable* structure
+	- Events now dispatch with kwargs only for added flexibility
+	- thread/worker destruction-handling now works reliably across scenarios
+- backup_monitor/view_sets
+	- Full UI now stable
+
 2013-11-27
 - BackupCtrl:
 	- Now emits more signals and in a more systemized fashion (byte_count_current/-_total, file_count_current/-_total, etc)

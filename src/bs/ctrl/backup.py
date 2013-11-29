@@ -37,6 +37,118 @@ import zipfile
 import zlib
 
 
+class BackupUpdateEvent(object):
+    """ 
+
+    :param int byte_count_total:
+    :param int byte_count_current:
+    :param int byte_count_delta:
+    :param int file_count_total:
+    :param int file_count_current:
+    :param bool file_num_increment:
+    :param str file_path:
+    :param bool simulate:
+
+    This is an event object to send along :class:`~bs.ctrl.backup.BackupCtrl` \
+    signals e.g.
+    """
+    _byte_count_total = None
+    _byte_count_current = None
+    _byte_count_delta = None
+    _file_count_total = None
+    _file_count_current = None
+    _file_path = None
+    _simulate = None
+    _file_num_increment = None
+
+    def __init__(self, **kwargs):
+        """ ..
+
+        """
+        super(BackupUpdateEvent, self).__init__()
+
+        self._byte_count_total = kwargs.get("byte_count_total", None)
+        self._byte_count_current = kwargs.get("byte_count_current", None)
+        self._byte_count_delta = kwargs.get("byte_count_delta", None)
+        self._file_count_total = kwargs.get("file_count_total", None)
+        self._file_count_current = kwargs.get("file_count_current", None)
+        self._file_num_increment = kwargs.get("file_num_increment", None)
+        self._file_path = kwargs.get("file_path", None)
+        self._simulate = kwargs.get("simulate", None)
+
+    @property
+    def byte_count_current(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_current
+
+    @property
+    def byte_count_delta(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_delta
+
+    @property
+    def byte_count_total(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_total
+
+    @property
+    def file_count_current(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._file_count_current
+
+    @property
+    def file_count_total(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._file_count_total
+
+    @property
+    def file_num_increment(self):
+        """ ..
+
+        :type: *bool*
+
+        Whether or not this event notifies about an increment in file-count \
+        (by 1).
+        """
+        return self._file_num_increment
+
+    @property
+    def file_path(self):
+        """ ..
+
+        :type: *str*
+
+        If provided together with :attr:`file_num_increment`, it provides the \
+        path of the last processed file this event notifies about.
+        """
+        return self._file_path
+
+    @property
+    def simulate(self):
+        """ ..
+
+        :type: *bool*
+
+        Whether or not backup-ctrl is in simulation mode.
+        """
+        return self._simulate
+
+
 class BackupCtrl(object):
     """ ..
 
@@ -62,8 +174,10 @@ class BackupCtrl(object):
     _mode = None
     _request_exit = None
     _targets = None
+    _thread = None
     _tmp_dir = None
     _updated_signal = None
+    _worker = None
 
     MODE_BACKUP = 0
     MODE_SIMULATE = 1
@@ -77,6 +191,38 @@ class BackupCtrl(object):
         self._request_exit = False
         self._updated_signal = bs.utils.Signal()
         self._finish_signal = bs.utils.Signal()
+
+    @property
+    def byte_count_current(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_current
+
+    @property
+    def byte_count_total(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._byte_count_total
+
+    @property
+    def file_count_current(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._file_count_current
+
+    @property
+    def file_count_total(self):
+        """ ..
+
+        :type: *int*
+        """
+        return self._file_count_total
 
     @property
     def finished_signal(self):
@@ -100,263 +246,20 @@ class BackupCtrl(object):
         """
         return self._updated_signal
 
-    def _update_db(self, conn):
+    def _execute(self):
         """ ..
 
-        (Re-)creates the structure of the database; adds/alters any new
-        elements that might have changed (in the datas schema e.g.).
-        """
-        # create tables
-        conn.execute("CREATE TABLE IF NOT EXISTS atime (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS ctime (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS inode (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "\
-                                                        "path TEXT UNIQUE, "\
-                                                        "ctime REAL, "\
-                                                        "mtime REAL, "\
-                                                        "atime REAL, "\
-                                                        "inode INTEGER, "\
-                                                        "size INTEGER, "\
-                                                        "sha512 TEXT,"\
-                                                        "backup_archive_name TEXT)")
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS lookup_path ON lookup (path)")
-        conn.execute("CREATE TABLE IF NOT EXISTS mtime (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS online (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS path (id INTEGER PRIMARY KEY, "\
-                                                      "path TEXT)")
-        conn.execute("CREATE TABLE IF NOT EXISTS sha512 (id INTEGER PRIMARY KEY)")
-        # a hash index table with all hashes (data-streams) in backup-set.
-        conn.execute("CREATE TABLE IF NOT EXISTS sha512_index (sha512 TEXT PRIMARY KEY, "\
-                                                              "backup_archive_name TEXT)")
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sha512_index_sha512 ON sha512_index (sha512)")
-        conn.execute("CREATE TABLE IF NOT EXISTS size (id INTEGER PRIMARY KEY)")
-        # create new columns for current run
-        # on fast successive attempts same name might be produced (based on
-        # unix timestamp) so, cycle through and update timestamp string in name
-        # until success
-        new_columns_created = False
-        while not new_columns_created:
-            new_column_name = "snapshot_%s" % (int(time.time()), )
-            try:
-                conn.execute("ALTER TABLE atime ADD COLUMN %s REAL"
-                             % (new_column_name, ))
-                conn.execute("ALTER TABLE ctime ADD COLUMN %s REAL"
-                             % (new_column_name, ))
-                conn.execute("ALTER TABLE inode ADD COLUMN %s INTEGER"
-                             % (new_column_name, ))
-                conn.execute("ALTER TABLE mtime ADD COLUMN %s REAL"
-                             % (new_column_name, ))
-                conn.execute("ALTER TABLE online ADD COLUMN %s INTEGER"
-                             % (new_column_name, ))
-                # no need to update, path would never change between sessions
-#                conn.execute("ALTER TABLE path ADD COLUMN %s TEXT"
-#                             % (new_column_name, ))
-                conn.execute("ALTER TABLE sha512 ADD COLUMN %s TEXT"
-                             % (new_column_name, ))
-                conn.execute("ALTER TABLE size ADD COLUMN %s INTEGER"
-                             % (new_column_name, ))
-                new_columns_created = True
-            except:
-                time.sleep(0.5)
-        return new_column_name
-
-    def _update_data_in_db(self, conn, new_column_name, **kwargs):
-        """ ..
-
-        Updates a specific entity-dataset in database during backup procedure.
-        Depending on what values are passed in, updates corresponding tables in
-        backup-set database.
-        `entity_id` is mandatory as the lookup always needs to be updated as
-        well.
-        """
-        columns_to_update = []
-        columns_to_update_data = []
-        try:
-            entity_id = kwargs["entity_id"]
-            columns_to_update.append("id")
-            columns_to_update_data.append(entity_id)
-        except: pass
-        try:
-            file_atime = kwargs["file_atime"]
-            columns_to_update.append("atime")
-            columns_to_update_data.append(file_atime)
-        except: pass
-        try:
-            backup_archive_name = kwargs["backup_archive_name"]
-            columns_to_update.append("backup_archive_name")
-            columns_to_update_data.append(backup_archive_name)
-        except: pass
-        try:
-            file_ctime = kwargs["file_ctime"]
-            columns_to_update.append("ctime")
-            columns_to_update_data.append(file_ctime)
-        except: pass
-        try:
-            file_inode = kwargs["file_inode"]
-            columns_to_update.append("inode")
-            columns_to_update_data.append(file_inode)
-        except: pass
-        try:
-            file_mtime = kwargs["file_mtime"]
-            columns_to_update.append("mtime")
-            columns_to_update_data.append(file_mtime)
-        except: pass
-        try:
-            file_path = kwargs["file_path"]
-            columns_to_update.append("path")
-            columns_to_update_data.append(file_path)
-        except: pass
-        try:
-            file_size = kwargs["file_size"]
-            columns_to_update.append("size")
-            columns_to_update_data.append(file_size)
-        except: pass
-        try:
-            file_sha512 = kwargs["file_sha512"]
-            columns_to_update.append("sha512")
-            columns_to_update_data.append(file_sha512)
-        except: pass
-
-        try:
-            # check if entity already exists
-            res = conn.execute("SELECT id FROM lookup WHERE id = ?",
-                               (entity_id, )).fetchall()
-            # new entity
-            if len(res) == 0:
-                # write data to database
-                conn.execute("INSERT INTO lookup (id, path, ctime, mtime, atime, inode, size, sha512, backup_archive_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                             (entity_id, file_path, file_ctime, file_mtime,
-                              file_atime, file_inode, file_size, file_sha512,
-                              backup_archive_name, ))
-
-                conn.execute("INSERT INTO atime (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, file_atime, ))
-                conn.execute("INSERT INTO ctime (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, file_ctime, ))
-                conn.execute("INSERT INTO inode (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, file_inode, ))
-                conn.execute("INSERT INTO mtime (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, file_mtime, ))
-                conn.execute("INSERT INTO online (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, True, ))
-                conn.execute("INSERT INTO path (id, path) VALUES (?, ?)",
-                             (entity_id, file_path, ))
-                conn.execute("INSERT INTO size (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, file_size, ))
-                conn.execute("INSERT INTO sha512 (id, %s) VALUES (?, ?)"
-                             % (new_column_name, ), (entity_id, file_sha512, ))
-                logging.debug("%s: New Entity added: %s"
-                              % (self.__class__.__name__, entity_id, ))
-            # existing entity
-            else:
-                # update lookup
-                if len(columns_to_update) > 0:
-                    # generate SQL code
-                    setters = ""
-                    for column in columns_to_update:
-                        setters += "%s = ?, " % (column, )
-                    setters = setters[:-2] + " WHERE id = " + str(entity_id)
-                    conn.execute("UPDATE lookup SET %s"
-                                 % (setters, ), list(columns_to_update_data))
-                    logging.debug("%s: lookup updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                # update atime
-                try:
-                    conn.execute("UPDATE atime SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (file_atime, entity_id, ))
-                    logging.debug("%s: atime updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update ctime
-                try:
-                    conn.execute("UPDATE ctime SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (file_ctime, entity_id, ))
-                    logging.debug("%s: ctime updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update inode
-                try:
-                    conn.execute("UPDATE inode SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (file_inode, entity_id, ))
-                    logging.debug("%s: inode updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update mtime
-                try:
-                    conn.execute("UPDATE mtime SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (file_mtime, entity_id, ))
-                    logging.debug("%s: mtime updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update online
-                try:
-                    conn.execute("UPDATE online SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (True, entity_id, ))
-                    logging.debug("%s: online updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update path
-                # no need to update: path is primary representation of entity,
-                # thus would never change between snapshots for a singe
-                # update size
-                try:
-                    conn.execute("UPDATE size SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (file_size, entity_id, ))
-                    logging.debug("%s: size updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-                # update sha512
-                try:
-                    conn.execute("UPDATE sha512 SET %s = ? WHERE id = ?"
-                                 % (new_column_name, ),
-                                 (file_sha512, entity_id, ))
-                    logging.debug("%s: sha512 updated: %s"
-                                  % (self.__class__.__name__, entity_id, ))
-                except: pass
-            # update sha512_index
-            # add hash to db and stream to targets
-            try:
-                conn.execute("INSERT INTO sha512_index (sha512, backup_archive_name) VALUES (?, ?)",
-                             (file_sha512, backup_archive_name))
-                logging.debug("%s: sha512_index updated: %s"
-                              % (self.__class__.__name__, entity_id, ))
-            # If hash already exists in index table, pass following exception
-            except sqlite3.IntegrityError as e:
-                pass
-            # if data is not available (attributes weren't passed into method,
-            # e.g. when only marking entity as online...)
-            except UnboundLocalError as e:
-                pass
-        except:
-            raise
-
-    def backup_exec(self, simulate=False):
-        """ ..
-
-        :param bool simulate: Flag to limit the job-run to a simulation only. \
-        This will read file-system data but won't execute any database and/or \
-        backup-set actions.
         :rtype: *bool*
 
         Main backup-exec: Runs through a set of sources, applying filters,
         determining the state of an entity and backing up those that change \
         has been detected in.
         Will log error messages for entities of unknown state.
-        This method can run in ``simulate`` mode, where quantities of \
-        entities and capacity are only evaluated and, like in unrestricted \
-        mode, sent out via this class's signals.
+        Depending which method calls this method (:meth:`backup_exec` or \
+        :meth:`pre_process_data`), this method runs in simulation mode, where \
+        quantities of entities and capacity are only evaluated and, like in \
+        unrestricted mode, sent out via this class's signals.
         """
-        # set mode
-        if simulate:
-            self._mode = self.MODE_SIMULATE
-        else:
-            self._mode = self.MODE_BACKUP
         # check if set is encrypted and request authorization status if so.
         # If not authorized, abort.
         if self._backup_set.salt_dk:
@@ -369,14 +272,13 @@ class BackupCtrl(object):
         conn = sqlite3.connect(self._backup_set.set_db_path)
         if self._mode == self.MODE_BACKUP:
             new_column_name = self._update_db(conn)
-        time_start = time.time()
         backup_source_path = self._backup_source.source_path
-        # reset counters
-        if self._mode == self.MODE_SIMULATE:
-            self._byte_count_total = None
-            self._file_count_total = None
+        # reset counts
         self._byte_count_current = 0
         self._file_count_current = 0
+        if self._mode == self.MODE_SIMULATE:
+            self._byte_count_total = 0
+            self._file_count_total = 0
         # iterate through file-system
         for folder_path, folders, files in os.walk(backup_source_path):
             for file in files:
@@ -396,6 +298,9 @@ class BackupCtrl(object):
                                           self._tmp_dir,
                                           self._backup_set.key_hash_32,
                                           conn)
+                # send update signal to push path
+                self.send_signal(event_type="updated",
+                                 file_path=file_obj.path)
                 sql = "SELECT id, path, ctime, mtime, atime, inode, size, "\
                       "sha512 FROM lookup WHERE path = ?"
                 entity_datas = conn.execute(sql,
@@ -750,46 +655,321 @@ class BackupCtrl(object):
                                      % (self.__class__.__name__,
                                         combinations,
                                         file_obj.path, ))
+                # send update signal
+                if file_requires_backup:
+                    self.send_signal(event_type="updated",
+                                     byte_num_delta=file_obj.size,
+                                     file_num_increment=True)
                 if self._mode == self.MODE_BACKUP:
-                    # update db
-                    if len(data_to_update_in_db_kwargs) > 0:
-                        self._update_data_in_db(conn,
-                                                new_column_name,
-                                                **data_to_update_in_db_kwargs)
                     if self._file_count_current % 1000 == 0:
                         conn.commit()
-                    # execute backup
                     if file_requires_backup:
+                        # execute backup
                         file_obj.backup()
-                # increment counters, fire updated signal
-                if file_requires_backup:
-                    # send update signal
-                    self.send_signal("updated", file_obj.size, True)
-        self._file_count_total = self._file_count_current
-        self._byte_count_total = self._byte_count_current
+                        # update db
+                        if len(data_to_update_in_db_kwargs) > 0:
+                            self._update_data_in_db(conn,
+                                                    new_column_name,
+                                                    **data_to_update_in_db_kwargs)
         conn.commit()
         conn.close()
         # fire processing finished signal
-        self.send_signal("finished", file_obj.size, False)
+        self.send_signal(event_type="finished")
         return True
 
-    def pre_process_data(self, force_refresh=False):
+    def _get_worker(self):
         """ ..
 
-        :param bool force_refresh: If *True*, forces a rescan of the \
-        associated source. Always scans sources on its first run to aquire \
-        an initial data-set.
+        :rtype: *tuple*
+
+        Returns a tuple with :class:`BackupThreadWorker` and QtCore.QThread.
+        Returns the currently active worker/thread, creates and returns a \
+        new pair otherwise.
+        """
+        if self._thread == None or self._thread.isFinished():
+
+            class Thread(QtCore.QThread):
+                def __del__(self):
+                    pass
+
+                def deleteLater(self):
+                    pass
+
+            self._thread = Thread()
+            self._worker = BackupThreadWorker(self._execute,
+                                               (),
+                                               self._thread)
+            self._worker.moveToThread(self._thread)
+            self._thread.started.connect(self._worker.started.emit)
+            self._thread.started.connect(self._worker.process)
+
+            self._thread.finished.connect(self._thread.deleteLater)
+            self._thread.finished.connect(self._worker.finished.emit)
+        return self._worker, self._thread
+
+    def _update_db(self, conn):
+        """ ..
+
+        (Re-)creates the structure of the database; adds/alters any new
+        elements that might have changed (in the datas schema e.g.).
+        """
+        # create tables
+        conn.execute("CREATE TABLE IF NOT EXISTS atime (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS ctime (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS inode (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "\
+                                                        "path TEXT UNIQUE, "\
+                                                        "ctime REAL, "\
+                                                        "mtime REAL, "\
+                                                        "atime REAL, "\
+                                                        "inode INTEGER, "\
+                                                        "size INTEGER, "\
+                                                        "sha512 TEXT,"\
+                                                        "backup_archive_name TEXT)")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS lookup_path ON lookup (path)")
+        conn.execute("CREATE TABLE IF NOT EXISTS mtime (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS online (id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TABLE IF NOT EXISTS path (id INTEGER PRIMARY KEY, "\
+                                                      "path TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS sha512 (id INTEGER PRIMARY KEY)")
+        # a hash index table with all hashes (data-streams) in backup-set.
+        conn.execute("CREATE TABLE IF NOT EXISTS sha512_index (sha512 TEXT PRIMARY KEY, "\
+                                                              "backup_archive_name TEXT)")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sha512_index_sha512 ON sha512_index (sha512)")
+        conn.execute("CREATE TABLE IF NOT EXISTS size (id INTEGER PRIMARY KEY)")
+        # create new columns for current run
+        # on fast successive attempts same name might be produced (based on
+        # unix timestamp) so, cycle through and update timestamp string in name
+        # until success
+        new_columns_created = False
+        while not new_columns_created:
+            new_column_name = "snapshot_%s" % (int(time.time()), )
+            try:
+                conn.execute("ALTER TABLE atime ADD COLUMN %s REAL"
+                             % (new_column_name, ))
+                conn.execute("ALTER TABLE ctime ADD COLUMN %s REAL"
+                             % (new_column_name, ))
+                conn.execute("ALTER TABLE inode ADD COLUMN %s INTEGER"
+                             % (new_column_name, ))
+                conn.execute("ALTER TABLE mtime ADD COLUMN %s REAL"
+                             % (new_column_name, ))
+                conn.execute("ALTER TABLE online ADD COLUMN %s INTEGER"
+                             % (new_column_name, ))
+                # no need to update, path would never change between sessions
+#                conn.execute("ALTER TABLE path ADD COLUMN %s TEXT"
+#                             % (new_column_name, ))
+                conn.execute("ALTER TABLE sha512 ADD COLUMN %s TEXT"
+                             % (new_column_name, ))
+                conn.execute("ALTER TABLE size ADD COLUMN %s INTEGER"
+                             % (new_column_name, ))
+                new_columns_created = True
+            except:
+                time.sleep(0.5)
+        return new_column_name
+
+    def _update_data_in_db(self, conn, new_column_name, **kwargs):
+        """ ..
+
+        Updates a specific entity-dataset in database during backup procedure.
+        Depending on what values are passed in, updates corresponding tables in
+        backup-set database.
+        `entity_id` is mandatory as the lookup always needs to be updated as
+        well.
+        """
+        columns_to_update = []
+        columns_to_update_data = []
+        try:
+            entity_id = kwargs["entity_id"]
+            columns_to_update.append("id")
+            columns_to_update_data.append(entity_id)
+        except: pass
+        try:
+            file_atime = kwargs["file_atime"]
+            columns_to_update.append("atime")
+            columns_to_update_data.append(file_atime)
+        except: pass
+        try:
+            backup_archive_name = kwargs["backup_archive_name"]
+            columns_to_update.append("backup_archive_name")
+            columns_to_update_data.append(backup_archive_name)
+        except: pass
+        try:
+            file_ctime = kwargs["file_ctime"]
+            columns_to_update.append("ctime")
+            columns_to_update_data.append(file_ctime)
+        except: pass
+        try:
+            file_inode = kwargs["file_inode"]
+            columns_to_update.append("inode")
+            columns_to_update_data.append(file_inode)
+        except: pass
+        try:
+            file_mtime = kwargs["file_mtime"]
+            columns_to_update.append("mtime")
+            columns_to_update_data.append(file_mtime)
+        except: pass
+        try:
+            file_path = kwargs["file_path"]
+            columns_to_update.append("path")
+            columns_to_update_data.append(file_path)
+        except: pass
+        try:
+            file_size = kwargs["file_size"]
+            columns_to_update.append("size")
+            columns_to_update_data.append(file_size)
+        except: pass
+        try:
+            file_sha512 = kwargs["file_sha512"]
+            columns_to_update.append("sha512")
+            columns_to_update_data.append(file_sha512)
+        except: pass
+
+        try:
+            # check if entity already exists
+            res = conn.execute("SELECT id FROM lookup WHERE id = ?",
+                               (entity_id, )).fetchall()
+            # new entity
+            if len(res) == 0:
+                # write data to database
+                conn.execute("INSERT INTO lookup (id, path, ctime, mtime, atime, inode, size, sha512, backup_archive_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             (entity_id, file_path, file_ctime, file_mtime,
+                              file_atime, file_inode, file_size, file_sha512,
+                              backup_archive_name, ))
+
+                conn.execute("INSERT INTO atime (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_atime, ))
+                conn.execute("INSERT INTO ctime (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_ctime, ))
+                conn.execute("INSERT INTO inode (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_inode, ))
+                conn.execute("INSERT INTO mtime (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_mtime, ))
+                conn.execute("INSERT INTO online (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, True, ))
+                conn.execute("INSERT INTO path (id, path) VALUES (?, ?)",
+                             (entity_id, file_path, ))
+                conn.execute("INSERT INTO size (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_size, ))
+                conn.execute("INSERT INTO sha512 (id, %s) VALUES (?, ?)"
+                             % (new_column_name, ), (entity_id, file_sha512, ))
+                logging.debug("%s: New Entity added: %s"
+                              % (self.__class__.__name__, entity_id, ))
+            # existing entity
+            else:
+                # update lookup
+                if len(columns_to_update) > 0:
+                    # generate SQL code
+                    setters = ""
+                    for column in columns_to_update:
+                        setters += "%s = ?, " % (column, )
+                    setters = setters[:-2] + " WHERE id = " + str(entity_id)
+                    conn.execute("UPDATE lookup SET %s"
+                                 % (setters, ), list(columns_to_update_data))
+                    logging.debug("%s: lookup updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                # update atime
+                try:
+                    conn.execute("UPDATE atime SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_atime, entity_id, ))
+                    logging.debug("%s: atime updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update ctime
+                try:
+                    conn.execute("UPDATE ctime SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_ctime, entity_id, ))
+                    logging.debug("%s: ctime updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update inode
+                try:
+                    conn.execute("UPDATE inode SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_inode, entity_id, ))
+                    logging.debug("%s: inode updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update mtime
+                try:
+                    conn.execute("UPDATE mtime SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_mtime, entity_id, ))
+                    logging.debug("%s: mtime updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update online
+                try:
+                    conn.execute("UPDATE online SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (True, entity_id, ))
+                    logging.debug("%s: online updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update path
+                # no need to update: path is primary representation of entity,
+                # thus would never change between snapshots for a singe
+                # update size
+                try:
+                    conn.execute("UPDATE size SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_size, entity_id, ))
+                    logging.debug("%s: size updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+                # update sha512
+                try:
+                    conn.execute("UPDATE sha512 SET %s = ? WHERE id = ?"
+                                 % (new_column_name, ),
+                                 (file_sha512, entity_id, ))
+                    logging.debug("%s: sha512 updated: %s"
+                                  % (self.__class__.__name__, entity_id, ))
+                except: pass
+            # update sha512_index
+            # add hash to db and stream to targets
+            try:
+                conn.execute("INSERT INTO sha512_index (sha512, backup_archive_name) VALUES (?, ?)",
+                             (file_sha512, backup_archive_name))
+                logging.debug("%s: sha512_index updated: %s"
+                              % (self.__class__.__name__, entity_id, ))
+            # If hash already exists in index table, pass following exception
+            except sqlite3.IntegrityError as e:
+                pass
+            # if data is not available (attributes weren't passed into method,
+            # e.g. when only marking entity as online...)
+            except UnboundLocalError as e:
+                pass
+        except:
+            raise
+
+    def backup(self):
+        """ ..
+
         :rtype: *bool*
 
-        Accumulates the total capacity (in bytes) that is due for back-up.
+        Initiates the execution in backup-mode.
         """
-        # (re-)calculate capacity and return
-        if force_refresh or not self._byte_count_total:
-            self._mode = self.MODE_SIMULATE
-            self.backup_exec(True)
-        else:
-            self._finish_signal.emit()
-        return True
+        # set mode
+        self._mode = self.MODE_BACKUP
+
+        # reset mode
+        def reset_mode():
+            self._mode = None
+        worker, thread = self._get_worker()
+        thread.finished.connect(reset_mode)
+        # return worker
+        return worker, thread
+
+    def reset(self):
+        """ ..
+
+        Resets the controller including the file- and byte-counters.
+        """
+        self._byte_count_current = 0
+        self._byte_count_total = 0
+        self._file_count_current = 0
+        self._file_count_total = 0
 
     def request_exit(self):
         """ ..
@@ -799,16 +979,16 @@ class BackupCtrl(object):
         Requests any threads running on the object to exit and returns *True* \
         when done so.
         """
-        self._request_exit = True
-        while True:
-            if self._request_exit == False:
-                break
-            else:
+        if self._thread and\
+            self._thread.isRunning():
+            self._worker.request_exit()
+            self._request_exit = True
+            while self._thread.isRunning() or\
+                self._request_exit:
                 time.sleep(0.1)
         return True
 
-    def send_signal(self, event_type, byte_count_delta, file_num_increment,
-                    **kwargs):
+    def send_signal(self, **kwargs):
         """ ..
 
         :param str event_type: Type of signal to send:
@@ -824,40 +1004,90 @@ class BackupCtrl(object):
         :param arbitrary kwargs: The following keyword-attributes are \
         available:
 
+            - **byte_count_delta** (*int*):
             - **event_source** (*enum*): Defines the source-process the \
             update call is coming from. Needs to be of either of the following:
 
                 - ``hash``, if this method is called from a hashing process
                 - ``backup``, if this method is called from a backup process
 
+            - **event_type** (*str*): One of the following strings:
+
+                - ``updated``, if an :attr:`updated_signal` is to be emitted.
+                - ``finished``, if a :attr:`finished_signal` is to be emitted.
+
+            - **file_num_increment** (*bool*):
+            - **file_path** (*str*):
+
+        :rtype: *void*
+
         Central event dispatch manager that acts as central \
         report-and-dispatch point for reporting objects (such as \
         BackupFileCtrl, hash-objects, etc.).
         """
+        # get data from kwargs
+        byte_count_delta = kwargs.get("byte_count_delta", None)
         event_source = kwargs.get("event_source", None)
+        event_type = kwargs.get("event_type", None)
+        file_path = kwargs.get("file_path", None)
+        file_num_increment = kwargs.get("file_num_increment", False)
+        # update ivars
         if event_type == "updated":
             if file_num_increment:
-                self._file_count_current += 1
-            else:
-                if self._mode == self.MODE_BACKUP:
+                if self._mode == self.MODE_SIMULATE:
+                    self._file_count_total += 1
+                elif self._mode == self.MODE_BACKUP:
+                    self._file_count_current += 1
+            elif byte_count_delta:
+                if self._mode == self.MODE_SIMULATE:
+                    if event_source == "hash":
+                        self._byte_count_total += byte_count_delta
+                elif self._mode == self.MODE_BACKUP:
                     if event_source == "backup":
                         self._byte_count_current += byte_count_delta
-                elif self._mode == self.MODE_SIMULATE:
-                    self._byte_count_current += byte_count_delta
         if self._mode == self.MODE_BACKUP:
             simulate = False
         elif self._mode == self.MODE_SIMULATE:
             simulate = True
-        e = BackupUpdateEvent(self._byte_count_total,
-                              self._byte_count_current,
-                              byte_count_delta,
-                              self._file_count_total,
-                              self._file_count_current,
-                              simulate)
+        # compile kwargs for event
+        kwargs = {"byte_count_total": self._byte_count_total,
+                  "byte_count_current": self._byte_count_current,
+                  "byte_count_delta": byte_count_delta,
+                  "file_count_total": self._file_count_total,
+                  "file_count_current": self._file_count_current,
+                  "file_num_increment": file_num_increment,
+                  "file_path": file_path,
+                  "simulate": simulate,
+                  }
+        # instantiate event
+        e = BackupUpdateEvent(**kwargs)
+        # send off
         if event_type == "finished":
             self.finished_signal.emit(e)
         elif event_type == "updated":
             self.updated_signal.emit(e)
+
+    def simulate(self):
+        """ ..
+
+        :param bool force_refresh: If *True*, forces a rescan of the \
+        associated source. Always scans sources on its first run to aquire \
+        an initial data-set.
+        :rtype: *void*
+
+        Initiates the execution in backup-mode that accumulates the total \
+        capacity (in bytes) that is due for back-up.
+        """
+        # set mode
+        self._mode = self.MODE_SIMULATE
+
+        # reset mode
+        def reset_mode():
+            self._mode = None
+        worker, thread = self._get_worker()
+        thread.finished.connect(reset_mode)
+        # return worker
+        return worker, thread
 
 
 class BackupFileCtrl(object):
@@ -1143,9 +1373,8 @@ class BackupFileCtrl(object):
             data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
             f_out.write(data_compressed_encrypted)
             # emit updated signal
-            self._backup_ctrl.send_signal("updated",
-                                          len(data),
-                                          False,
+            self._backup_ctrl.send_signal(event_type="updated",
+                                          byte_count_delta=len(data),
                                           event_source="backup")
 
         data_compressed_unencrypted = compression_obj.flush(zlib.Z_FINISH)
@@ -1222,6 +1451,9 @@ class BackupThreadWorker(QtCore.QObject):
     to run on.
     :param object handler: The handler to the method the worker is to execute.
     :param tuple args: A tuple of arguments to pass to the ``handler`` method.
+    :ivar QtCore.Signal finished:
+    :ivar QtCore.Signal started: Emits when :meth:`start` is called and the \
+    thread starts evoking :meth:`process`
 
     This class inheriting from :class:`QtCore.QObject` is to be used to \
     execute methods from :class:`BackupCtrl` on a :class:`QtCore.QThread`.
@@ -1231,164 +1463,54 @@ class BackupThreadWorker(QtCore.QObject):
     _args = None
     _handler = None
     _thread = None
-    _finished = QtCore.Signal()
-    _process_finished = QtCore.Signal(bs.utils.Signal)
-    _process_updated = QtCore.Signal(bs.utils.Signal)
+    finished = QtCore.Signal()
+    started = QtCore.Signal()
 
-    def __init__(self, thread, handler, args):
+    def __init__(self, handler, args, thread):
         """ ..
 
         """
         super(BackupThreadWorker, self).__init__()
+
         self._args = args
         self._handler = handler
         self._thread = thread
 
-        self.moveToThread(self._thread)
-        self._handler.__self__.updated_signal.connect(self._emit_process_updated)
-        self._handler.__self__.finished_signal.connect(self._emit_process_finished)
-        self._thread.started.connect(self._process)
-        self.finished.connect(self._thread.quit)
-        self.finished.connect(self.deleteLater)
-        self._thread.finished.connect(self._thread.deleteLater)
-
-    @property
-    def finished(self):
+    def process(self):
         """ ..
 
-        :type: *QtCore.Signal*
-        """
-        return self._finished
+        :rtype: *void*
 
-    @property
-    def process_finished(self):
-        """ ..
-
-        :type: :class:`~bs.utils.Signal`
-        """
-        return self._process_finished
-
-    @property
-    def process_updated(self):
-        """ ..
-
-        :type: :class:`~bs.utils.Signal`
-        """
-        return self._process_updated
-
-    def _emit_process_finished(self, e):
-        """ ..
-
-        Necessary as Qt crashes if a signal is connected to another signal \
-        directly.
-        """
-        self.process_finished.emit(e)
-
-    def _emit_process_updated(self, e):
-        """ ..
-
-        Necessary as Qt crashes if a signal is connected to another signal \
-        directly.
-        """
-        self.process_updated.emit(e)
-
-    def _process(self):
-        """ ..
-
+        Called by the associated thread and evokes the ``handler`` passed \
+        into the constructor, together with provided ``args`` as parameters.
+        This method is not to be called directly. Call :meth:`start` instead \
+        to start the thread-worker.
         """
         # execute handle
         self._handler(*self._args)
-        self.finished.emit()
+        self._thread.quit()
 
-
-class BackupUpdateEvent(object):
-    """ ..
-
-    :param int byte_count_total:
-    :param int byte_count_current:
-    :param int byte_count_delta:
-    :param int file_count_total:
-    :param int file_count_current:
-    :param int simulate:
-
-    This is an event object to send along :class:`~bs.ctrl.backup.BackupCtrl` \
-    signals e.g.
-    """
-    _byte_count_total = None
-    _byte_count_current = None
-    _byte_count_delta = None
-    _file_count_total = None
-    _file_count_current = None
-    _simulate = None
-
-    def __init__(self,
-                 byte_count_total,
-                 byte_count_current,
-                 byte_count_delta,
-                 file_count_total,
-                 file_count_current,
-                 simulate):
+    def request_exit(self):
         """ ..
 
+        :rtype: *bool*
+
+        Executes exit calls to related objects and forwards request to all \
+        children.
         """
-        super(BackupUpdateEvent, self).__init__()
+        # overwrite signals
+        self.finished = QtCore.Signal()
+        self.started = QtCore.Signal()
+        return True
 
-        self._byte_count_total = byte_count_total
-        self._byte_count_current = byte_count_current
-        self._byte_count_delta = byte_count_delta
-        self._file_count_total = file_count_total
-        self._file_count_current = file_count_current
-        self._simulate = simulate
-
-    @property
-    def byte_count_current(self):
+    def start(self):
         """ ..
 
-        :type: *int*
+        :rtype: *void*
+
+        Starts the thread-worker in its own thread.
         """
-        return self._byte_count_current
-
-    @property
-    def byte_count_delta(self):
-        """ ..
-
-        :type: *int*
-        """
-        return self._byte_count_delta
-
-    @property
-    def byte_count_total(self):
-        """ ..
-
-        :type: *int*
-        """
-        return self._byte_count_total
-
-    @property
-    def file_count_current(self):
-        """ ..
-
-        :type: *int*
-        """
-        return self._file_count_current
-
-    @property
-    def file_count_total(self):
-        """ ..
-
-        :type: *int*
-        """
-        return self._file_count_total
-
-    @property
-    def simulate(self):
-        """ ..
-
-        :type: *bool*
-
-        Whether or not backup-ctrl is in simulation mode.
-        """
-        return self._simulate
+        self._thread.start()
 
 
 class BackupRestoreCtrl(object):
