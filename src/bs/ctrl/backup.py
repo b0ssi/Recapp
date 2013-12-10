@@ -149,7 +149,7 @@ class BackupUpdateEvent(object):
         return self._simulate
 
 
-class BackupCtrl(object):
+class BackupCtrl(QtCore.QObject):
     """ ..
 
     :param bs.ctrl.session.BackupSetCtrl backup_set: The *backup-set* to \
@@ -170,27 +170,29 @@ class BackupCtrl(object):
     _byte_count_total = None
     _file_count_current = None
     _file_count_total = None
-    _finished_signal = None
+    _finished_signal = QtCore.Signal(BackupUpdateEvent)
     _mode = None
+    _mutex = None
     _request_exit = None
     _targets = None
     _thread = None
     _tmp_dir = None
-    _updated_signal = None
+    _updated_signal = QtCore.Signal(BackupUpdateEvent)
     _worker = None
 
     MODE_BACKUP = 0
     MODE_SIMULATE = 1
 
     def __init__(self, backup_set, backup_source):
+        super(BackupCtrl, self).__init__()
+
         self._backup_set = backup_set
         self._backup_source = backup_source
 
+        self._mutex = QtCore.QMutex()
         self._targets = backup_set.backup_targets
         self._tmp_dir = tempfile.TemporaryDirectory()
         self._request_exit = False
-        self._updated_signal = bs.utils.Signal()
-        self._finish_signal = bs.utils.Signal()
 
     @property
     def byte_count_current(self):
@@ -232,7 +234,7 @@ class BackupCtrl(object):
 
         This signal emits when the pre-process- or backup-execution finishes.
         """
-        return self._finish_signal
+        return self._finished_signal
 
     @property
     def updated_signal(self):
@@ -688,23 +690,14 @@ class BackupCtrl(object):
         """
         if self._thread == None or self._thread.isFinished():
 
-            class Thread(QtCore.QThread):
-                def __del__(self):
-                    pass
+            def reset_refs():
+                self._thread = None
 
-                def deleteLater(self):
-                    pass
-
-            self._thread = Thread()
+            self._thread = QtCore.QThread()
+            self._thread.finished.connect(reset_refs)
             self._worker = BackupThreadWorker(self._execute,
-                                               (),
-                                               self._thread)
-            self._worker.moveToThread(self._thread)
-            self._thread.started.connect(self._worker.started.emit)
-            self._thread.started.connect(self._worker.process)
-
-            self._thread.finished.connect(self._thread.deleteLater)
-            self._thread.finished.connect(self._worker.finished.emit)
+                                              (),
+                                              self._thread)
         return self._worker, self._thread
 
     def _update_db(self, conn):
@@ -909,7 +902,7 @@ class BackupCtrl(object):
                 except: pass
                 # update path
                 # no need to update: path is primary representation of entity,
-                # thus would never change between snapshots for a singe
+                # thus would never change between snapshots for a single entity
                 # update size
                 try:
                     conn.execute("UPDATE size SET %s = ? WHERE id = ?"
@@ -1064,7 +1057,7 @@ class BackupCtrl(object):
         # send off
         if event_type == "finished":
             self.finished_signal.emit(e)
-        elif event_type == "updated":
+        if event_type == "updated":
             self.updated_signal.emit(e)
 
     def simulate(self):
@@ -1375,7 +1368,8 @@ class BackupFileCtrl(object):
             # emit updated signal
             self._backup_ctrl.send_signal(event_type="updated",
                                           byte_count_delta=len(data),
-                                          event_source="backup")
+                                          event_source="backup",
+                                          file_path=self.path)
 
         data_compressed_unencrypted = compression_obj.flush(zlib.Z_FINISH)
         data_compressed_encrypted = aes.encrypt(data_compressed_unencrypted)
@@ -1475,8 +1469,14 @@ class BackupThreadWorker(QtCore.QObject):
         self._args = args
         self._handler = handler
         self._thread = thread
+        # set-up
+        self.moveToThread(self._thread)
+        self._thread.started.connect(self.started.emit)
+        self._thread.started.connect(self._process)
+        self._thread.finished.connect(self.finished.emit)
+        self._thread.finished.connect(self._thread.deleteLater)
 
-    def process(self):
+    def _process(self):
         """ ..
 
         :rtype: *void*
@@ -1510,7 +1510,8 @@ class BackupThreadWorker(QtCore.QObject):
 
         Starts the thread-worker in its own thread.
         """
-        self._thread.start()
+        if not self._thread.isRunning():
+            self._thread.start()
 
 
 class BackupRestoreCtrl(object):

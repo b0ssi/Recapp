@@ -48,6 +48,7 @@ class BMMainView(QtGui.QFrame):
         self._init_ui()
 
     def _init_ui(self):
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
         # style/bg
         self.setStyleSheet(".BMMainView {background: #%s}"
                            % (bs.config.PALETTE[0], ))
@@ -83,6 +84,21 @@ class BMMainView(QtGui.QFrame):
         """
         return [x.central_widget for x in self._queue_scroll_areas]
 
+    def has_backup_set_in_queues(self, backup_set):
+        """ ..
+
+        :param bs.ctrl.session.BackupSet backup_set: The
+        :class:`~bs.ctrl.session.BackupSet` to check for whether or not it \
+        currently already exists in any of the queues.
+
+        Checks whether or not the ``backup_set`` is already queued up in any \
+        of its queues (or/and is active).
+        """
+        for queue in self.queues:
+            if queue.has_backup_set_in_queue(backup_set):
+                return True
+        return False
+
     def request_exit(self):
         """ ..
 
@@ -101,7 +117,7 @@ class BMMainView(QtGui.QFrame):
         return True
 
 
-class BMQueueView(QtGui.QFrame):
+class BMQueueView(bs.gui.lib.BSFrame):
     """ ..
 
     :param QtGui.QWidget parent: The parent-``QtGui.QWidget`` for this object.
@@ -114,6 +130,7 @@ class BMQueueView(QtGui.QFrame):
     _backup_jobs = None
     _backup_job_in_pole_position = None
     _activity_led = None
+    _mutex = None
 
     def __init__(self, parent, index):
         super(BMQueueView, self).__init__(parent)
@@ -121,6 +138,7 @@ class BMQueueView(QtGui.QFrame):
         self._index = index
 
         self._backup_jobs = []
+        self._mutex = QtCore.QMutex()
 
         parent.set_central_widget(self)
         self._init_ui()
@@ -133,7 +151,29 @@ class BMQueueView(QtGui.QFrame):
         self._update_size()
         self._activity_led = QtGui.QFrame(self.parent().parent())
         self._activity_led.setGeometry(0, 378, 80, 3)
-        self._set_activity_led_state(False)
+        # CSS
+        self.css = ((self._activity_led,
+                     None,
+                     "border-radius: 1px; background: #%s",
+                     {"has_no_focus":
+                      {"enabled":
+                       (
+                        (bs.config.PALETTE[10], ),
+                        (bs.config.PALETTE[10], ),
+                        (bs.config.PALETTE[10], ),
+                        )
+                       },
+                      "has_focus":
+                      {"enabled":
+                       (
+                        (bs.config.PALETTE[4], ),
+                        (bs.config.PALETTE[4], ),
+                        (bs.config.PALETTE[4], ),
+                        )
+                       }
+                      }
+                     ),
+                    )
 
     def _move_backup_job_to_pole_position(self):
         """ ..
@@ -143,34 +183,22 @@ class BMQueueView(QtGui.QFrame):
         if len(self._backup_jobs) > 0 and \
             not self._backup_job_in_pole_position:
             backup_job_to_move = self._backup_jobs[0]
+            self._mutex.lock()
             self._backup_jobs.pop(0)
             self._backup_job_in_pole_position = backup_job_to_move
             backup_job_to_move.setParent(self.parent().parent())
+            self._mutex.unlock()
             # update queue
             self._update_size()
             self._update_backup_jobs_positions()
             self._update_position()
             # reposition backup-job
+            self._mutex.lock()
             backup_job_to_move.move(0, 334)
             backup_job_to_move.show()
+            self._mutex.unlock()
             backup_job_to_move.expand()
             backup_job_to_move.simulate()
-
-    def _set_activity_led_state(self, state):
-        """ ..
-
-        :param bool state: ``True`` for active, ``False`` for inactive.
-
-        Sets the visual appearance to represent the state of the queue.
-        """
-        if state:
-            self._activity_led.setStyleSheet("border-radius: 1px; "\
-                                             "background: #%s"
-                                             % (bs.config.PALETTE[4], ))
-        else:
-            self._activity_led.setStyleSheet("border-radius: 1px; "\
-                                             "background: #%s"
-                                             % (bs.config.PALETTE[10], ))
 
     def _update_backup_jobs_positions(self):
         """ ..
@@ -180,19 +208,23 @@ class BMQueueView(QtGui.QFrame):
         """
         offset = self.height() - (31 * len(self._backup_jobs) - 1)
         if offset < 0: offset = 0
+        self._mutex.lock()
         for backup_job in self._backup_jobs:
             x = 0
             y = offset + 31 * (len(self._backup_jobs) -\
                                self._backup_jobs.index(backup_job, ) - 1)
             backup_job.move(x, y)
+        self._mutex.unlock()
 
     def _update_position(self):
         """ ..
 
         Updates the queue widget's position.
         """
+        self._mutex.lock()
         self.move(self.x(),
                   0 - (self.height() - self.parent().height()))
+        self._mutex.unlock()
 
     def _update_size(self):
         """ ..
@@ -208,7 +240,9 @@ class BMQueueView(QtGui.QFrame):
         height -= 1
         # set to minimum size of scroll-area parent
         if height < self.parent().height(): height = self.parent().height()
+        self._mutex.lock()
         self.resize(width, height)
+        self._mutex.unlock()
 
     def add_backup_job(self, backup_set):
         """ ..
@@ -220,13 +254,34 @@ class BMQueueView(QtGui.QFrame):
         """
         widget = BMQueueJobView(self, backup_set)
         widget.show()
+        self._mutex.lock()
         self._backup_jobs.append(widget)
-        # update size, positions
+        self._mutex.unlock()
+        # update queue
         self._update_size()
         self._update_backup_jobs_positions()
         self._update_position()
         # move to pole-position if it's the only current job in queue
         self._move_backup_job_to_pole_position()
+
+    def has_backup_set_in_queue(self, backup_set):
+        """ ..
+
+        :param bs.ctrl.session.BackupSet backup_set: The
+        :class:`~bs.ctrl.session.BackupSet` to check for whether or not it \
+        currently already exists in any of the queues.
+
+        Checks whether or not the ``backup_set`` is already queued up \
+        (or active).
+        """
+        lock = QtCore.QMutexLocker(self._mutex)
+
+        if self._backup_jobs in self._backup_jobs:
+            return True
+        if not self._backup_job_in_pole_position == None and\
+            self._backup_job_in_pole_position.backup_set == backup_set:
+            return True
+        return False
 
     def next_backup_job_to_pole_position(self):
         """ ..
@@ -237,7 +292,9 @@ class BMQueueView(QtGui.QFrame):
         # delete current backup-job in pole-position
         if self._backup_job_in_pole_position:
             self._backup_job_in_pole_position.deleteLater()
+            self._mutex.lock()
             self._backup_job_in_pole_position = None
+            self._mutex.unlock()
             self._move_backup_job_to_pole_position()
 
     def remove_backup_job(self, backup_job):
@@ -270,7 +327,9 @@ class BMQueueView(QtGui.QFrame):
         elif self._backup_job_in_pole_position:
             self._backup_job_in_pole_position.setFocus()
         # delete
+        self._mutex.lock()
         self._backup_jobs.pop(widget_index_to_remove)
+        self._mutex.unlock()
         widget_to_remove.deleteLater()
         # update size, positions
         self._update_size()
@@ -295,28 +354,6 @@ class BMQueueView(QtGui.QFrame):
         # pole_position:
         self._backup_job_in_pole_position.request_exit()
         return True
-
-    def focusInEvent(self, e):
-        """ ..
-
-        :param QtCore.QEvent e:
-
-        Override.
-        """
-        self._set_activity_led_state(True)
-
-        super(BMQueueView, self).focusInEvent(e)
-
-    def focusOutEvent(self, e):
-        """ ..
-
-        :param QtCore.QEvent e:
-
-        Override.
-        """
-        self._set_activity_led_state(False)
-
-        super(BMQueueView, self).focusOutEvent(e)
 
 
 class BMQueueJobView(bs.gui.lib.BSFrame):
@@ -356,21 +393,9 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         # connect signals
         for backup_ctrl in self._backup_ctrls_to_process:
-            backup_ctrl.updated_signal.connect(self._updated_signal.emit)
-            backup_ctrl.finished_signal.connect(self._finished_signal.emit)
-        self._updated_signal.connect(self.update_details_view_event,
-                                     QtCore.Qt.QueuedConnection)
+            backup_ctrl.updated_signal.connect(self.update_details_view_event)
 
         self._init_ui()
-
-    def __del__(self):
-        """ ..
-
-        """
-        # disconnect signals
-        for backup_ctrl in self._backup_ctrls_to_process:
-            backup_ctrl.updated_signal.disconnect(self._updated_signal.emit)
-            backup_ctrl.finished_signal.disconnect(self._finished_signal.emit)
 
     @property
     def _backup_ctrls_to_process(self):
@@ -464,10 +489,24 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
             worker.start()
         else:
             self._backup_ctrl_being_processed = None
-            # update details UI
-            self.details_view.current_item_path = "Done."
             # move on to next backup-job
             self._get_queue().next_backup_job_to_pole_position()
+            # reset details view
+            self.details_view.reset()
+
+    def deleteLater(self):
+        """ ..
+
+        Override.
+        """
+        # disconnect signals
+        for backup_ctrl in self._backup_ctrls_to_process:
+            backup_ctrl.updated_signal.disconnect(self.update_details_view_event)
+        # reset focus back to main view, before deleting (queue focus indicator
+        # would not get deactivated otherwise
+        self._get_queue().main_view.setFocus()
+
+        super(BMQueueJobView, self).deleteLater()
 
     def expand(self):
         """ ..
@@ -529,8 +568,6 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
             index = self._backup_ctrls_to_process.index(self._backup_ctrl_being_processed) + 1
         # update details UI
         if index < len(self._backup_ctrls_to_process):
-            self.details_view.current_item_path = "Pre-Processing %s..."\
-                                                  % (index, )
             backup_ctrl = self._backup_ctrls_to_process[index]
             self._backup_ctrl_being_processed = backup_ctrl
             worker, thread = backup_ctrl.simulate()
@@ -566,6 +603,8 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
                            "border-radius: 3px}"
                            % (bs.config.PALETTE[2], ))
         self._get_queue().focusOutEvent(e)
+        # reset details view
+        self.details_view.reset()
 
     def keyReleaseEvent(self, e):
         """ ..
@@ -596,27 +635,32 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         larger) file). Populates the *details-view* of the *backup-monitor* \
         with details about the last processed file.
         """
-        if e.file_path:
-            self.details_view.current_item_path = "Processing %s..."\
-                                                  % (e.file_path, )
-        else:
+        # CALC DATA
+        current = 0
+        total = 0
+        for backup_ctrl in self._backup_ctrls_to_process:
+            if not backup_ctrl.byte_count_current == None:
+                current += backup_ctrl.byte_count_current
+            if not backup_ctrl.byte_count_total == None:
+                total += backup_ctrl.byte_count_total
+        # all done, reset counts
+        if current == total:
+            for backup_ctrl in self._backup_ctrls_to_process:
+                backup_ctrl.reset()
             current = 0
             total = 0
-            for backup_ctrl in self._backup_ctrls_to_process:
-                if not backup_ctrl.byte_count_current == None:
-                    current += backup_ctrl.byte_count_current
-                if not backup_ctrl.byte_count_total == None:
-                    total += backup_ctrl.byte_count_total
-            # all done, reset counts
-            if current == total:
-                for backup_ctrl in self._backup_ctrls_to_process:
-                    backup_ctrl.reset()
-                current = 0
-                total = 0
-            # update GUI
+        # UPDATE
+        # own progress-bar
+        self.set_progress(current, total)
+        # details view
+        if self.hasFocus():
+            # file-path
+            if e.file_path and\
+                self.details_view.current_item_path != e.file_path:
+                self.details_view.current_item_path = e.file_path
+            # progress-bar
             self.details_view.progress_bar.set_progress(current,
                                                         total)
-            self.set_progress(current, total)
 
 
 class BMDetailsView(QtGui.QWidget):
@@ -629,6 +673,7 @@ class BMDetailsView(QtGui.QWidget):
 
     _current_item_path = None
     _current_item_path_label = None
+    _mutex = None
     _progress_bar = None
 
     def __init__(self, parent):
@@ -636,6 +681,8 @@ class BMDetailsView(QtGui.QWidget):
 
         """
         super(BMDetailsView, self).__init__(parent)
+
+        self._mutex = QtCore.QMutex()
 
         self._init_ui()
 
@@ -655,7 +702,6 @@ class BMDetailsView(QtGui.QWidget):
         self._current_item_path_label.setMinimumWidth(400)
         self._current_item_path_label.setStyleSheet("color: #%s"
                                                     % (bs.config.PALETTE[9], ))
-        self.current_item_path = "C:\\sldkfj"
 
     @property
     def current_item_path(self):
@@ -671,8 +717,10 @@ class BMDetailsView(QtGui.QWidget):
         """ ..
 
         """
+        self._mutex.lock()
         self._current_item_path = arg
         self._current_item_path_label.setText(self._current_item_path)
+        self._mutex.unlock()
 
     @property
     def progress_bar(self):
@@ -681,6 +729,16 @@ class BMDetailsView(QtGui.QWidget):
         :type: :class:`~bs.gui.view_backup_monitor.BMDetailsProgressBarView`
         """
         return self._progress_bar
+
+    def reset(self):
+        """ ..
+
+        Resets (empties) this widgets and its GUI elements.
+        """
+        # empty item-path
+        self.current_item_path = ""
+        # empty progress-bar
+        self._progress_bar.set_progress(0, 0)
 
 
 class BMDetailsProgressBarView(QtGui.QWidget):
@@ -693,11 +751,12 @@ class BMDetailsProgressBarView(QtGui.QWidget):
 
     _bar_bg = None
     _bar_marker = None
-    _bar_capacity_min = None
+    _bar_capacity_min_label = None
     _bar_capacity_max = None
     _bar_capacity_max_label = None
     _bar_capacity_current = None
     _bar_capacity_current_label = None
+    _mutex = None
 
     def __init__(self, parent):
         """ ..
@@ -707,6 +766,7 @@ class BMDetailsProgressBarView(QtGui.QWidget):
 
         self._bar_capacity_current = 0
         self._bar_capacity_max = 0
+        self._mutex = QtCore.QMutex()
 
         self._init_ui()
 
@@ -748,18 +808,19 @@ class BMDetailsProgressBarView(QtGui.QWidget):
                                    % (bs.config.PALETTE[9]))
         # progress bar marker
         self._bar_marker = QtGui.QFrame(self)
-        self._bar_marker.resize(4, 3)
+        self._bar_marker.resize(0, 3)
         self._bar_marker.move(0, 16)
         self._bar_marker.setStyleSheet("background: #%s"
                                        % (bs.config.PALETTE[4]))
         # labels
-        self._bar_capacity_min = QtGui.QLabel("0",
-                                              self)
-        self._bar_capacity_min.setStyleSheet("color: #%s"
+        self._bar_capacity_min_label = QtGui.QLabel(self)
+        self._bar_capacity_min_label.setStyleSheet("color: #%s"
                                              % (bs.config.PALETTE[9]))
-        self._bar_capacity_min.move(0, 0)
-        self._bar_capacity_max_label = QtGui.QLabel(bs.utils.format_data_size(0),
-                                                    self)
+        self._bar_capacity_min_label.move(0, 0)
+        self._bar_capacity_min_label.resize(75, 30)
+        self._bar_capacity_min_label.setAlignment(QtCore.Qt.AlignTop)
+        self._bar_capacity_min_label.setAlignment(QtCore.Qt.AlignLeft)
+        self._bar_capacity_max_label = QtGui.QLabel(self)
         self._bar_capacity_max_label.setStyleSheet("color: #%s"
                                                    % (bs.config.PALETTE[9]))
         self._bar_capacity_max_label.move(600, 0)
@@ -790,9 +851,11 @@ class BMDetailsProgressBarView(QtGui.QWidget):
         else:
             percentage = float(current / total)
         # set marker position
-        x = round(percentage * (self._bar_bg.width() - self._bar_marker.width()))
-        y = self._bar_marker.y()
-        self._bar_marker.move(x, y)
+        w = round(percentage * self._bar_bg.width())
+        h = self._bar_marker.height()
+        self._mutex.lock()
+        self._bar_marker.resize(w, h)
+        self._mutex.unlock()
         # set current percentage position
         if self._bar_marker.x() < 13:
             x = -15
@@ -801,15 +864,23 @@ class BMDetailsProgressBarView(QtGui.QWidget):
         else:
             x = self._bar_marker.x() - 28
         y = self._bar_capacity_current_label.y()
+        self._mutex.lock()
         self._bar_capacity_current_label.move(x, y)
         # update private vars
         if self._bar_capacity_current != current:
             self._bar_capacity_current = current
         if self._bar_capacity_max != total:
             self._bar_capacity_max = total
+        self._mutex.unlock()
         # update labels
-        text_formatted = bs.utils.format_data_size(self._bar_capacity_max)
-        self._bar_capacity_max_label.setText(text_formatted)
-
+        text_formatted_min = "0"
+        text_formatted_max = bs.utils.format_data_size(self._bar_capacity_max)
+        if self._bar_capacity_max == 0:
+            text_formatted_min = ""
+            text_formatted_max = ""
+        self._mutex.lock()
+        self._bar_capacity_min_label.setText(text_formatted_min)
+        self._bar_capacity_max_label.setText(text_formatted_max)
         self._bar_capacity_current_label.setText("%.2f%s"
-                                           % (percentage * 100.00, "%", ))
+                                                 % (percentage * 100.00, "%", ))
+        self._mutex.unlock()

@@ -98,3 +98,84 @@ class WindowBackupMonitor(QtGui.QMainWindow):
         # close itself
         self.close()
         return True
+
+
+class WindowDispatchCheck(QtGui.QDialog):
+    """ ..
+
+    :param bs.ctrl.session.BackupSetCtrl backup_set:
+    :param bs.gui.window_backup_monitor.WindowBackupMonitor backup_set:
+
+    This is a dispatch check GUI that runs several checks before dispatching \
+    the backup-set to the queue for backup and prompts for dispatch parameters.
+    """
+    _backup_set = None
+    _bm_window = None
+    _combo_box_queue = None
+    _layout = None
+
+    def __init__(self, backup_set, bm_window):
+        """ ..
+
+        """
+        super(WindowDispatchCheck, self).__init__()
+
+        self._backup_set = backup_set
+        self._bm_window = bm_window
+        self._init_ui()
+
+    def _init_ui(self):
+        """ ..
+
+        """
+        self._layout = QtGui.QGridLayout(self)
+        # if backup-set already exists in any of the monitor's queues,
+        # deactivate and notify
+        if self._bm_window.view.has_backup_set_in_queues(self._backup_set):
+            msg = "This backup-set is already enqueued."
+            self._layout.addWidget(QtGui.QLabel(msg), 0, 0, 1, 2)
+            btn_ok = QtGui.QPushButton("OK")
+            btn_ok.clicked.connect(self.close)
+            self._layout.addWidget(btn_ok, 1, 1, 1, 1)
+        else:
+            msg = "Please choose a queue to submit the backup-job to."
+            self._layout.addWidget(QtGui.QLabel(msg), 0, 0, 1, 2)
+            # queue
+            self._layout.addWidget(QtGui.QLabel("Queue:"), 1, 0, 1, 1)
+            self._combo_box_queue = QtGui.QComboBox(self)
+            self._combo_box_queue.insertItems(0,
+                                              ["1", "2", "3", "4", "5", "6",
+                                               "7", "8"])
+            self._layout.addWidget(self._combo_box_queue, 1, 1, 1, 1)
+            # OK/Cancel buttons
+            btn_submit = QtGui.QPushButton("&Submit")
+            btn_submit.clicked.connect(self._submit)
+            self._layout.addWidget(btn_submit, 2, 0, 1, 1)
+            btn_cancel = QtGui.QPushButton("&Cancel")
+            btn_cancel.clicked.connect(self.close)
+            self._layout.addWidget(btn_cancel, 2, 1, 1, 1)
+
+        self.exec_()
+
+    def _submit(self):
+        """ ..
+
+        """
+        queue_number = int(self._combo_box_queue.currentText())
+        self._bm_window.show()
+        self._bm_window.view.queues[queue_number - 1].add_backup_job(self._backup_set)
+        self.close()
+
+    def closeEvent(self, e):
+        """ ..
+
+        Override.
+        """
+        self.deleteLater()
+
+    def hideEvent(self, e):
+        """ ..
+
+        Override.
+        """
+        self.deleteLater()

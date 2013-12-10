@@ -47,29 +47,54 @@ class BSFrame(QtGui.QFrame):
 
     @property
     def css(self):
-        """
+        """ ..
         :type: *tuple*
         :permissions: *read/write*
 
         The CSS code assigned to the node. The format of this tuple is as \
         follows:
 
-        argument 1 needs to be of following format:
+        argument 1 needs to have the following format:
 
         .. code-block:: python
 
             (
-                (object,
+                (
+                    object,
                     class_constraint,
                     pattern,
-                    (
-                        (dataset1),
-                        (dataset2),
-                        (dataset3),
-                        (dataset4),
-                        (dataset5),
-                        (dataset6),
-                    ),
+                    {
+                        "has_focus":
+                            {
+                                "enabled":
+                                    (
+                                        (css_str_1_normal, css_str_2_normal, ...),
+                                        (css_str_1_hover, css_str_2_hover, ...),
+                                        (css_str_1_active, css_str_2_active, ...)
+                                    )
+                                "disabled":
+                                    (
+                                        (css_str_1_normal, css_str_2_normal, ...),
+                                        (css_str_1_hover, css_str_2_hover, ...),
+                                        (css_str_1_active, css_str_2_active, ...)
+                                    )
+                            },
+                        "has_no_focus":
+                            {
+                                "enabled":
+                                    (
+                                        (css_str_1_normal, css_str_2_normal, ...),
+                                        (css_str_1_hover, css_str_2_hover, ...),
+                                        (css_str_1_active, css_str_2_active, ...)
+                                    )
+                                "disabled":
+                                    (
+                                        (css_str_1_normal, css_str_2_normal, ...),
+                                        (css_str_1_hover, css_str_2_hover, ...),
+                                        (css_str_1_active, css_str_2_active, ...)
+                                    )
+                            }
+                    },
                 ),
                 ...
             )
@@ -94,14 +119,16 @@ class BSFrame(QtGui.QFrame):
             - dataset1: `("012345", "3px solid green", )`
             - dataset2: `...`
 
-        The six datasets represent the following states, respectively:
+        The three datasets in the "enabled" and "disabled"-keyed tuples are \
+        to hold the parameters for the following states of the widget:
 
-        - normal (in enabled mode)
-        - hover (in enabled mode)
-        - active (in enabled mode)
-        - normal (in disabled mode)
-        - hover (in disabled mode)
-        - active (in disabled mode)
+        - normal
+        - hover
+        - active
+
+        The existence of all dictionary keys and their corresponding values \
+        ("has_focus", "has_no_focus", "enabled", "disabled") is optional and \
+        only needs to be given if necessary.
 
         By the use of this method complex, object-state dependent styles can \
         be easily defined so that multiple nested objects' styles can be \
@@ -111,111 +138,11 @@ class BSFrame(QtGui.QFrame):
 
     @css.setter
     def css(self, arg):
-        out = []
-        for dataset in arg:
-            # extract data
-            obj = dataset[0]
-            class_constraint = dataset[1]
-            pattern = dataset[2]
-            data = dataset[3]
-            # extract stylesheets
-            css_definitions = []
-            for n in data:
-                if not class_constraint is None:
-                    css_definition = "%s%s {" % (class_constraint, str(obj.__class__.__name__), )
-                    css_definition += pattern % n
-                    css_definition += "}"
-                else:
-                    css_definition = pattern % n
-                css_definitions.append(css_definition)
-            out.append((obj, css_definitions, ))
-        self._css = out
-        # set initial style
+        """ ..
+
+        """
+        self._css = arg
         self.setEnabled(self.isEnabled())
-
-    def enterEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Compiles CSS style code-string from self.css and sets css on all
-        nodes saved in self.css.
-        """
-        super(BSFrame, self).enterEvent(e)
-
-        if self.css:
-            if self.isEnabled():
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][1]
-                    obj.setStyleSheet(css_definition)
-            else:
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][4]
-                    obj.setStyleSheet(css_definition)
-
-    def leaveEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Compiles CSS style code-string from self.css and sets css on all
-        nodes saved in self.css.
-        """
-        super(BSFrame, self).leaveEvent(e)
-
-        if self.css:
-            if self.isEnabled():
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][0]
-                    obj.setStyleSheet(css_definition)
-            else:
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][3]
-                    obj.setStyleSheet(css_definition)
-
-    def mousePressEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Compiles CSS style code-string from self.css and sets css on all
-        nodes saved in self.css.
-        """
-        super(BSFrame, self).mousePressEvent(e)
-
-        if self.css:
-            if self.isEnabled():
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][2]
-                    obj.setStyleSheet(css_definition)
-            # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
-
-    def mouseReleaseEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Compiles CSS style code-string from self.css and sets css on all
-        nodes saved in self.css.
-        """
-        super(BSFrame, self).mouseReleaseEvent(e)
-
-        if self.css:
-            if self.isEnabled():
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][1]
-                    obj.setStyleSheet(css_definition)
-            # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
 
     def setEnabled(self, mode=True):
         """ ..
@@ -223,19 +150,29 @@ class BSFrame(QtGui.QFrame):
         :param bool mode:
         :rtype: *void*
 
-        Overrides :meth:`PySide.QtGui.QWidget.setDisabled`; also sets CSS.
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
         """
-        if self.css:
-            if mode:
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][0]
-                    obj.setStyleSheet(css_definition)
-            else:
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][3]
-                    obj.setStyleSheet(css_definition)
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                if self.hasFocus() == True: focus_state = "has_focus"
+                elif self.hasFocus() == False: focus_state = "has_no_focus"
+                if mode == True: enabled_state = "enabled"
+                elif mode == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][0]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
 
         super(BSFrame, self).setEnabled(mode)
 
@@ -245,21 +182,196 @@ class BSFrame(QtGui.QFrame):
         :param bool mode:
         :rtype: *void*
 
-        Overrides :meth:`PySide.QtGui.QWidget.setDisabled`; also sets CSS.
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
         """
-        if self.css:
-            if not mode:
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][0]
-                    obj.setStyleSheet(css_definition)
-            else:
-                for dataset in self.css:
-                    obj = dataset[0]
-                    css_definition = dataset[1][3]
-                    obj.setStyleSheet(css_definition)
+        self.setEnabled(False)
 
-        super(BSFrame, self).setDisabled(mode)
+    def enterEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
+        """
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                if self.hasFocus() == True: focus_state = "has_focus"
+                elif self.hasFocus() == False: focus_state = "has_no_focus"
+                if self.isEnabled() == True: enabled_state = "enabled"
+                elif self.isEnabled() == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][1]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
+
+        super(BSFrame, self).enterEvent(e)
+
+    def focusInEvent(self, e):
+        """ ..
+
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
+        """
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                focus_state = "has_focus"
+                if self.isEnabled() == True: enabled_state = "enabled"
+                elif self.isEnabled() == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][0]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
+
+        super(BSFrame, self).focusInEvent(e)
+
+    def focusOutEvent(self, e):
+        """ ..
+
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
+        """
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                focus_state = "has_no_focus"
+                if self.isEnabled() == True: enabled_state = "enabled"
+                elif self.isEnabled() == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][0]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
+
+        super(BSFrame, self).focusOutEvent(e)
+
+    def leaveEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
+        """
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                if self.hasFocus() == True: focus_state = "has_focus"
+                elif self.hasFocus() == False: focus_state = "has_no_focus"
+                if self.isEnabled() == True: enabled_state = "enabled"
+                elif self.isEnabled() == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][0]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
+
+        super(BSFrame, self).leaveEvent(e)
+
+    def mousePressEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
+        """
+        # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                if self.hasFocus() == True: focus_state = "has_focus"
+                elif self.hasFocus() == False: focus_state = "has_no_focus"
+                if self.isEnabled() == True: enabled_state = "enabled"
+                elif self.isEnabled() == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][2]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
+
+        super(BSFrame, self).mousePressEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        """ ..
+
+        :param PySide.QtCore.QEvent e:
+        :rtype: *void*
+
+        Override. Implements CSS formatting mechanism to style widget \
+        according to its state.
+        """
+        # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
+        if self._css:
+            for dataset in self._css:
+                # grab data from multi-dimensional array...
+                data = None
+                if self.hasFocus() == True: focus_state = "has_focus"
+                elif self.hasFocus() == False: focus_state = "has_no_focus"
+                if self.isEnabled() == True: enabled_state = "enabled"
+                elif self.isEnabled() == False: enabled_state = "disabled"
+                if focus_state in dataset[3].keys() and\
+                    enabled_state in dataset[3][focus_state].keys():
+                    # get appropriate css data
+                    data = dataset[3][focus_state][enabled_state][1]
+                    # render css string
+                    css = dataset[2] % data
+                    if not dataset[1] == None:
+                        css = "%s%s {%s}" % (dataset[1],
+                                             str(dataset[0].__class__.__name__),
+                                             css)
+                    # set stylesheet
+                    dataset[0].setStyleSheet(css)
+
+        super(BSFrame, self).mouseReleaseEvent(e)
 
 
 class BSDraggable(BSFrame):
@@ -895,8 +1007,8 @@ class BSNode(BSDraggable):
     _arrows_outbound = None
     _title_size = None
     _conn_pad = None
-    _custom_contents_container = None # used by custom nodes to place custom contents into
-    _border_hex_orig = None
+    # used by custom nodes to place custom contents into
+    _custom_contents_container = None
 
     def __init__(self, bs, bs_sets_canvas, app, has_conn_pad=False):
         """ ..
@@ -1100,27 +1212,6 @@ class BSNode(BSDraggable):
             self._arrows_outbound.pop(self._arrows_outbound.index(arrow))
         self._bs.set_modified()
 
-    def focusInEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Mark the node visually when focusing in on it.
-        """
-        self._border_hex_orig = re.search("(border\:[0-9a-zA-Z\ ]+\#)([a-zA-Z0-9]{1,6})", self.styleSheet()).group(2)
-        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (bs.config.PALETTE[9], ))
-
-    def focusOutEvent(self, e):
-        """ ..
-
-        :param PySide.QtCore.QEvent e:
-        :rtype: *void*
-
-        Unmark the node visually when focusing out of it.
-        """
-        self.setStyleSheet("BSNode {border: 1px solid #%s}" % (self._border_hex_orig, ))
-
     def keyPressEvent(self, e):
         """ ..
 
@@ -1146,7 +1237,6 @@ class BSNode(BSDraggable):
         """
         super(BSNode, self).mousePressEvent(e)
 
-#        self._mouse_press_global_pos = e.globalPos()
         self.raise_()
 
     def mouseMoveEvent(self, e):
@@ -1186,8 +1276,6 @@ class BSNodeConnPad(QtGui.QFrame):
         self.setMaximumWidth(14)
         self.setMinimumWidth(14)
         self.setStyleSheet(css)
-#         icon.setMinimumSize(QtCore.QSize(14, 14))
-#         self._layout.addWidget(icon, 0, 0, 1, 1)
 
     def mouseMoveEvent(self, e):
         """ ..
@@ -1359,7 +1447,6 @@ class ScrollArea(QtGui.QFrame):
         self._scroll_bar_v.resize(0, 0)
         self._scroll_bar_animation = QtCore.QPropertyAnimation(self, "_scroll_bar_animation_property", self)
         self._scroll_bar_animation.setDuration(200)
-#         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
     @property
     def central_widget(self):

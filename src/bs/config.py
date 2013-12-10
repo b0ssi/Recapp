@@ -22,7 +22,7 @@ import time
 import winreg
 
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.10"
+VERSION = "0.0.3.11"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"
@@ -72,8 +72,6 @@ CSS += "BSSetsCanvas {background: #59554e}"
 CSS += "nothing {background: #6a665d}"
 # background: #c7c7ff
 CSS += "BSNode, BSMenu {background: #c7c7ff}"
-# background: #ffde02
-CSS += "BSTarget {background: #ffde02}"
 # border-radius: 2px
 #CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
 CSS += "BSMenu, BSNodeItem, BSNode {border-radius: 2px}"

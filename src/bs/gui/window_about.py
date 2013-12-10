@@ -53,8 +53,6 @@ class WindowAbout(QtGui.QDialog):
                          self._default_width,
                          self._default_height)
         self.setWindowTitle("About %s" % (bs.config.PROJECT_NAME, ))
-#        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-#        self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.setModal(True)
         self.show()
         ## FILL WITH CONTENTS ##

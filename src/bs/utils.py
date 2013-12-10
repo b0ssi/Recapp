@@ -206,6 +206,30 @@ class HashFile(object):
         self._data_lock = threading.Lock()
         self._status = 1
 
+    def _calc_hash(self):
+        """ ..
+
+        """
+        logging.debug("%s: Hash-calculation started."
+                     % (self.__class__.__name__, ))
+
+        while self._status == 1 or len(self._data) > 0:
+            if len(self._data) > 0:
+                with self._data_lock:
+                    data_block = self._data[0]
+                self._hash_obj.update(data_block)
+                with self._data_lock:
+                    self._data.pop(0)
+                # send signal
+                if self._send_signal_handler:
+                    self._send_signal_handler(event_type="updated",
+                                              byte_count_delta=len(data_block),
+                                              event_source="hash",
+                                              file_path=self._file_path)
+            else:
+                time.sleep(self._sleeping_time)
+        self._hash = self._hash_obj.hexdigest()
+
     def _read_data(self):
         """ ..
 
@@ -228,29 +252,6 @@ class HashFile(object):
                 time.sleep(self._sleeping_time)
         self._status = 0
         f.close()
-
-    def _calc_hash(self):
-        """ ..
-
-        """
-        logging.debug("%s: Hash-calculation started."
-                     % (self.__class__.__name__, ))
-
-        while self._status == 1 or len(self._data) > 0:
-            if len(self._data) > 0:
-                with self._data_lock:
-                    data_block = self._data[0]
-                self._hash_obj.update(data_block)
-                with self._data_lock:
-                    self._data.pop(0)
-                # send signal
-                if self._send_signal_handler:
-                    self._send_signal_handler(event_type="updated",
-                                              byte_count_delta=len(data_block),
-                                              event_source="hash")
-            else:
-                time.sleep(self._sleeping_time)
-        self._hash = self._hash_obj.hexdigest()
 
     def start(self):
         """ * """

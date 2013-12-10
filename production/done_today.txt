@@ -2,8 +2,16 @@
 ## DONE TODAY ##################
 ################################
 
-- thread/worker: hide process method as private member, try to move signal setup-hooks from instantiation code into constructor
-- when already simulating (view_sets) and submitting to  queue, make thread to be delivered to queue and work be picked up from where it is at
+
+2013-12-04
+- details view's details now *all* update on partial update signals (including file-path)
+- backup-job widget: Now updates own progress-bar even if it has not focus
+- BSFrame: css property now handles has-focus and has-no-focus states, updated in all code that uses it
+- backup-procedure: Crash-bugs fixed which seemed to be (in part) triggered by use of non-Qt Signal and lack of thread-safety locks
+
+2013-12-02
+- BackupThreadWorker: cleaned-up
+- When pre-calc on view_sets is running and backup is started, progress is picked up from where it is at and continued (same execution/objects technically)
 
 2013-11-28
 - BackupCtrl:

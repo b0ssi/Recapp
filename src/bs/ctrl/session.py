@@ -20,6 +20,8 @@ This is the *controller* package that contains the application's business \
 logic.
 """
 
+from PySide import QtCore
+
 import binascii
 import bs.config
 import bs.ctrl.backup
@@ -35,6 +37,7 @@ import os
 import random
 import re
 import sqlite3
+import threading
 import time
 import win32file
 
@@ -905,6 +908,8 @@ class BackupSetCtrl(bs.model.models.Sets):
     _backup_targets = None
     _gui_data = None
 
+    _authentication_thread = None
+    _authentication_worker = None
     _backup_ctrls = None
     _is_authenticated = None
     _key_hash_32 = None
@@ -1188,6 +1193,72 @@ class BackupSetCtrl(bs.model.models.Sets):
         if not self in backup_filter.backup_entity_ass.keys():
             backup_filter.backup_entity_ass[self] = []
 
+    def authenticate(self, key_raw):
+        """ ..
+
+        :param str key_raw: The set's password.
+        :rtype: *AuthWorker* (inner class, refer to source-code)
+
+        Returns an ``AuthWorker`` object, which can then be used to \
+        ``start()`` a thread that verifies the login ``key_raw`` and unlocks \
+        the backup-set on success.
+        """
+        class AuthWorker(QtCore.QObject):
+            _backup_set = None
+            _key_raw = None
+            _salt_dk = None
+            _thread = None
+            finished = QtCore.Signal()
+            started = QtCore.Signal()
+
+            def __init__(self, backup_set, key_raw, salt_dk, thread):
+                super(AuthWorker, self).__init__()
+
+                self._backup_set = backup_set
+                self._key_raw = key_raw
+                self._salt_dk = salt_dk
+                self._thread = thread
+
+                self.moveToThread(self._thread)
+                self._thread.started.connect(self.started.emit)
+                self._thread.started.connect(self._process)
+                self._thread.finished.connect(self.finished.emit)
+                self._thread.finished.connect(self._thread.deleteLater)
+
+            def _process(self):
+                # Calculate PBKDF2 ciphers
+                dk_bin = Crypto.Protocol.KDF.PBKDF2(self._key_raw,
+                                                    binascii.unhexlify(self._salt_dk[:128]),
+                                                    dkLen=32,
+                                                    count=16000)
+                # compare hash of entered key against hash_64 in db/on set-obj
+                dk_hex = binascii.hexlify(dk_bin).decode("utf-8")
+                if dk_hex == self._salt_dk[128:]:
+                    self._backup_set._is_authenticated = True
+                    self._backup_set._key_hash_32 = hashlib.sha256(key_raw.encode()).hexdigest()
+                else:
+                    logging.warning("%s: The password is invalid."
+                                    % (self.__class__.__name__, ))
+                self._thread.quit()
+
+            def start(self):
+                self._thread.start()
+
+        if self._authentication_thread == None or\
+            self._authentication_thread.isFinished():
+
+            def reset_refs():
+                self._authentication_thread = None
+
+            self._authentication_thread = QtCore.QThread()
+            self._authentication_thread.finished.connect(reset_refs,
+                                                         QtCore.Qt.QueuedConnection)
+            self._authentication_worker = AuthWorker(self,
+                                                     key_raw,
+                                                     self._salt_dk,
+                                                     self._authentication_thread)
+        return self._authentication_worker
+
     def remove_backup_source(self, backup_source):
         """ ..
 
@@ -1206,7 +1277,8 @@ class BackupSetCtrl(bs.model.models.Sets):
             if not backup_source_in_current_set == backup_source_id:
                 backup_sources_list_new.append(backup_source_in_current_set)
         # update db
-        self._update((("sources", json.dumps(backup_sources_list_new), ), ), (("id", "=", self.backup_set_id, ), ))
+        self._update((("sources", json.dumps(backup_sources_list_new), ), ),
+                     (("id", "=", self.backup_set_id, ), ))
 
     def save_to_db(self):
         """ ..
@@ -1215,9 +1287,11 @@ class BackupSetCtrl(bs.model.models.Sets):
 
         Explicitly commits the source's state to the database.
         """
-        logging.debug("%s: Saving gui_data to db..." % (self.__class__.__name__, ))
+        logging.debug("%s: Saving gui_data to db..."
+                      % (self.__class__.__name__, ))
         # gui_data
-        self._update((("gui_data", json.dumps(self.gui_data)), ), (("id", "=", self.backup_set_id, ), ))
+        self._update((("gui_data", json.dumps(self.gui_data)), ),
+                     (("id", "=", self.backup_set_id, ), ))
         # source_ass
         source_ass = {}
         for backup_source in self.backup_sources:
@@ -1237,7 +1311,8 @@ class BackupSetCtrl(bs.model.models.Sets):
             if associated_objs == []:
                 associated_obj_ids = []
             source_ass[str(backup_source.backup_source_id)] = associated_obj_ids
-        self._update((("source_ass", json.dumps(source_ass)), ), (("id", "=", self.backup_set_id, ), ))
+        self._update((("source_ass", json.dumps(source_ass)), ),
+                     (("id", "=", self.backup_set_id, ), ))
         # filter_ass
         filter_ass = {}
         for backup_filter in self.backup_filters:
@@ -1257,31 +1332,11 @@ class BackupSetCtrl(bs.model.models.Sets):
             if associated_objs == []:
                 associated_obj_ids = []
             filter_ass[str(backup_filter.backup_filter_id)] = associated_obj_ids
-        self._update((("filter_ass", json.dumps(filter_ass)), ), (("id", "=", self.backup_set_id, ), ))
-        logging.debug("%s: gui_data successfully saved to db." % (self.__class__.__name__, ))
+        self._update((("filter_ass", json.dumps(filter_ass)), ),
+                     (("id", "=", self.backup_set_id, ), ))
+        logging.debug("%s: gui_data successfully saved to db."
+                      % (self.__class__.__name__, ))
         return True
-
-    def authenticate(self, key_raw):
-        """ ..
-
-        :param str key_raw: The set's password key.
-        :rtype: *void*
-
-        Authenticates user with the backup-set and unlocks it.
-        """
-        # Calculate PBKDF2 ciphers
-        dk_bin = Crypto.Protocol.KDF.PBKDF2(key_raw,
-                                            binascii.unhexlify(self.salt_dk[:128]),
-                                            dkLen=32,
-                                            count=64000)
-        # compare hash of entered key against hash_64 in db/on set-obj
-        dk_hex = binascii.hexlify(dk_bin).decode("utf-8")
-        if dk_hex == self.salt_dk[128:]:
-            self._is_authenticated = True
-            self._key_hash_32 = hashlib.sha256(key_raw.encode()).hexdigest()
-        else:
-            logging.warning("%s: The password is invalid."
-                            % (self.__class__.__name__, ))
 
 
 class BackupSetsCtrl(bs.model.models.Sets):
@@ -2397,7 +2452,7 @@ class SessionCtrl(object):
 
 
 class SessionsCtrl(object):
-    """
+    """ x
     :param bool gui_mode: Indicated whether or not to run the application \
     with a graphical user interface. If set to *False* it will be run from \
     the console.
@@ -2524,6 +2579,17 @@ class SessionsCtrl(object):
                              % (self.__class__.__name__, ))
                 return False
 
+    def add_session_gui(self):
+        """ ..
+
+        :rtype: :class:`~bs.ctrl.session.SessionGuiCtrl`
+
+        Adds a new UI instance to host a separate *gui-session*.
+        """
+        session_gui = SessionGuiCtrl(self, self._app)
+        self._guis.append(session_gui)
+        return session_gui
+
     def remove_session(self, session):
         """ ..
 
@@ -2543,17 +2609,6 @@ class SessionsCtrl(object):
             logging.warning("%s: The session does not exist: %s"
                             % (self.__class__.__name__, session, ))
 
-    def add_session_gui(self):
-        """ ..
-
-        :rtype: :class:`~bs.ctrl.session.SessionGuiCtrl`
-
-        Adds a new UI instance to host a separate *gui-session*.
-        """
-        session_gui = SessionGuiCtrl(self, self._app)
-        self._guis.append(session_gui)
-        return session_gui
-
     def remove_session_gui(self, session_gui):
         """ ..
 
@@ -2566,6 +2621,23 @@ class SessionsCtrl(object):
         done after a GUI window is being closed.
         """
         self._guis.pop(self._guis.index(session_gui))
+        return True
+
+    def request_exit(self):
+        """ ..
+
+        :rtype: *bool*
+
+        Executes exit calls to related objects and forwards request to all \
+        children.
+        """
+        # request exit for all children
+        for child in self.children():
+            try:
+                if not child.request_exit():
+                    return False
+            except AttributeError as e:
+                pass
         return True
 
 

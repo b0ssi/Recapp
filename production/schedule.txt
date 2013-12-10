@@ -8,9 +8,9 @@
 - clean-up
 	- sort fields/methods alphabetically
 	- add new modules/packages/classes/functions to docs
-	- check docstrings for validity (params, (r)types, description)
+		+ check docstrings for validity (params, (r)types, description)
 	- clean-up dev comments, tests, commented-out elements
-	- clean-up warnings/long lines
+		+ clean-up warnings/long lines
 - update documentation
 - reset day-modification marks (".. x" -> "..")
 - increment version number
@@ -235,17 +235,17 @@
 				[ ]	restrict control of backup-jobs to logged in users only
 				[X]	link up backup controller with details UI/progress, etc.
 			[X]	make UIs loop through all BackupCtrl that are processed
-			[ ]	Extend/test parallel operation of queues
-				[ ]	backupJobView
-					[ ]	implement method that
+			[.]	Extend/test parallel operation of queues
+				[.]	backupJobView
+					[.]	implement method that
 						[ ]	activates specific details view (backup, restore, etc. for future)
-						[ ]	Connects/disconnects signals accordingly
+						[X]	Connects/disconnects signals accordingly
 				[ ]	detailsView
 					[ ]	log window (tab?)
 				[ ]	backupCtrl
 					[ ]	use self._mode or self._thread.*signals/isRunning() to protect UIs on initialization/activation so that new process on backupCtrl can't be started when one already runs
 					[ ]	implement pause/resume/stop(cancel) method, implement into GUI
-						[ ]	Make sure data gets commited to db before (pausing/)stopping
+						[ ]	Make sure data gets committed to db before (pausing/)stopping
 					[ ] _execute
 						[ ]	implement file-list that gets built on simulate and iterated through on backup (avoid double hashing, ...)
 							[ ]	handle changed state of files
