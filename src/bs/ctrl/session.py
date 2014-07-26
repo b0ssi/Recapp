@@ -1,19 +1,6 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-###############################################################################
-##    session                                                                ##
-###############################################################################
-###############################################################################
-##    Author:         Bossi                                                  ##
-##                    © 2013 All rights reserved                             ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Mar 9, 2013                                            ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
 """ ..
 
 This is the *controller* package that contains the application's business \
@@ -34,12 +21,14 @@ import hashlib
 import json
 import logging
 import os
+import platform
 import random
 import re
 import sqlite3
 import threading
 import time
-import win32file
+if platform.system().startswith("win"):
+    import win32file
 
 
 class BackupFilterCtrl(bs.model.models.Filters):
@@ -2010,7 +1999,7 @@ class BackupTargetCtrl(bs.model.models.Targets):
         Returns physical path that currently points to the target.
         """
         out = []
-        for drive_root_path in bs.utils.get_drives((win32file.DRIVE_FIXED, )):
+        for drive_root_path in bs.utils.get_drives(("fixed", )):
             target_config_file_path = os.path.join(drive_root_path,
                                                    bs.config.PROJECT_NAME,
                                                    "volume.json")
@@ -2025,17 +2014,17 @@ class BackupTargetCtrl(bs.model.models.Targets):
                 f.close()
         # out
         if len(out) > 1:
-            logging.critical("%s: More than one drive carry the same ID. "\
-                            "Please make sure there are no duplicates on the "\
-                            "system: %s" % (self.__class__.__name__,
-                                            out, ))
+            logging.critical("%s: More than one drive carry the same ID. "
+                             "Please make sure there are no duplicates on the "
+                             "system: %s" % (self.__class__.__name__,
+                                             out, ))
             raise SystemExit
         elif len(out) == 0:
-            logging.info("%s: The physical location of this target could "\
-                            "not be found. The volume is probably offline "\
-                            " (target_device_id: %s)"
-                            % (self.__class__.__name__,
-                               self._target_device_id, ))
+            logging.info("%s: The physical location of this target could "
+                         "not be found. The volume is probably offline "
+                         " (target_device_id: %s)"
+                         % (self.__class__.__name__,
+                            self._target_device_id, ))
             return ""
         else:
             return out[0]

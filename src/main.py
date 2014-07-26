@@ -1,21 +1,9 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-###############################################################################
-##    main                                                                   ##
-###############################################################################
-###############################################################################
-##    Author:         Bossi                                                  ##
-##                    © 2012 All rights reserved                             ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Mar 9, 2013                                            ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
 """ ..
 
+The main module that initiates the application.
 """
 
 from PySide import QtGui
@@ -41,37 +29,30 @@ for arg in sys.argv:
         dev_mode = True
 
 
-# logging
-logging_level = logging.DEBUG
-logging_filename = bs.config.LOGFILE_PATH
-if dev_mode:
-    logging_level = logging.WARNING
-    logging_filename = False
-#logger = logging.Logger('root')
-logging.basicConfig(format="%(asctime)s %(levelname)s: \t%(message)s [Module: %(module)s, Line: %(lineno)s, Method: %(funcName)s]",
-                    level=logging_level,
-                    filename=logging_filename,
-                    datefmt="%Y-%m-%d %H:%M:%S")
-
 if __name__ == '__main__':
     """ * """
-    ## INITIAL CHECKS ##
+    # --------------------------------------------------- INITIAL PRE-LOG CHECKS
     if gui_mode:
-        # check DB existence/validity
         errors_acc = []
-        if os.path.isfile(bs.config.CONFIGDB_PATH):
-            f = open(bs.config.CONFIGDB_PATH, 'rb')
-            if os.path.getsize(bs.config.CONFIGDB_PATH) < 100 or\
-                f.read(16) != b"SQLite format 3\x00":
-                error_msg = "The file is not a valid SQLite3 database: "\
-                            "%s" % (bs.config.CONFIGDB_PATH, )
-                errors_acc.append(error_msg)
-                logging.critical("%s" % (error_msg, ))
+        # create/check configuration directory
+        if os.path.exists(bs.config.CONFIG_PATH):
+            if not os.path.isdir(bs.config.CONFIG_PATH):
+                errors_acc.append("The location %s uses to store its "
+                                  "configuration seems to be occupied by "
+                                  "another object. Please make sure this "
+                                  "location is available or is a folder: %s"
+                                  % (bs.config.PROJECT_NAME,
+                                     bs.config.CONFIG_PATH, ))
         else:
-            error_msg = "No application-database was found at %s." \
-                        % (bs.config.CONFIGDB_PATH, )
-            errors_acc.append(error_msg)
-            logging.critical("%s" % (error_msg, ))
+            try:
+                os.makedirs(bs.config.CONFIG_PATH)
+            except Exception as e:
+                errors_acc.append("An error occurred when trying to create "
+                                  "the default configuration directory, "
+                                  "please make sure the location is "
+                                  "writable: %s"
+                                  % (bs.config.CONFIG_PATH, ))
+        # output warning
         if len(errors_acc) > 0:
             app = QtGui.QApplication("preliminary_check")
             out = "Error(s) were detected when initializing %s:\n\n" \
@@ -80,15 +61,76 @@ if __name__ == '__main__':
                 out += "> " + errors_acc[i] + "\n"
             msg_window = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error",
                                            out)
-            app.setWindowIcon(QtGui.QIcon("img\\recapp_emblem_noname.png"))
-            msg_window.exec_()
+            app.setWindowIcon(QtGui.QIcon("img/recapp_emblem_noname.png"))
+            msg_window.show()
+            app.exec_()
+            sys.exit()
+    if dev_mode:
+        pass
+    # ------------------------------------------------------------------- LOGGER
+    logging_level = logging.DEBUG
+    logging_filename = bs.config.LOGFILE_PATH
+    if dev_mode:
+        logging_level = logging.WARNING
+        logging_filename = False
+    # logger = logging.Logger('root')
+    logging.basicConfig(format="%(asctime)s %(levelname)s: \t%(message)s [Module: %(module)s, Line: %(lineno)s, Method: %(funcName)s]",
+                        level=logging_level,
+                        filename=logging_filename,
+                        datefmt="%Y-%m-%d %H:%M:%S")
+    # -------------------------------------------------- INITIAL POST-LOG CHECKS
+    if gui_mode:
+        # check DB existence/validity
+        errors_acc = []
+        if os.path.isfile(bs.config.CONFIGDB_PATH):
+            f = open(bs.config.CONFIGDB_PATH, 'rb')
+            if (os.path.getsize(bs.config.CONFIGDB_PATH) < 100 or
+                    f.read(16) != b"SQLite format 3\x00"):
+                error_msg = "The file is not a valid SQLite3 database: "\
+                            "%s" % (bs.config.CONFIGDB_PATH, )
+                errors_acc.append(error_msg)
+                logging.critical("%s" % (error_msg, ))
+        else:
+            error_msg = "No application-database was found at %s" \
+                        % (bs.config.CONFIGDB_PATH, )
+            errors_acc.append(error_msg)
+            logging.critical("%s" % (error_msg, ))
+        # create/check configuration directory
+        if os.path.exists(bs.config.CONFIG_PATH):
+            if not os.path.isdir(bs.config.CONFIG_PATH):
+                errors_acc.append("The location %s uses to store its "
+                                  "configuration seems to be occupied by "
+                                  "another object. Please make sure this "
+                                  "location is available: %s"
+                                  % (bs.config.PROJECT_NAME,
+                                     bs.config.CONFIG_PATH, ))
+        else:
+            try:
+                os.makedirs(bs.config.CONFIG_PATH)
+            except Exception as e:
+                errors_acc.append("An error occurred when trying to create "
+                                  "the default configuration directory, "
+                                  "please make sure the location is "
+                                  "writable: %s"
+                                  % (bs.config.CONFIG_PATH, ))
+        # output warning
+        if len(errors_acc) > 0:
+            app = QtGui.QApplication("preliminary_check")
+            out = "Error(s) were detected when initializing %s:\n\n" \
+                  % (bs.config.PROJECT_NAME, )
+            for i in range(len(errors_acc)):
+                out += "> " + errors_acc[i] + "\n"
+            msg_window = QtGui.QMessageBox(QtGui.QMessageBox.Critical, "Error",
+                                           out)
+            app.setWindowIcon(QtGui.QIcon("img/recapp_emblem_noname.png"))
+            msg_window.show()
             app.exec_()
             sys.exit()
     if dev_mode:
         # sync db
         sync_db = bs.ctrl._db.SyncDb("bs.model.models")
         sync_db.sync()
-    # init sessions
+    # ------------------------------------------------------------ init sessions
     sessions = bs.ctrl.session.SessionsCtrl(gui_mode)
 
 # # PREP

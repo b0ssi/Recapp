@@ -1,39 +1,56 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-###############################################################################
-##    config.py                                                              ##
-###############################################################################
-###############################################################################
-##    Author:         Frieder Czeschla                                       ##
-##                    © 2012 All rights reserved                             ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Nov 24, 2012                                           ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
+""" ..
 
-""" * """
+This module contains the global configuration.
+"""
 
+import json
+import platform
 import os
+import sys
 import time
-import winreg
+if platform.system().startswith("win"):
+    import winreg
 
+# --------------------------------------------------------------- Generated Data
+bs_config_path = os.path.realpath("bs/config.json")
+# store data in JSON
+if "-dev" in sys.argv:
+    json_obj = {}
+    json_obj["BUILD_TIMESTAMP"] = time.time()
+
+    f = open(bs_config_path, "w")
+    json.dump(json_obj, f)
+    f.close()
+
+# ---------------------------------------------------------- read data from JSON
+d = {}
+if os.path.isfile(bs_config_path):
+    f = open(bs_config_path, "r")
+    d = json.load(f)
+    f.close()
+BUILD_TIMESTAMP = d.get("BUILD_TIMESTAMP", 0)
+
+## Static Data
 PROJECT_NAME = "Recapp"
 VERSION = "0.0.3.11"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"
 MANUFACTURER = "Isotoxin"
+FQP = "de.isotoxin.recapp"
 
 # create config dir
-# true for Win >= Vista
-CONFIG_PATH = os.path.join(os.getenv("PROGRAMDATA"), MANUFACTURER, PROJECT_NAME)
-if not os.path.isdir(CONFIG_PATH):
-    # Cater for WinXP
-    CONFIG_PATH = os.path.join(os.getenv("ALLUSERSPROFILE"), "Application Data", MANUFACTURER, PROJECT_NAME)
+if platform.system().startswith("win"):
+    # true for Win >= Vista
+    CONFIG_PATH = os.path.join(os.getenv("PROGRAMDATA"), FQP)
+    if not os.path.isdir(CONFIG_PATH):
+        # Cater for WinXP
+        CONFIG_PATH = os.path.join(os.getenv("ALLUSERSPROFILE"), "Application Data", FQP)
+else:
+    CONFIG_PATH = os.path.join(os.path.expanduser("~"), "." + FQP)
 
 LOGFILE_PATH = os.path.join(CONFIG_PATH, "log.log")
 CONFIGDB_PATH = os.path.join(CONFIG_PATH, "globalConfig.sqlite")
@@ -73,7 +90,7 @@ CSS += "nothing {background: #6a665d}"
 # background: #c7c7ff
 CSS += "BSNode, BSMenu {background: #c7c7ff}"
 # border-radius: 2px
-#CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
+# CSS += "BSMenuSetsItem, BSMenuSets {border-radius: 2px}"
 CSS += "BSMenu, BSNodeItem, BSNode {border-radius: 2px}"
 # color: #33312d
 CSS += "nothing {color: #33312d}"

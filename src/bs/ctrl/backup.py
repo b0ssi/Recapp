@@ -1,18 +1,6 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
-###############################################################################
-##    bs.ctrl.backup                                                         ##
-###############################################################################
-###############################################################################
-##    Author:         Bossi                                                  ##
-##                    © 2013 All rights reserved                             ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Apr 12, 2013                                           ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
+
 """ ..
 
 Hosts all backup- and restore-logics and procedures.
@@ -710,15 +698,15 @@ class BackupCtrl(QtCore.QObject):
         conn.execute("CREATE TABLE IF NOT EXISTS atime (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS ctime (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS inode (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "\
-                                                        "path TEXT UNIQUE, "\
-                                                        "ctime REAL, "\
-                                                        "mtime REAL, "\
-                                                        "atime REAL, "\
-                                                        "inode INTEGER, "\
-                                                        "size INTEGER, "\
-                                                        "sha512 TEXT,"\
-                                                        "backup_archive_name TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "
+                                                         "path TEXT UNIQUE, "
+                                                         "ctime REAL, "
+                                                         "mtime REAL, "
+                                                         "atime REAL, "
+                                                         "inode INTEGER, "
+                                                         "size INTEGER, "
+                                                         "sha512 TEXT, "
+                                                         "backup_archive_name TEXT)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS lookup_path ON lookup (path)")
         conn.execute("CREATE TABLE IF NOT EXISTS mtime (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS online (id INTEGER PRIMARY KEY)")

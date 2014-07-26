@@ -1,0 +1,8 @@
+2 Things (and more):
+
+> get all licenses into installer
+	pyside:		LGPL
+	http://cx-freeze.readthedocs.org/en/latest/license.html
+	http://en.wikipedia.org/wiki/Python_Software_Foundation_License
+	http://docs.python.org/3/license.html
+	http://en.wikipedia.org/wiki/LGPL

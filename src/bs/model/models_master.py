@@ -1,19 +1,5 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
-
-###############################################################################
-##    models_master                                                          ##
-###############################################################################
-###############################################################################
-##    Author:         Bossi                                                  ##
-##                    Â© 2013 All rights reserved                            ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Mar 16, 2013                                           ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
 
 """
 This package contains the master-superclass(es) for all models used in \
@@ -115,8 +101,8 @@ class BSModel(object):
                 return False
         # VALIDATE DATA
         # columns
-        if not isinstance(columns, str) or \
-            not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns):
+        if (not isinstance(columns, str) or
+                not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns)):
             logging.critical("%s: ValueError: Attribute 1 is in invalid "\
                              "format. Valid syntax: "\
                              "(<value1>[, <value2>]...), where values need "\
@@ -133,7 +119,7 @@ class BSModel(object):
                              % (self.__class__.__name__, ))
             raise SystemExit()
         logging.debug("%s: Saving data to database..."
-                     % (self.__class__.__name__))
+                      % (self.__class__.__name__))
         # WRITE DATA TO DATABASE
         try:
             conn = sqlite3.connect(bs.config.CONFIGDB_PATH)

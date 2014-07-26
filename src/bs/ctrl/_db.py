@@ -1,19 +1,5 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
-
-###############################################################################
-##    _db                                                                    ##
-###############################################################################
-###############################################################################
-##    Author:         Bossi                                                  ##
-##                    © 2013 All rights reserved                             ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Mar 9, 2013                                            ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
 
 """
 This package manages and maintains the application's database(s). Current \
@@ -230,8 +216,8 @@ class SyncDb(object):
                                                   (("INTEGER", ), "PRIMARY KEY", ),
                                                   )
                     if len(class_attribute_value) > 1:
-                        if class_attribute_value[1] not in [x[1] for x in allowed_values_constraints] or \
-                            class_attribute_value[0] not in [x[0] for x in allowed_values_constraints if x[1] == class_attribute_value[1]][0]:
+                        if (class_attribute_value[1] not in [x[1] for x in allowed_values_constraints] or
+                                class_attribute_value[0] not in [x[0] for x in allowed_values_constraints if x[1] == class_attribute_value[1]][0]):
                             logging.critical("The attribute '%s' on model "\
                                              "'%s' has an invalid constraint "\
                                              "defined (for data-type '%s'), "\

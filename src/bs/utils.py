@@ -1,27 +1,23 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
+
+""" ..
+
+This module contains global utility classes and function.
+"""
+
 import copy
 import hashlib
 import logging
+import platform
+import re
+import subprocess
 import threading
 import time
-import win32file
 
-###############################################################################
-##    utils                                                                  ##
-###############################################################################
-###############################################################################
-##    Author:         Bossi                                                  ##
-##                    © 2013 All rights reserved                             ##
-##                    www.isotoxin.de                                        ##
-##                    frieder.czeschla@isotoxin.de                           ##
-##    Creation Date:  Mar 12, 2013                                           ##
-##    Version:        0.0.000000                                             ##
-##                                                                           ##
-##    Usage:                                                                 ##
-##                                                                           ##
-###############################################################################
 
-""" * """
+if platform.system().startswith("win"):
+    import win32file
 
 
 class Signal(object):
@@ -298,8 +294,8 @@ def format_data_size(size, lock_to=None):
     """
     # format byte-size
     for x in ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]:
-        if x == lock_to or \
-            size < 1024.0:
+        if (x == lock_to or
+                size < 1024.0):
             return "%3.2f %s" % (size, x, )
         size /= 1024.0
     return "%3.1f%s" % (size, 'YiB')
@@ -308,8 +304,15 @@ def format_data_size(size, lock_to=None):
 def get_drives(drive_types, ignore_a=True):
     """ ..
 
-    :param list drive_types: The drive-types to list. Valid enum members are:
+    :param list drive_types: The drive-types to list. Valid values are:
 
+        - cdrom
+        - fixed
+        - no_root_dir
+        - ramdisk
+        - remote
+        - removable
+        - unknown
         - win32file.DRIVE_CDROM
         - win32file.DRIVE_FIXED
         - win32file.DRIVE_NO_ROOT_DIR
@@ -332,22 +335,20 @@ def get_drives(drive_types, ignore_a=True):
         check = True
     else:
         for drive_type in drive_types:
-            if not drive_type in [win32file.DRIVE_CDROM,
-                                  win32file.DRIVE_FIXED,
-                                  win32file.DRIVE_NO_ROOT_DIR,
-                                  win32file.DRIVE_RAMDISK,
-                                  win32file.DRIVE_REMOTE,
-                                  win32file.DRIVE_REMOVABLE,
-                                  win32file.DRIVE_UNKNOWN]:
+            if drive_type not in ["cdrom",
+                                  "fixed",
+                                  "no_root_dir",
+                                  "ramdisk",
+                                  "remote",
+                                  "removable",
+                                  "unknown"]:
                 check = True
     if check:
-        logging.warning("`drive_types` needs to be a list of "\
-                        "`win32file.DRIVE_*` constants.")
+        logging.warning("`drive_types` has invalid type and/or value.")
         return False
 
     # scan drives-letters, assemble requested drive-root-paths
-    drive_letters = [
-                     "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
+    drive_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K",
                      "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
                      "W", "X", "Y", "Z"
                      ]
@@ -356,9 +357,31 @@ def get_drives(drive_types, ignore_a=True):
     if ignore_a:
         drive_letters.pop(0)
     out = []
-    for drive_letter in drive_letters:
-        drive_letter += ":\\"
-        if win32file.GetDriveTypeW(drive_letter) in drive_types:
-            out.append(drive_letter)
-    # out
+    # win
+    if platform.system() == "Windows":
+        drive_types_win = []
+        for drive_type_win in drive_types:
+            if drive_type_win == "cdrom":
+                drive_types_win.append(win32file.DRIVE_CDROM)
+            if drive_type_win == "fixed":
+                drive_types_win.append(win32file.DRIVE_FIXED)
+            if drive_type_win == "no_root_dir":
+                drive_types_win.append(win32file.DRIVE_NO_ROOT_DIR)
+            if drive_type_win == "ramdisk":
+                drive_types_win.append(win32file.DRIVE_RAMDISK)
+            if drive_type_win == "remote":
+                drive_types_win.append(win32file.DRIVE_REMOTE)
+            if drive_type_win == "removable":
+                drive_types_win.append(win32file.DRIVE_REMOVABLE)
+            if drive_type_win == "unknown":
+                drive_types_win.append(win32file.DRIVE_UNKNOWN)
+        for drive_letter in drive_letters:
+            drive_letter += ":\\"
+            if win32file.GetDriveTypeW(drive_letter) in drive_types_win:
+                out.append(drive_letter)
+    # linux
+    elif platform.system() == "Linux":
+        rtn = subprocess.check_output(['mount']).decode(encoding="utf-8")
+        rtn = re.split("( )+", rtn)
+        out = [x for x in rtn if re.match("^/", x)]
     return out
