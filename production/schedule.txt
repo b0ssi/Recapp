@@ -171,7 +171,7 @@
 		[X]	basic login-view
 		[.]	basic set-management view
 			[.]	list widget for sets
-				[ ]	ability to create a new set
+				[...]	ability to create a new set
 				[X]	ability to delete an existing set
 				[X]	edit an existing set
 					[X]	add an existing unused source
@@ -285,7 +285,7 @@
 		........................
 [ ]	File-Backup
 		[ ]	Implement sidecart-metadata files for backed-up datastreams
-[ ]		views:
+[ ]	views:
 		[ ]	basic set-management view
 			[ ]	details widget to visualize/edit/execute etc. sets
 				[ ]	sources
@@ -296,6 +296,7 @@
 					[ ]	ability to add a target (will require full mirroring of existing target backup data onto new target)
 					[ ]	ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
 				[ ]	execution-panel...
+				[ ]	Set-save: Optimize
 ................................
 [ ]		Q/A
 		........................
