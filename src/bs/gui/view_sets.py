@@ -1473,14 +1473,14 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         self._backup_set = backup_set
         self._backup_ctrl = self._backup_set.backup_ctrls[self._backup_entity]
 
-        self._backup_ctrl.finished_signal.connect(self._finished_signal.emit)
-        self._backup_ctrl.updated_signal.connect(self._updated_signal.emit)
-        self._updated_signal.connect(self.update_ui,
-                                     QtCore.Qt.QueuedConnection)
-        self._finished_signal.connect(self.update_ui,
-                                      QtCore.Qt.QueuedConnection)
-        self._finished_signal.connect(self.setEnabled,
-                                      QtCore.Qt.QueuedConnection)
+#         self._backup_ctrl.finished_signal.connect(self._finished_signal.emit)
+#         self._backup_ctrl.updated_signal.connect(self._updated_signal.emit)
+#         self._updated_signal.connect(self.update_ui,
+#                                      QtCore.Qt.QueuedConnection)
+#         self._finished_signal.connect(self.update_ui,
+#                                       QtCore.Qt.QueuedConnection)
+#         self._finished_signal.connect(self.setEnabled,
+#                                       QtCore.Qt.QueuedConnection)
 
         self._init_ui()
 
@@ -1535,11 +1535,11 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
         Override.
         """
-        self._backup_ctrl.finished_signal.disconnect(self._finished_signal.emit)
-        self._backup_ctrl.updated_signal.disconnect(self._updated_signal.emit)
-        self._updated_signal.disconnect(self.update_ui)
-        self._finished_signal.disconnect(self.update_ui)
-        self._finished_signal.disconnect(self.setEnabled)
+#         self._backup_ctrl.finished_signal.disconnect(self._finished_signal.emit)
+#         self._backup_ctrl.updated_signal.disconnect(self._updated_signal.emit)
+#         self._updated_signal.disconnect(self.update_ui)
+#         self._finished_signal.disconnect(self.update_ui)
+#         self._finished_signal.disconnect(self.setEnabled)
 
         super(BSSourceItem, self).deleteLater()
 
