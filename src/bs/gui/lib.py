@@ -20,7 +20,7 @@ class BSFrame(QtGui.QFrame):
     :param PySide.QtGui.QWidget parent:
 
     This is a stylizable superclass that features a few extra methods for \
-    easy CSS stye management across multiple states/events, visual control \
+    easy CSS style management across multiple states/events, visual control \
     of enabled/disabled node state etc.
     """
 

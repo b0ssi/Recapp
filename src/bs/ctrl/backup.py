@@ -17,6 +17,7 @@ import getpass
 import hashlib
 import logging
 import os
+import platform
 import re
 import sqlite3
 import tempfile
@@ -451,11 +452,40 @@ class BackupCtrl(QtCore.QObject):
                                            combinations,
                                            file_obj.path, ))
                     if combinations == "10000":
-                        # ERROR: inode same but ctime changed
-                        logging.warning("%s: Unhandled combination: %s: %s"
-                                        % (self.__class__.__name__,
-                                           combinations,
-                                           file_obj.path, ))
+                        # Everything changed except for inode/path.
+                        #
+                        # CONFIRM: LEFT AS BAD: Under Windows this would mean
+                        # that previously existing file had been moved away and
+                        # back again, modified, accessed and changed in size.
+                        #
+                        # Under Linux the file would not have to be moved since
+                        # ctime/mtime both update on file change.
+                        if platform.system() == "Linux":
+                            logging.info("%s: OK: %s: %s"
+                                         % (self.__class__.__name__,
+                                            combinations,
+                                            file_obj.path, ))
+                            # BACKUP
+                            sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                            if len(conn.execute(sql,
+                                                (file_obj.sha512, )).fetchall()
+                                   ) == 0:
+                                file_requires_backup = True
+                            # Update DB
+                            if self._mode == self.MODE_BACKUP:
+                                data_to_update_in_db_kwargs["entity_id"] = entity_id
+                                data_to_update_in_db_kwargs["file_ctime"] = file_obj.ctime
+                                data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                                data_to_update_in_db_kwargs["file_atime"] = file_obj.atime
+                                data_to_update_in_db_kwargs["file_size"] = file_obj.size
+                                if entity_sha512 != file_obj.sha512:
+                                    data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                                    data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
+                        elif platform.system() == "Windows":
+                            logging.warning("%s: Unhandled combination: %s: %s"
+                                            % (self.__class__.__name__,
+                                               combinations,
+                                               file_obj.path, ))
                     if combinations == "10001":
                         # ERROR: inode same but ctime changed
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -463,11 +493,38 @@ class BackupCtrl(QtCore.QObject):
                                            combinations,
                                            file_obj.path, ))
                     if combinations == "10010":
-                        # ERROR: inode same but ctime changed
-                        logging.warning("%s: Unhandled combination: %s: %s"
-                                        % (self.__class__.__name__,
-                                           combinations,
-                                           file_obj.path, ))
+                        # ctime, mtime, size changed.
+                        #
+                        # On Windows this is bad - ctime does not change on file
+                        # change.
+                        #
+                        # On Linux ctime (and mtime) are updated when file is
+                        # changed.
+                        if platform.system() == "Linux":
+                            logging.info("%s: OK: %s: %s"
+                                         % (self.__class__.__name__,
+                                            combinations,
+                                            file_obj.path, ))
+                            # BACKUP
+                            sql = "SELECT sha512 FROM sha512_index WHERE sha512 = ?"
+                            if len(conn.execute(sql,
+                                                (file_obj.sha512, )).fetchall()
+                                   ) == 0:
+                                file_requires_backup = True
+                            # Update DB
+                            if self._mode == self.MODE_BACKUP:
+                                data_to_update_in_db_kwargs["entity_id"] = entity_id
+                                data_to_update_in_db_kwargs["file_ctime"] = file_obj.ctime
+                                data_to_update_in_db_kwargs["file_mtime"] = file_obj.mtime
+                                data_to_update_in_db_kwargs["file_size"] = file_obj.size
+                                if entity_sha512 != file_obj.sha512:
+                                    data_to_update_in_db_kwargs["file_sha512"] = file_obj.sha512
+                                    data_to_update_in_db_kwargs["backup_archive_name"] = file_obj.current_backup_archive_name
+                        elif platform.system() == "Windows":
+                            logging.warning("%s: Unhandled combination: %s: %s"
+                                            % (self.__class__.__name__,
+                                               combinations,
+                                               file_obj.path, ))
                     if combinations == "10011":
                         # ERROR: inode same but ctime changed
                         logging.warning("%s: Unhandled combination: %s: %s"
@@ -1119,10 +1176,11 @@ class BackupFileCtrl(object):
         self._path = os.path.realpath(file_path)
         self._targets = targets
         # get file stats
+        round_to = 1
         stat = os.stat(self._path)
-        self._ctime = stat.st_ctime
-        self._mtime = stat.st_mtime
-        self._atime = stat.st_atime
+        self._ctime = round(stat.st_ctime, round_to)
+        self._mtime = round(stat.st_mtime, round_to)
+        self._atime = round(stat.st_atime, round_to)
         self._inode = stat.st_ino
         self._size = stat.st_size
         self._tmp_dir = tmp_dir

@@ -2,6 +2,10 @@
 ## DONE TODAY ##################
 ################################
 
+2014-08-04
+- adds some details to README
+- file timestamps now get rounded to n positions after the fp (set it to 1 for now) to fix precision conflicts across different file systems/db precision
+- a few filestat combinations at backup time get handled differently on linux due to linux's different policies of setting timestamps (compared to windows)
 
 2013-12-04
 - details view's details now *all* update on partial update signals (including file-path)
