@@ -36,7 +36,7 @@ class SyncDb(object):
         try:
             self._models_module = importlib.import_module(str(schema_package_path))
         except SyntaxError as e:
-            logging.critical("The models schema contains errors, %s needs to "\
+            logging.critical("The models schema contains errors, %s needs to "
                              "quit: %s" % (bs.config.PROJECT_NAME, e))
             raise SystemExit()
 
@@ -53,7 +53,7 @@ class SyncDb(object):
 
         out = {}
         for member_name, member_object in sorted(inspect.getmembers(self._models_module),
-                                                                    key=lambda x: x[0]):
+                                                 key=lambda x: x[0]):
             if inspect.isclass(member_object):
                 class_attributes = {}
                 for class_attribute_name, class_attribute_value in inspect.getmembers(member_object):
@@ -166,23 +166,23 @@ class SyncDb(object):
                 # validate class name
                 if not re.search(bs.config.REGEX_PATTERN_TABLE,
                                  member_name):
-                    logging.critical("The model '%s' has an invalid name. It "\
-                                     "needs to start with a Latin lower-case "\
-                                     "character (a-z, A-Z), can only contain "\
-                                     "alpha-numeric characters plus `_` and "\
-                                     "needs to have a length between 2 and "\
+                    logging.critical("The model '%s' has an invalid name. It "
+                                     "needs to start with a Latin lower-case "
+                                     "character (a-z, A-Z), can only contain "
+                                     "alpha-numeric characters plus `_` and "
+                                     "needs to have a length between 2 and "
                                      "32 characters." % (member_name, ))
                     raise SystemExit()
                 # create list of valid attributes
                 # checks validity of attribute value (list with 2 <= n <= 4 attr)
                 # checks validity of attribute name
-                class_attributes = [[x[0], x[1]] for x in inspect.getmembers(member_object) \
-                                    if re.search(bs.config.REGEX_PATTERN_COLUMN, x[0]) and \
-                                    isinstance(x[1], list) and \
+                class_attributes = [[x[0], x[1]] for x in inspect.getmembers(member_object)
+                                    if re.search(bs.config.REGEX_PATTERN_COLUMN, x[0]) and
+                                    isinstance(x[1], list) and
                                     1 <= len(x[1]) <= 2]
                 # if no valid attributes were found
                 if len(class_attributes) == 0:
-                    logging.critical("The model '%s' needs to have at least "\
+                    logging.critical("The model '%s' needs to have at least "
                                      "one attribute with valid name and value."
                                      % (member_name, ))
                     raise SystemExit()
@@ -196,8 +196,8 @@ class SyncDb(object):
                                             "BLOB",
                                             )
                     if class_attribute_value[0] not in allowed_values_types:
-                        logging.critical("The attribute '%s' on model '%s' "\
-                                         "has an invalid defined data-type, "\
+                        logging.critical("The attribute '%s' on model '%s' "
+                                         "has an invalid defined data-type, "
                                          "aborting: '%s'"
                                          % (class_attribute_name,
                                             member_name,
@@ -218,9 +218,9 @@ class SyncDb(object):
                     if len(class_attribute_value) > 1:
                         if (class_attribute_value[1] not in [x[1] for x in allowed_values_constraints] or
                                 class_attribute_value[0] not in [x[0] for x in allowed_values_constraints if x[1] == class_attribute_value[1]][0]):
-                            logging.critical("The attribute '%s' on model "\
-                                             "'%s' has an invalid constraint "\
-                                             "defined (for data-type '%s'), "\
+                            logging.critical("The attribute '%s' on model "
+                                             "'%s' has an invalid constraint "
+                                             "defined (for data-type '%s'), "
                                              "aborting: '%s'"
                                              % (class_attribute_name,
                                                 member_name,
@@ -232,7 +232,7 @@ class SyncDb(object):
                     # all good, proceed
         # if no valid class has been found, output warning
         if out_no_class_found:
-            logging.warning("No class has been found in the schema; database "\
+            logging.warning("No class has been found in the schema; database "
                             "will be rendered empty.")
         logging.info("Schema successfully validated.")
         return True
@@ -256,7 +256,7 @@ class SyncDb(object):
         db_table_names = sorted(self._db_datas.keys(), key=lambda x: x[0])
         # run through schema and compare with db status quo
         for schema_table_name in schema_table_names:
-            # if inconsistency detected... 
+            # if inconsistency detected...
             if schema_table_name not in db_table_names:
                 # ...compile SQL instructions
                 out = "CREATE TABLE IF NOT EXISTS %s\n\t(\n" % (schema_table_name,)
@@ -286,7 +286,6 @@ class SyncDb(object):
                     conn.execute(out)
                     conn.commit()
                     conn.close()
-                    action_taken = True
                     logging.info("Table '%s' successfully added to database."
                                  % (schema_table_name, ))
                     activity_trigger = True
@@ -346,11 +345,10 @@ class SyncDb(object):
             schema_column_names = sorted(self._schema_datas[db_table_name].keys(),
                                          key=lambda x: x[0])
             # if inconsistency detected between column- and db-structure...
-            if len(schema_column_names) != len([x for x in db_column_names if x in schema_column_names]) or \
-                len(schema_column_names) != len(db_column_names):
-
-                logging.debug("Columns have changed:\n"\
-                              "\t\tdb_column_names:\t%s\n"\
+            if (len(schema_column_names) != len([x for x in db_column_names if x in schema_column_names]) or
+                    len(schema_column_names) != len(db_column_names)):
+                logging.debug("Columns have changed:\n"
+                              "\t\tdb_column_names:\t%s\n"
                               "\t\tschema_column_names:\t%s"
                               % (db_column_names, schema_column_names, ))
                 logging.info("Structural inconsistency in table '%s' detected, rewriting..."
@@ -367,15 +365,15 @@ class SyncDb(object):
                         schema_column_data_type = self._schema_datas[db_table_name][db_column_name][0]
                         schema_column_primary_key = self._schema_datas[db_table_name][db_column_name][1]
                         # if specifications are inconsistent between schame/db
-                        if db_column_data_type != schema_column_data_type or \
-                            db_column_primary_key != schema_column_primary_key:
+                        if (db_column_data_type != schema_column_data_type or
+                                db_column_primary_key != schema_column_primary_key):
                             # rebuild table
-                            logging.debug("Inconsistency in column '%s', "\
-                                          "table '%s' (and possibly other "\
-                                          "columns) detected: Data-type "\
+                            logging.debug("Inconsistency in column '%s', "
+                                          "table '%s' (and possibly other "
+                                          "columns) detected: Data-type "
                                           "and/or specifications have changed."
                                           % (db_column_name, db_table_name, ))
-                            logging.info("Structural inconsistency in table "\
+                            logging.info("Structural inconsistency in table "
                                          "'%s' detected, rewriting..."
                                          % (db_table_name, ))
                             self._rebuild_table(execute, db_table_name)
@@ -438,9 +436,9 @@ class SyncDb(object):
                 db_columns_to_transfer.append(db_column_name)
             # for all columns that are *not* brought over into new table/schema
             else:
-                logging.info("Column '%s' has been removed from database "\
-                                "alongside all of its associated data."
-                                % (db_column_name,))
+                logging.info("Column '%s' has been removed from database "
+                             "alongside all of its associated data."
+                             % (db_column_name,))
         # prints something like "str1, str2, str3" (minus quot. marks)
         db_columns_to_transfer_formatted = (str("%s, " * len(db_columns_to_transfer))
                                             % tuple(db_columns_to_transfer))[:-2]
@@ -466,7 +464,7 @@ class SyncDb(object):
                          % (db_table_name_temp, db_table_name_to_rebuild, ))
             conn.commit()
             conn.close()
-            logging.info("Table '%s' has been successfully rewritten "\
+            logging.info("Table '%s' has been successfully rewritten "
                          "(%.2f sec)."
                          % (db_table_name_to_rebuild,
                             time.clock() - timer_start,))

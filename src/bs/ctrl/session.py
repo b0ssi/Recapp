@@ -25,7 +25,6 @@ import platform
 import random
 import re
 import sqlite3
-import threading
 import time
 if platform.system().startswith("win"):
     import win32file
@@ -96,33 +95,31 @@ class BackupFilterCtrl(bs.model.models.Filters):
         """
         if not self._backup_filter_rules:
             data_sets = self._get("filter_rules_data",
-                             (
-                              ("user_id", "=", self._session.user.id, ),
-                              ("id", "=", self._backup_filter_id),
-                              )
-                             )[0][0]
+                                  (("user_id", "=", self._session.user.id, ),
+                                   ("id", "=", self._backup_filter_id),
+                                   )
+                                  )[0][0]
             data_sets = json.loads(data_sets)
             # extract data_set, generate filter_rule objects
-            for id in data_sets.keys():
-                id = id
-                category = data_sets[id]["category"]
-                file_folder = data_sets[id]["file_folder"]
-                include_subfolders = data_sets[id]["include_subfolders"]
+            for key_id in data_sets.keys():
+                category = data_sets[key_id]["category"]
+                file_folder = data_sets[key_id]["file_folder"]
+                include_subfolders = data_sets[key_id]["include_subfolders"]
                 # instantiate object
                 if category == BackupFilterRuleCtrl.category_size:
-                    mode_size = data_sets[id]["mode_size"]
-                    size = data_sets[id]["size"]
-                    obj = BackupFilterRuleSizeCtrl(id,
+                    mode_size = data_sets[key_id]["mode_size"]
+                    size = data_sets[key_id]["size"]
+                    obj = BackupFilterRuleSizeCtrl(key_id,
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
                                                    mode_size,
                                                    size)
                 if category == BackupFilterRuleCtrl.category_path:
-                    mode_path = data_sets[id]["mode_path"]
-                    match_case = data_sets[id]["match_case"]
-                    path_pattern = data_sets[id]["path_pattern"]
-                    obj = BackupFilterRulePathCtrl(id,
+                    mode_path = data_sets[key_id]["mode_path"]
+                    match_case = data_sets[key_id]["match_case"]
+                    path_pattern = data_sets[key_id]["path_pattern"]
+                    obj = BackupFilterRulePathCtrl(key_id,
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
@@ -130,11 +127,11 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    match_case,
                                                    path_pattern)
                 if category == BackupFilterRuleCtrl.category_date:
-                    timestamp_type = data_sets[id]["timestamp_type"]
-                    position = data_sets[id]["position"]
-                    reference_date = data_sets[id]["reference_date"]
-                    offset = data_sets[id]["offset"]
-                    obj = BackupFilterRuleDateCtrl(id,
+                    timestamp_type = data_sets[key_id]["timestamp_type"]
+                    position = data_sets[key_id]["position"]
+                    reference_date = data_sets[key_id]["reference_date"]
+                    offset = data_sets[key_id]["offset"]
+                    obj = BackupFilterRuleDateCtrl(key_id,
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
@@ -143,8 +140,8 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    reference_date,
                                                    offset)
                 if category == BackupFilterRuleCtrl.category_attributes:
-                    attribute = data_sets[id]["attribute"]
-                    obj = BackupFilterRuleAttributesCtrl(id,
+                    attribute = data_sets[key_id]["attribute"]
+                    obj = BackupFilterRuleAttributesCtrl(key_id,
                                                          category,
                                                          file_folder,
                                                          include_subfolders,
@@ -201,7 +198,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                 for backup_filter_id in filter_ass_dict:
                     if self.backup_filter_id == int(backup_filter_id):
                         # list to store associations for set in
-                        if not backup_set_obj in backup_entity_ass.keys():
+                        if backup_set_obj not in backup_entity_ass.keys():
                             backup_entity_ass[backup_set_obj] = []
                         # this can be either -1 for the set's target set or a natural number as a filter id
                         ass_ids = filter_ass_dict[backup_filter_id]
@@ -330,9 +327,9 @@ class BackupFiltersCtrl(bs.model.models.Filters):
         # VALIDATE DATA
         # filter
         if not re.match("$.*^", filter_pattern):
-            logging.warning("%s: The filter_pattern contains invalid "\
-                            "characters. It needs to start with an "\
-                            "alphabetic and contain alphanumerical "\
+            logging.warning("%s: The filter_pattern contains invalid "
+                            "characters. It needs to start with an "
+                            "alphabetic and contain alphanumerical "
                             "characters plus '\_\-\#' and space."
                             % (self.__class__.__name__, ))
             return False
@@ -467,10 +464,10 @@ class BackupFilterRuleCtrl(object):
     #: ..
     attribute_system = "attribute_system"
 
-    def __init__(self, id, category, file_folder, include_subfolders):
+    def __init__(self, key_id, category, file_folder, include_subfolders):
         super(BackupFilterRuleCtrl, self).__init__()
 
-        self._id = id
+        self._id = key_id
         self._category = category
         self._file_folder = file_folder
         self._include_subfolders = include_subfolders
@@ -662,9 +659,9 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
     _mode_size = None  # >, >=, =, <=, <
     _size = None  # int bytes
 
-    def __init__(self, id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders,
                  mode_size, size):
-        super(BackupFilterRuleSizeCtrl, self).__init__(id,
+        super(BackupFilterRuleSizeCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
                                                        include_subfolders)
@@ -712,9 +709,9 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     _match_case = None  # bool
     _path_pattern = None  # pattern, path, regex, ...
 
-    def __init__(self, id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders,
                  mode_path, match_case, path_pattern):
-        super(BackupFilterRulePathCtrl, self).__init__(id,
+        super(BackupFilterRulePathCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
                                                        include_subfolders)
@@ -773,9 +770,9 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
     _reference_date = None  # current date, file, folder, volume backup, fixed date, ...
     _offset = None  # [years, months, weeks, days, hours, minutes, seconds]
 
-    def __init__(self, id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders,
                  timestamp_type, position, reference_date, offset):
-        super(BackupFilterRuleDateCtrl, self).__init__(id,
+        super(BackupFilterRuleDateCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
                                                        include_subfolders)
@@ -838,9 +835,9 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """
     _attribute = None
 
-    def __init__(self, id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders,
                  attribute):
-        super(BackupFilterRuleAttributesCtrl, self).__init__(id,
+        super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
                                                              category,
                                                              file_folder,
                                                              include_subfolders)
@@ -927,15 +924,14 @@ class BackupSetCtrl(bs.model.models.Sets):
                 target_ids.append(target_obj._target_id)
             target_ids_list = target_ids
             res = self._add("user_id, set_uid, set_name, salt_dk, set_db_path, sources, filters, targets",
-                      (
-                       self._session.user.id,
-                       set_uid,
-                       set_name,
-                       salt_dk,
-                       set_db_path,
-                       json.dumps(target_ids_list)
-                       )
-                      )
+                            (self._session.user.id,
+                             set_uid,
+                             set_name,
+                             salt_dk,
+                             set_db_path,
+                             json.dumps(target_ids_list)
+                             )
+                            )
             self._backup_set_id = res.lastrowid
             # create db file
             conn = sqlite3.connect(set_db_path)
@@ -943,8 +939,8 @@ class BackupSetCtrl(bs.model.models.Sets):
 
     def __repr__(self):
         return "Sets #%d id(%d) <%s>" % (self._backup_set_id,
-                                        id(self),
-                                        self.__class__.__name__, )
+                                         id(self),
+                                         self.__class__.__name__, )
 
     @property
     def backup_set_id(self):
@@ -980,16 +976,15 @@ class BackupSetCtrl(bs.model.models.Sets):
         # VERIFY DATA
         # set name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
-            logging.warning("%s: The name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
+            logging.warning("%s: The name contains invalid characters. It "
+                            "needs to start  with an alphabetic and contain "
+                            "alphanumerical characters plus '\_\-\#' and "
                             "space." % (self.__class__.__name__, ))
             return False
         # set new name
         self._set_name = set_name
         # update db
-        self._update(
-                     (("set_name", set_name, ), ),
+        self._update((("set_name", set_name, ), ),
                      (("id", "=", self._backup_set_id, ), )
                      )
 
@@ -1034,14 +1029,13 @@ class BackupSetCtrl(bs.model.models.Sets):
         if not os.path.isfile(self._set_db_path):
             set_db_path_new = ""
             while not os.path.isfile(set_db_path_new):
-                set_db_path_new = input("The last used path ('%s') is " \
-                                        "invalid; please enter the current " \
+                set_db_path_new = input("The last used path ('%s') is "
+                                        "invalid; please enter the current "
                                         "path of this set's database:"
                                         % (self._set_db_path, ))
             self._set_db_path = set_db_path_new
             # update db
-            self._update(
-                         (("set_db_path", set_db_path_new, ), ),
+            self._update((("set_db_path", set_db_path_new, ), ),
                          (("id", "=", self._backup_set_id, ), )
                          )
         return True
@@ -1090,7 +1084,7 @@ class BackupSetCtrl(bs.model.models.Sets):
                 if not isinstance(target_obj, BackupTargetCtrl):
                     check = True
         if check:
-            logging.warning("%s: The first argument needs to be a list or "\
+            logging.warning("%s: The first argument needs to be a list or "
                             "tuple of backup target objects."
                             % (self.__class__.__name__, ))
             return False
@@ -1160,7 +1154,7 @@ class BackupSetCtrl(bs.model.models.Sets):
         if backup_source not in self.backup_sources:
             self.backup_sources.append(backup_source)
         # add set association to backup_source
-        if not self in backup_source.backup_entity_ass.keys():
+        if self not in backup_source.backup_entity_ass.keys():
             backup_source.backup_entity_ass[self] = []
         # add backup_ctrl for new source
         if backup_source not in self._backup_ctrls.keys():
@@ -1179,7 +1173,7 @@ class BackupSetCtrl(bs.model.models.Sets):
         if backup_filter not in self.backup_filters:
             self.backup_filters.append(backup_filter)
         # add set association to backup_filter
-        if not self in backup_filter.backup_entity_ass.keys():
+        if self not in backup_filter.backup_entity_ass.keys():
             backup_filter.backup_entity_ass[self] = []
 
     def authenticate(self, key_raw):
@@ -1233,8 +1227,8 @@ class BackupSetCtrl(bs.model.models.Sets):
             def start(self):
                 self._thread.start()
 
-        if self._authentication_thread == None or\
-            self._authentication_thread.isFinished():
+        if (not self._authentication_thread or
+                self._authentication_thread.isFinished()):
 
             def reset_refs():
                 self._authentication_thread = None
@@ -1292,8 +1286,8 @@ class BackupSetCtrl(bs.model.models.Sets):
                     if isinstance(associated_obj, BackupFilterCtrl):
                         associated_obj_id = associated_obj.backup_filter_id
                     # if ass: targets
-                    elif isinstance(associated_obj, list) and\
-                        isinstance(associated_obj[0], BackupTargetCtrl):
+                    elif (isinstance(associated_obj, list) and
+                          isinstance(associated_obj[0], BackupTargetCtrl)):
                         associated_obj_id = -1
                     associated_obj_ids.append(associated_obj_id)
             # if ass: None
@@ -1313,8 +1307,8 @@ class BackupSetCtrl(bs.model.models.Sets):
                     if isinstance(associated_obj, BackupFilterCtrl):
                         associated_obj_id = associated_obj.backup_filter_id
                     # if ass: targets
-                    elif isinstance(associated_obj, list) and\
-                        isinstance(associated_obj[0], BackupTargetCtrl):
+                    elif (isinstance(associated_obj, list) and
+                          isinstance(associated_obj[0], BackupTargetCtrl)):
                         associated_obj_id = -1
                     associated_obj_ids.append(associated_obj_id)
             # if ass: None
@@ -1449,15 +1443,14 @@ class BackupSetsCtrl(bs.model.models.Sets):
         # VALIDATE DATA
         # set_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
-            logging.warning("%s: The name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
+            logging.warning("%s: The name contains invalid characters. It "
+                            "needs to start  with an alphabetic and contain "
+                            "alphanumerical characters plus '\_\-\#' and "
                             "space." % (self.__class__.__name__, ))
             return False
-        check = False
         # key_raw
         if not re.match(bs.config.REGEX_PATTERN_KEY, key_raw):
-            logging.warning("%s: The password contains invalid characters "\
+            logging.warning("%s: The password contains invalid characters "
                             "and/or is of invalid length."
                             % (self.__class__.__name__, ))
             return False
@@ -1472,9 +1465,9 @@ class BackupSetsCtrl(bs.model.models.Sets):
         elif not re.match(".*\.sqlite$", set_db_path):
             check = True
         if check:
-            logging.warning("%s: The given path does not point to an existing"\
-                            "location on this system or the filename is in "\
-                            "an invalid format (extension <.sqlite> "\
+            logging.warning("%s: The given path does not point to an existing"
+                            "location on this system or the filename is in "
+                            "an invalid format (extension <.sqlite> "
                             "expected)."
                             % (self.__class__.__name__, ))
             return False
@@ -1501,8 +1494,8 @@ class BackupSetsCtrl(bs.model.models.Sets):
                     check = True
 
         if check:
-            logging.warning("%s: The second, thrid and fourth arguments need "\
-                            "to be a list or tuple of backup "\
+            logging.warning("%s: The second, thrid and fourth arguments need "
+                            "to be a list or tuple of backup "
                             "source/filter/target object respectively."
                             % (self.__class__.__name__, ))
             return False
@@ -1551,7 +1544,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
         # VALIDATE DATA
         # backup_set
         if not isinstance(backup_set, BackupSetCtrl):
-            logging.warning("%s: The first argument needs to be of "\
+            logging.warning("%s: The first argument needs to be of "
                             "type BackupSetCtrl."
                             % (self.__class__.__name__, ))
             return False
@@ -1559,9 +1552,9 @@ class BackupSetsCtrl(bs.model.models.Sets):
         # delete from DB
         self._remove((("id", "=", backup_set_id, ), ))
         # remove corresponding object from self._sets
-        for set in self._sets:
-            if set == backup_set:
-                self._sets.pop(self._sets.index(set))
+        for b_set in self._sets:
+            if b_set == backup_set:
+                self._sets.pop(self._sets.index(b_set))
         # out
         return True
 
@@ -1598,8 +1591,8 @@ class BackupSourceCtrl(bs.model.models.Sources):
         if not self._backup_source_id:
             res = self._add("user_id, source_name, source_path",
                             (self._session.user.id,
-                            self._source_name,
-                            self._source_path, ))
+                             self._source_name,
+                             self._source_path, ))
             self._backup_source_id = res.lastrowid
 
         self._backup_entity_ass = []
@@ -1631,15 +1624,14 @@ class BackupSourceCtrl(bs.model.models.Sources):
         # VALIDATE DATA
         # source_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, source_name):
-            logging.warning("%s: The source_name contains invalid "\
-                            "characters. It needs to start  with an "\
-                            "alphabetic and contain alphanumerical "\
+            logging.warning("%s: The source_name contains invalid "
+                            "characters. It needs to start  with an "
+                            "alphabetic and contain alphanumerical "
                             "characters plus '\_\-\#' and space."
                             % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update(
-                     (("source_name", source_name), ),
+        self._update((("source_name", source_name), ),
                      (("id", "=", self._backup_source_id), )
                      )
         self._source_name = source_name
@@ -1661,13 +1653,12 @@ class BackupSourceCtrl(bs.model.models.Sources):
         # VALIDATE DATA
         # source_path
         if not os.path.isdir(source_path):
-            logging.warning("%s: The source-path is invalid. It needs to be "\
+            logging.warning("%s: The source-path is invalid. It needs to be "
                             "a valid directory-path on the current system."
                             % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update(
-                     (("source_path", source_path), ),
+        self._update((("source_path", source_path), ),
                      (("id", "=", self._backup_source_id), )
                      )
         self._source_path = source_path
@@ -1699,7 +1690,7 @@ class BackupSourceCtrl(bs.model.models.Sources):
                 for backup_source_id in source_ass_dict:
                     if self.backup_source_id == int(backup_source_id):
                         # list to store associations for set in
-                        if not backup_set_obj in backup_entity_ass.keys():
+                        if backup_set_obj not in backup_entity_ass.keys():
                             backup_entity_ass[backup_set_obj] = []
                         # this can be either -1 for the set's target set or a natural number as a source id
                         ass_ids = source_ass_dict[backup_source_id]
@@ -1846,19 +1837,19 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         # VALIDATE DATA
         # source_name
         if not re.search(bs.config.REGEX_PATTERN_NAME, source_name):
-            logging.warning("%s: The name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
+            logging.warning("%s: The name contains invalid characters. It "
+                            "needs to start  with an alphabetic and contain "
+                            "alphanumerical characters plus '\_\-\#' and "
                             "space." % (self.__class__.__name__, ))
             return False
         # source_path
         if not os.path.isdir(source_path):
-            logging.warning("%s: The source-path is invalid. It needs to be "\
+            logging.warning("%s: The source-path is invalid. It needs to be "
                             "a valid directory-path on the current system."
                             % (self.__class__.__name__, ))
             return False
         logging.info("%s: Adding source: '%s' (%s)"
-                        % (self.__class__.__name__, source_name, source_path,))
+                     % (self.__class__.__name__, source_name, source_path,))
         # check that the path does not already exist for current user.
         res = self._get("id", (("user_id", "=", self._session.user.id, ),
                                ("source_path", "=", source_path, ), ))
@@ -1874,7 +1865,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
                                           source_path)
         self._backup_sources.append(new_source_obj)
         logging.info("%s: Source successfully added: '%s' (%s)"
-                        % (self.__class__.__name__, source_name, source_path))
+                     % (self.__class__.__name__, source_name, source_path))
         # out
         return True
 
@@ -1891,7 +1882,7 @@ class BackupSourcesCtrl(bs.model.models.Sources):
         # VALIDATE DATA
         # source_obj
         if not isinstance(source_obj, BackupSourceCtrl):
-            logging.warning("%s: The first argument needs to be a backup "\
+            logging.warning("%s: The first argument needs to be a backup "
                             "source object."
                             % (self.__class__.__name__, ))
             return False
@@ -1946,8 +1937,8 @@ class BackupTargetCtrl(bs.model.models.Targets):
         if not self._target_id:
             res = self._add("user_id, target_name, target_device_id",
                             (self._session.user.id,
-                            self._target_name,
-                            self._target_device_id, ))
+                             self._target_name,
+                             self._target_device_id, ))
             self._target_id = res.lastrowid
 
     def __repr__(self):
@@ -1969,15 +1960,14 @@ class BackupTargetCtrl(bs.model.models.Targets):
         # VALIDATE DATA
         # target_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, target_name):
-            logging.warning("%s: The target_name contains invalid "\
-                            "characters. It needs to start  with an "\
-                            "alphabetic and contain alphanumerical "\
+            logging.warning("%s: The target_name contains invalid "
+                            "characters. It needs to start  with an "
+                            "alphabetic and contain alphanumerical "
                             "characters plus '\_\-\#' and space."
                             % (self.__class__.__name__, ))
             return False
         # change data in db
-        self._update(
-                     (("target_name", target_name), ),
+        self._update((("target_name", target_name), ),
                      (("id", "=", self._target_id), )
                      )
         self._target_name = target_name
@@ -2120,14 +2110,14 @@ class BackupTargetsCtrl(bs.model.models.Targets):
         # VERIFY DATA
         # target_name
         if not re.search(bs.config.REGEX_PATTERN_NAME, target_name):
-            logging.warning("%s: The name contains invalid characters. It "\
-                            "needs to start  with an alphabetic and contain "\
-                            "alphanumerical characters plus '\_\-\#' and "\
+            logging.warning("%s: The name contains invalid characters. It "
+                            "needs to start  with an alphabetic and contain "
+                            "alphanumerical characters plus '\_\-\#' and "
                             "space." % (self.__class__.__name__, ))
             return False
         # target_path
         if not re.search("^[a-zA-Z]\:\\\\$", target_path):
-            logging.warning("%s: This is not a valid target path. Only "\
+            logging.warning("%s: This is not a valid target path. Only "
                             "partition roots can be defined as targets."
                             % (self.__class__.__name__, ))
             return False
@@ -2135,8 +2125,8 @@ class BackupTargetsCtrl(bs.model.models.Targets):
         root_path = os.path.join(target_path,
                                  bs.config.PROJECT_NAME.capitalize())
         root_config_file_path = os.path.join(root_path, "volume.json")
-        if not os.path.isdir(root_path) and\
-            not os.path.isfile(root_config_file_path):
+        if (not os.path.isdir(root_path) and
+                not os.path.isfile(root_config_file_path)):
             # generate target_device_id
             # timestamp at high sub-second-precision as string appended by
             # random 16-bit integer as string, encoded as HEX-SHA512
@@ -2165,9 +2155,9 @@ class BackupTargetsCtrl(bs.model.models.Targets):
                 logging.warning(bs.messages.general.general_error(e)[0])
                 return False
         else:
-            logging.warning("%s: This volume is already defined as a "\
-                             "target. Please try to importing it: %s"
-                             % (self.__class__.__name__, target_path, ))
+            logging.warning("%s: This volume is already defined as a "
+                            "target. Please try to importing it: %s"
+                            % (self.__class__.__name__, target_path, ))
             return False
 
     def delete_backup_target(self, target_obj):
@@ -2184,7 +2174,7 @@ class BackupTargetsCtrl(bs.model.models.Targets):
         # VALIDATE DATA
         # target_obj
         if not isinstance(target_obj, BackupTargetCtrl):
-            logging.warning("%s: The first argument needs to be a backup "\
+            logging.warning("%s: The first argument needs to be a backup "
                             "target object."
                             % (self.__class__.__name__, ))
             return False
@@ -2193,7 +2183,7 @@ class BackupTargetsCtrl(bs.model.models.Targets):
         # remove obj
         self._targets.pop(self._targets.index(target_obj))
         # out
-        logging.info("%s: Target has been successfully removed; file-system "\
+        logging.info("%s: Target has been successfully removed; file-system "
                      "data has not been changed/removed: %s"
                      % (self.__class__.__name__,
                         target_obj, ))
@@ -2293,7 +2283,7 @@ class SessionCtrl(object):
     @is_unlocked.setter
     def is_unlocked(self, arg):
         if not isinstance(arg, bool):
-            logging.warning("%s: The first argument needs to be of type "\
+            logging.warning("%s: The first argument needs to be of type "
                             "boolean."
                             % (self.__class__.__name__, ))
             return False
@@ -2332,15 +2322,15 @@ class SessionCtrl(object):
         # VALIDATE DATA
         # username
         if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
-            logging.warning("%s: The username is invalid. A valid username "\
-                             "needs to start with an alphabetic, "\
-                             "contain alphanumeric plus '_' "\
-                             "and have a length between 4 and 32 characters."
-                             % (self.__class__.__name__, ))
+            logging.warning("%s: The username is invalid. A valid username "
+                            "needs to start with an alphabetic, "
+                            "contain alphanumeric plus '_' "
+                            "and have a length between 4 and 32 characters."
+                            % (self.__class__.__name__, ))
             return False
         # CONTEXT CHECKS & SET-UP
-        if not self.is_logged_in or\
-            self.is_logged_in and not self._is_unlocked:
+        if (not self.is_logged_in or
+                self.is_logged_in and not self._is_unlocked):
             if self.user._validate_credentials(self, username, password):
                 self.is_unlocked = True
                 self.is_logged_in = True
@@ -2412,11 +2402,11 @@ class SessionCtrl(object):
         # VALIDATE DATA
         # username
         if not re.search(bs.config.REGEX_PATTERN_USERNAME, username):
-            logging.warning("%s: The username is invalid. A valid username "\
-                             "needs to start with an alphabetic, "\
-                             "contain alphanumeric plus '_' "\
-                             "and have a length between 4 and 32 characters."
-                             % (self.__class__.__name__, ))
+            logging.warning("%s: The username is invalid. A valid username "
+                            "needs to start with an alphabetic, "
+                            "contain alphanumeric plus '_' "
+                            "and have a length between 4 and 32 characters."
+                            % (self.__class__.__name__, ))
             return False
         if self.is_logged_in:
             if not self.is_unlocked:
@@ -2426,11 +2416,11 @@ class SessionCtrl(object):
                                  % (self.__class__.__name__, ))
                     return True
                 else:
-                    logging.warning("%s: Session unlock failed: Invalid "\
+                    logging.warning("%s: Session unlock failed: Invalid "
                                     "credentials."
                                     % (self.__class__.__name__, ))
             else:
-                logging.warning("%s: Session unlock failed: Already "\
+                logging.warning("%s: Session unlock failed: Already "
                                 "unlocked."
                                 % (self.__class__.__name__, ))
                 return False
@@ -2549,11 +2539,11 @@ class SessionsCtrl(object):
                     return new_session
                 else:
                     logging.warning("%s: No session created: Log-on failed."
-                                 % (self.__class__.__name__, ))
+                                    % (self.__class__.__name__, ))
                     return False
             else:
                 logging.warning("%s: The session for this user is already active."
-                             % (self.__class__.__name__, ))
+                                % (self.__class__.__name__, ))
                 return -1
         else:
             if new_session.log_in(username, password):
@@ -2565,7 +2555,7 @@ class SessionsCtrl(object):
                 return new_session
             else:
                 logging.warning("%s: No session created: Log-on failed."
-                             % (self.__class__.__name__, ))
+                                % (self.__class__.__name__, ))
                 return False
 
     def add_session_gui(self):
@@ -2625,7 +2615,7 @@ class SessionsCtrl(object):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -2689,7 +2679,7 @@ class SessionGuiCtrl(object):
     def session(self, session):
         """ * """
         if not isinstance(session, SessionCtrl) and session:
-            logging.warning("%s: The first argument needs to be of type "\
+            logging.warning("%s: The first argument needs to be of type "
                             "`SessionCtrl`."
                             % (self.__class__.__name__, ))
             return False
@@ -2719,11 +2709,11 @@ class UserCtrl(bs.model.models.Users):
         # create default user
         if len(self._get("*", no_auth_required=True)) == 0:
             self._add("username, password",
-                     [['alpha', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']],
-                     no_auth_required=True)
+                      [['alpha', '4dff4ea340f0a823f15d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79d560e5f7f9bd058a12a280433ed6fa46510a']],
+                      no_auth_required=True)
             self._add("username, password",
-                     [['bravo', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']],
-                     no_auth_required=True)
+                      [['bravo', '40b244112641dd78dd4f93b6c9190dd46e0099194d5a44257b7efad6ef9ff4683da1eda0244448cb343aa688f5d3efd7314dafe580ac0bcbf115aeca9e8dc114']],
+                      no_auth_required=True)
 
     def __repr__(self):
         return "User '%s' <%s>" % (self._username, self.__class__.__name__, )
@@ -2783,28 +2773,28 @@ class UserCtrl(bs.model.models.Users):
         if isinstance(parent, SessionCtrl):
             password_hash = hashlib.sha512(password.encode())
             res = self._get("id", (("username", "=", username),
-                                  ("password", "=", password_hash.hexdigest(), ), ),
-                           no_auth_required=True
-                           )
+                                   ("password", "=", password_hash.hexdigest(), ), ),
+                            no_auth_required=True
+                            )
             if len(res) == 1:
                 self._id = res[0][0]
                 self._username = username
                 logging.debug("%s: Credentials valid for user: '%s'."
-                             % (self.__class__.__name__, self._username, ))
+                              % (self.__class__.__name__, self._username, ))
                 return True
             elif len(res) > 1:
-                logging.critical("%s: More than one user exist with the same "\
-                                 "username/password combination! Please "\
+                logging.critical("%s: More than one user exist with the same "
+                                 "username/password combination! Please "
                                  "check the integrity of the database."
                                  % (self.__class__.__name__, ))
                 raise SystemExit()
                 return False
             elif len(res) < 1:
                 logging.debug("%s: Credentials invalid for user: '%s'"
-                                % (self.__class__.__name__, self._username, ))
+                              % (self.__class__.__name__, self._username, ))
                 return False
         else:
-            logging.warning("%s: This method can only be called from certain"\
+            logging.warning("%s: This method can only be called from certain"
                             "classes (SessionCtrl(, ...))"
                             % (self.__class__.__name__, ))
             return False

@@ -11,7 +11,6 @@ from PySide import QtCore, QtGui
 import bs.config
 import logging
 import math
-import re
 
 
 class BSFrame(QtGui.QFrame):
@@ -36,6 +35,7 @@ class BSFrame(QtGui.QFrame):
     @property
     def css(self):
         """ ..
+
         :type: *tuple*
         :permissions: *read/write*
 
@@ -145,17 +145,21 @@ class BSFrame(QtGui.QFrame):
             for dataset in self._css:
                 # grab data from multi-dimensional array...
                 data = None
-                if self.hasFocus() == True: focus_state = "has_focus"
-                elif self.hasFocus() == False: focus_state = "has_no_focus"
-                if mode == True: enabled_state = "enabled"
-                elif mode == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.hasFocus():
+                    focus_state = "has_focus"
+                elif not self.hasFocus():
+                    focus_state = "has_no_focus"
+                if mode:
+                    enabled_state = "enabled"
+                elif not mode:
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][0]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -188,17 +192,21 @@ class BSFrame(QtGui.QFrame):
             for dataset in self._css:
                 # grab data from multi-dimensional array...
                 data = None
-                if self.hasFocus() == True: focus_state = "has_focus"
-                elif self.hasFocus() == False: focus_state = "has_no_focus"
-                if self.isEnabled() == True: enabled_state = "enabled"
-                elif self.isEnabled() == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.hasFocus():
+                    focus_state = "has_focus"
+                elif not self.hasFocus():
+                    focus_state = "has_no_focus"
+                if self.isEnabled():
+                    enabled_state = "enabled"
+                elif not self.isEnabled():
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][1]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -218,15 +226,17 @@ class BSFrame(QtGui.QFrame):
                 # grab data from multi-dimensional array...
                 data = None
                 focus_state = "has_focus"
-                if self.isEnabled() == True: enabled_state = "enabled"
-                elif self.isEnabled() == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.isEnabled():
+                    enabled_state = "enabled"
+                elif not self.isEnabled():
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][0]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -238,7 +248,7 @@ class BSFrame(QtGui.QFrame):
     def focusOutEvent(self, e):
         """ ..
 
-        Override. Implements CSS formatting mechanism to style widget \
+        Override. Implements CSS formatting mechanism to style widget
         according to its state.
         """
         if self._css:
@@ -246,15 +256,17 @@ class BSFrame(QtGui.QFrame):
                 # grab data from multi-dimensional array...
                 data = None
                 focus_state = "has_no_focus"
-                if self.isEnabled() == True: enabled_state = "enabled"
-                elif self.isEnabled() == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.isEnabled():
+                    enabled_state = "enabled"
+                elif not self.isEnabled():
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][0]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -269,24 +281,28 @@ class BSFrame(QtGui.QFrame):
         :param PySide.QtCore.QEvent e:
         :rtype: *void*
 
-        Override. Implements CSS formatting mechanism to style widget \
+        Override. Implements CSS formatting mechanism to style widget
         according to its state.
         """
         if self._css:
             for dataset in self._css:
                 # grab data from multi-dimensional array...
                 data = None
-                if self.hasFocus() == True: focus_state = "has_focus"
-                elif self.hasFocus() == False: focus_state = "has_no_focus"
-                if self.isEnabled() == True: enabled_state = "enabled"
-                elif self.isEnabled() == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.hasFocus():
+                    focus_state = "has_focus"
+                elif not self.hasFocus():
+                    focus_state = "has_no_focus"
+                if self.isEnabled():
+                    enabled_state = "enabled"
+                elif not self.isEnabled():
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][0]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -301,7 +317,7 @@ class BSFrame(QtGui.QFrame):
         :param PySide.QtCore.QEvent e:
         :rtype: *void*
 
-        Override. Implements CSS formatting mechanism to style widget \
+        Override. Implements CSS formatting mechanism to style widget
         according to its state.
         """
         # disabled widgets don't receive mousePressEvent or mouseReleaseEvent
@@ -309,17 +325,21 @@ class BSFrame(QtGui.QFrame):
             for dataset in self._css:
                 # grab data from multi-dimensional array...
                 data = None
-                if self.hasFocus() == True: focus_state = "has_focus"
-                elif self.hasFocus() == False: focus_state = "has_no_focus"
-                if self.isEnabled() == True: enabled_state = "enabled"
-                elif self.isEnabled() == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.hasFocus():
+                    focus_state = "has_focus"
+                elif not self.hasFocus():
+                    focus_state = "has_no_focus"
+                if self.isEnabled():
+                    enabled_state = "enabled"
+                elif not self.isEnabled():
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][2]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -342,17 +362,21 @@ class BSFrame(QtGui.QFrame):
             for dataset in self._css:
                 # grab data from multi-dimensional array...
                 data = None
-                if self.hasFocus() == True: focus_state = "has_focus"
-                elif self.hasFocus() == False: focus_state = "has_no_focus"
-                if self.isEnabled() == True: enabled_state = "enabled"
-                elif self.isEnabled() == False: enabled_state = "disabled"
-                if focus_state in dataset[3].keys() and\
-                    enabled_state in dataset[3][focus_state].keys():
+                if self.hasFocus():
+                    focus_state = "has_focus"
+                elif not self.hasFocus():
+                    focus_state = "has_no_focus"
+                if self.isEnabled():
+                    enabled_state = "enabled"
+                elif not self.isEnabled():
+                    enabled_state = "disabled"
+                if (focus_state in dataset[3].keys() and
+                        enabled_state in dataset[3][focus_state].keys()):
                     # get appropriate css data
                     data = dataset[3][focus_state][enabled_state][1]
                     # render css string
                     css = dataset[2] % data
-                    if not dataset[1] == None:
+                    if dataset[1]:
                         css = "%s%s {%s}" % (dataset[1],
                                              str(dataset[0].__class__.__name__),
                                              css)
@@ -522,8 +546,8 @@ class BSArrow(QtGui.QWidget):
                     p1a.y()
                     )
         path.cubicTo(p1b.x(), p1b.y(),
-                   p2b.x(), p2b.y(),
-                   p2a.x(), p2a.y())
+                     p2b.x(), p2b.y(),
+                     p2a.x(), p2a.y())
         path = self._draw_arrow_head(path, p2a.x(), p2a.y())
         painter = QtGui.QPainter(self)
         painter.setRenderHints(QtGui.QPainter.Antialiasing)
@@ -605,18 +629,18 @@ class BSArrowBtnDel(BSFrame):
         self._bs_canvas.restack()
 
     def mouseMoveEvent(self, e):
-        # Override-implementation to suppress and prevent event from \
+        # Override-implementation to suppress and prevent event from
         # traveling down the hierarchy.
         pass
 
     def mousePressEvent(self, e):
-        # Records global mouse-position to be used on \
-        # :meth:`mouseReleaseEvent` to check if mouse has moved in the mean \
+        # Records global mouse-position to be used on
+        # :meth:`mouseReleaseEvent` to check if mouse has moved in the mean
         # time.
         self._mouse_press_global_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
-        #Deletes the arrow on mouse-button-release, unless the mouse changed \
+        # Deletes the arrow on mouse-button-release, unless the mouse changed
         # position since its :meth:`mousePressEvent`.
         if self._mouse_press_global_pos == e.globalPos():
             if e.button() & QtCore.Qt.MouseButton.LeftButton:
@@ -732,12 +756,12 @@ class BSArrowCarrier(BSDraggable):
         is valid, in the latter the connection process is canceled and \
         :meth:`connect_cancel` is called.
         """
-        if (e.globalPos() == self._mouse_press_global_pos) and\
-            e.button() == QtCore.Qt.MouseButton.LeftButton:
+        if ((e.globalPos() == self._mouse_press_global_pos) and
+                e.button() == QtCore.Qt.MouseButton.LeftButton):
             # try to get node base-object
             widget_node = None  # (Parent-node-widget) of clicked widget
             widget_aux = None  # (clicked node (if child of widget_node)
-            while not widget is self.parent():
+            while widget is not self.parent():
                 if isinstance(widget, BSNode):
                     widget_node = widget
                     break
@@ -749,15 +773,15 @@ class BSArrowCarrier(BSDraggable):
                 except:
                     widget = self.parent()
             # if clicked on node
-            if widget_node and\
-                isinstance(widget_node, BSNode):
+            if (widget_node and
+                    isinstance(widget_node, BSNode)):
                 # BUILDING LOGIC CHECKS
                 # finalize node
                 is_allowed_finalize_node = False
                 if self._source:
                     import bs.gui.view_sets
-                    if widget_node.backup_entity not in self._source.backup_entity.backup_entity_ass[self._bs.backup_set_current] and\
-                        not isinstance(widget_node, bs.gui.view_sets.BSSource):
+                    if (widget_node.backup_entity not in self._source.backup_entity.backup_entity_ass[self._bs.backup_set_current] and
+                            not isinstance(widget_node, bs.gui.view_sets.BSSource)):
                         is_allowed_finalize_node = True
                     # check for illegal round-trip connection-attempt
                     if not isinstance(widget_node.backup_entity, list):
@@ -767,8 +791,8 @@ class BSArrowCarrier(BSDraggable):
                             # get get associations from next object in list
                             if not isinstance(objects_to_test[0], list):
                                 for obj in objects_to_test[0].backup_entity_ass[self._bs.backup_set_current]:
-                                    if obj not in (objects_to_test + objects_tested) and\
-                                        not isinstance(obj, list):
+                                    if (obj not in (objects_to_test + objects_tested) and
+                                            not isinstance(obj, list)):
                                         objects_to_test.append(obj)
                             # check: is start object
                             if objects_to_test[0] == self._source.backup_entity:
@@ -1030,7 +1054,7 @@ class BSNode(BSDraggable):
                     try:
                         if not child.request_exit():
                             return False
-                    except AttributeError as e:
+                    except AttributeError:
                         pass
                 return True
         self._custom_contents_container = CustomContentsContainer(self)
@@ -1094,7 +1118,7 @@ class BSNode(BSDraggable):
         Assigns a :class:`BSArrow` to this node as an *inbound* arrow, \
         making this node a *target*.
         """
-        if not arrow in self._arrows_inbound:
+        if arrow not in self._arrows_inbound:
             self._arrows_inbound.append(arrow)
 
     def draw_arrows(self):
@@ -1133,7 +1157,7 @@ class BSNode(BSDraggable):
                 arrow_outbound.delete()
             self._bs.set_modified()
         else:
-            logging.warning("%s: Node could net be removed as active threads"\
+            logging.warning("%s: Node could net be removed as active threads"
                             "did not shut down properly." % (self.__class__.__name__, ))
 
     def request_exit(self):
@@ -1182,7 +1206,7 @@ class BSNode(BSDraggable):
         self._layout.setContentsMargins(self._layout.contentsMargins().left(),
                                         self._layout.contentsMargins().top(),
                                         self._layout.contentsMargins().right(),
-                                        self._layout.contentsMargins().bottom()) #self._title_size * 2 + 5)
+                                        self._layout.contentsMargins().bottom())  # self._title_size * 2 + 5)
         self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
 
     def unassign_from_arrow(self, arrow):
@@ -1258,7 +1282,7 @@ class BSNodeConnPad(QtGui.QFrame):
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(0)
         # connect-icon
-        icon = QtGui.QFrame()
+#         icon = QtGui.QFrame()
         css = "QFrame {border-top-right-radius: 2px; border-bottom-right-radius: 2px;  background: #%s}" % (bs.config.PALETTE[1], )
         css += "QFrame:hover {background: #%s}" % (bs.config.PALETTE[4], )
         self.setMaximumWidth(14)
@@ -1468,20 +1492,20 @@ class ScrollArea(QtGui.QFrame):
         if scroll_margin_y > 0:
             new_y_f = abs(self._central_widget.y() + delta_y) / scroll_margin_y
         # call scroll_to
-        if (new_y <= 0 and \
-            new_y + self._central_widget.height() >= self.height()) or \
-            (new_x <= 0 and \
-            new_x + self._central_widget.width() >= self.width()):
+        if ((new_y <= 0 and
+             new_y + self._central_widget.height() >= self.height()) or
+            (new_x <= 0 and
+             new_x + self._central_widget.width() >= self.width())):
             self.scroll_to(new_x_f, new_y_f)
         elif delta_x > new_x > 0:
             self.scroll_to(0.0, new_y_f)
-        elif self.width() < self._central_widget.x() + self._central_widget.width() < self.width() + abs(delta_x) and \
-            delta_x < 0:
+        elif (self.width() < self._central_widget.x() + self._central_widget.width() < self.width() + abs(delta_x) and
+              delta_x < 0):
             self.scroll_to(1.0, new_y_f)
         elif delta_y > new_y > 0:
             self.scroll_to(new_x_f, 0.0)
-        elif self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta_y) and \
-            delta_y < 0:
+        elif (self.height() < self._central_widget.y() + self._central_widget.height() < self.height() + abs(delta_y) and
+              delta_y < 0):
             self.scroll_to(new_x_f, 1.0)
 
     def _get_scroll_bar_alpha(self):
@@ -1503,7 +1527,7 @@ class ScrollArea(QtGui.QFrame):
         Updates scrollbars' positions and sizes.
         """
         if self._central_widget.width() > 0 and self._central_widget.height() > 0:
-            # these are offsets by which the scrollbars are shortened and limited to move into the lr corner (necessary, if both are visible for them to not intersect 
+            # these are offsets by which the scrollbars are shortened and limited to move into the lr corner (necessary, if both are visible for them to not intersect
             scroll_bar_h_corner_offset = None
             scroll_bar_v_corner_offset = None
             # deactivate scrollbars if unnecessary (widget width/height <= width/height of scroll area
@@ -1547,7 +1571,7 @@ class ScrollArea(QtGui.QFrame):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -1565,9 +1589,11 @@ class ScrollArea(QtGui.QFrame):
         """
         # calc scroll attributes
         scroll_margin_x = self._central_widget.width() - self.width()
-        if scroll_margin_x < 0: scroll_margin_x = 0
+        if scroll_margin_x < 0:
+            scroll_margin_x = 0
         scroll_margin_y = self._central_widget.height() - self.height()
-        if scroll_margin_y < 0: scroll_margin_y = 0
+        if scroll_margin_y < 0:
+            scroll_margin_y = 0
         new_x = 0 - x * scroll_margin_x
         new_y = 0 - y * scroll_margin_y
         # execute scroll

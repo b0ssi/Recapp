@@ -11,7 +11,6 @@ from PySide import QtCore, QtGui
 import bs.config
 import bs.ctrl.backup
 import bs.gui.lib
-import copy
 
 
 class BMMainView(QtGui.QFrame):
@@ -46,7 +45,7 @@ class BMMainView(QtGui.QFrame):
         for i in range(8):
             wrapper = QtGui.QWidget(self)
             scroll_area_widget = bs.gui.lib.ScrollArea(wrapper)
-            queue_widget = BMQueueView(scroll_area_widget, i)
+            BMQueueView(scroll_area_widget, i)
             self._queue_scroll_areas.append(scroll_area_widget)
             x = 10 + i * 85
             y = 0
@@ -75,11 +74,11 @@ class BMMainView(QtGui.QFrame):
     def has_backup_set_in_queues(self, backup_set):
         """ ..
 
-        :param bs.ctrl.session.BackupSet backup_set: The
+        :param bs.ctrl.session.BackupSet backup_set: The \
         :class:`~bs.ctrl.session.BackupSet` to check for whether or not it \
         currently already exists in any of the queues.
 
-        Checks whether or not the ``backup_set`` is already queued up in any \
+        Checks whether or not the ``backup_set`` is already queued up in any
         of its queues (or/and is active).
         """
         for queue in self.queues:
@@ -92,7 +91,7 @@ class BMMainView(QtGui.QFrame):
 
         :rtype: *bool*
 
-        Executes exit calls to related objects and forwards request to all \
+        Executes exit calls to related objects and forwards request to all
         children.
         """
         # request exit for all children
@@ -100,7 +99,7 @@ class BMMainView(QtGui.QFrame):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -145,16 +144,14 @@ class BMQueueView(bs.gui.lib.BSFrame):
                      "border-radius: 1px; background: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[10], ),
+                       ((bs.config.PALETTE[10], ),
                         (bs.config.PALETTE[10], ),
                         (bs.config.PALETTE[10], ),
                         )
                        },
                       "has_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[4], ),
+                       ((bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], ),
                         )
@@ -168,8 +165,8 @@ class BMQueueView(bs.gui.lib.BSFrame):
 
         Moves the backup-job at index 0 of the queue into the pole-position.
         """
-        if len(self._backup_jobs) > 0 and \
-            not self._backup_job_in_pole_position:
+        if (len(self._backup_jobs) > 0 and
+                not self._backup_job_in_pole_position):
             backup_job_to_move = self._backup_jobs[0]
             self._mutex.lock()
             self._backup_jobs.pop(0)
@@ -191,15 +188,16 @@ class BMQueueView(bs.gui.lib.BSFrame):
     def _update_backup_jobs_positions(self):
         """ ..
 
-        Updates the positions of all current backup-jobs, stacking them from \
+        Updates the positions of all current backup-jobs, stacking them from
         the bottom up.
         """
         offset = self.height() - (31 * len(self._backup_jobs) - 1)
-        if offset < 0: offset = 0
+        if offset < 0:
+            offset = 0
         self._mutex.lock()
         for backup_job in self._backup_jobs:
             x = 0
-            y = offset + 31 * (len(self._backup_jobs) -\
+            y = offset + 31 * (len(self._backup_jobs) -
                                self._backup_jobs.index(backup_job, ) - 1)
             backup_job.move(x, y)
         self._mutex.unlock()
@@ -217,7 +215,7 @@ class BMQueueView(bs.gui.lib.BSFrame):
     def _update_size(self):
         """ ..
 
-        Recalculates cumulative size of all positioned self._backup_jobs and \
+        Recalculates cumulative size of all positioned self._backup_jobs and
         resizes itself.
         """
         width = 0
@@ -227,7 +225,8 @@ class BMQueueView(bs.gui.lib.BSFrame):
             height += backup_job.height() + 1
         height -= 1
         # set to minimum size of scroll-area parent
-        if height < self.parent().height(): height = self.parent().height()
+        if height < self.parent().height():
+            height = self.parent().height()
         self._mutex.lock()
         self.resize(width, height)
         self._mutex.unlock()
@@ -235,7 +234,7 @@ class BMQueueView(bs.gui.lib.BSFrame):
     def add_backup_job(self, backup_set):
         """ ..
 
-        :param bs.ctrl.session.BackupSetCtrl BackupSetCtrl: The \
+        :param bs.ctrl.session.BackupSetCtrl BackupSetCtrl: The\
         :class:`~bs.ctrl.session.BackupSetCtrl` to dispatch as a new job.
 
         Adds a backup-set as a new job to the list.
@@ -255,26 +254,25 @@ class BMQueueView(bs.gui.lib.BSFrame):
     def has_backup_set_in_queue(self, backup_set):
         """ ..
 
-        :param bs.ctrl.session.BackupSet backup_set: The
-        :class:`~bs.ctrl.session.BackupSet` to check for whether or not it \
+        :param bs.ctrl.session.BackupSet backup_set: The\
+        :class:`~bs.ctrl.session.BackupSet` to check for whether or not it\
         currently already exists in any of the queues.
 
-        Checks whether or not the ``backup_set`` is already queued up \
+        Checks whether or not the ``backup_set`` is already queued up
         (or active).
         """
-        lock = QtCore.QMutexLocker(self._mutex)
-
-        if self._backup_jobs in self._backup_jobs:
-            return True
-        if not self._backup_job_in_pole_position == None and\
-            self._backup_job_in_pole_position.backup_set == backup_set:
-            return True
-        return False
+        with QtCore.QMutexLocker(self._mutex):
+            if backup_set in [x.backup_set for x in self._backup_jobs]:
+                return True
+            if (self._backup_job_in_pole_position and
+                    self._backup_job_in_pole_position.backup_set == backup_set):
+                return True
+            return False
 
     def next_backup_job_to_pole_position(self):
         """ ..
 
-        Retires the current backup-job in the pole position and moves the \
+        Retires the current backup-job in the pole position and moves the
         next in the queue to it if queue is not empty.
         """
         # delete current backup-job in pole-position
@@ -288,11 +286,11 @@ class BMQueueView(bs.gui.lib.BSFrame):
     def remove_backup_job(self, backup_job):
         """ ..
 
-        :param QtGui.QWidget backup_job: The \
-        :class:`~bs.gui.view_backup_monitor.BMQueueJobView` to be \
-        removed. This parameter can be overloaded by an ``int`` type, which \
-        is then interpreted as the index in the \
-        :class:`~bs.gui.view_backup_monitor.BMQueueJobView`-list of the \
+        :param QtGui.QWidget backup_job: The\
+        :class:`~bs.gui.view_backup_monitor.BMQueueJobView` to be\
+        removed. This parameter can be overloaded by an ``int`` type, which\
+        is then interpreted as the index in the\
+        :class:`~bs.gui.view_backup_monitor.BMQueueJobView`-list of the\
         backup-job to be removed.
 
         Removes the backup-job at ``index`` in the queue.
@@ -309,8 +307,8 @@ class BMQueueView(bs.gui.lib.BSFrame):
         backup_job_index = self._backup_jobs.index(widget_to_remove)
         if len(self._backup_jobs) > backup_job_index + 1:
             self._backup_jobs[backup_job_index + 1].setFocus()
-        elif len(self._backup_jobs) == backup_job_index + 1 and \
-            len(self._backup_jobs) > 1:
+        elif (len(self._backup_jobs) == backup_job_index + 1 and
+              len(self._backup_jobs) > 1):
             self._backup_jobs[backup_job_index - 1].setFocus()
         elif self._backup_job_in_pole_position:
             self._backup_job_in_pole_position.setFocus()
@@ -337,7 +335,7 @@ class BMQueueView(bs.gui.lib.BSFrame):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         # pole_position:
         self._backup_job_in_pole_position.request_exit()
@@ -440,7 +438,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         """
         # CSS
-        self.setStyleSheet(".BMQueueJobView {background: #%s; "\
+        self.setStyleSheet(".BMQueueJobView {background: #%s; "
                            "border-radius: 3px}"
                            % (bs.config.PALETTE[2], ))
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
@@ -460,10 +458,10 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         :rtype: *void*
 
-        Runs a full backup on its associated \
+        Runs a full backup on its associated\
         :class:`~bs.ctrl.backup.BackupCtrl`.
         """
-        if self._backup_ctrl_being_processed == None:
+        if not self._backup_ctrl_being_processed:
             index = 0
         else:
             index = self._backup_ctrls_to_process.index(self._backup_ctrl_being_processed) + 1
@@ -471,7 +469,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         if index < len(self._backup_ctrls_to_process):
             backup_ctrl = self._backup_ctrls_to_process[index]
             self._backup_ctrl_being_processed = backup_ctrl
-            worker, thread = backup_ctrl.backup()
+            worker = backup_ctrl.backup()[0]
             worker.finished.connect(self.backup,
                                     QtCore.Qt.QueuedConnection)
             worker.start()
@@ -516,11 +514,11 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         # exit threads
-        if self._pre_process_data_thread and \
-            self._pre_process_data_thread.is_alive():
+        if (self._pre_process_data_thread and
+                self._pre_process_data_thread.is_alive()):
             if not self._backup_ctrl_being_processed.request_exit():
                 return False
         return True
@@ -550,7 +548,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         invokes execution of the next next \
         :class:`~bs.gui.view_backup_monitor.BMQueueJobView` in queue.
         """
-        if self._backup_ctrl_being_processed == None:
+        if not self._backup_ctrl_being_processed:
             index = 0
         else:
             index = self._backup_ctrls_to_process.index(self._backup_ctrl_being_processed) + 1
@@ -558,7 +556,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         if index < len(self._backup_ctrls_to_process):
             backup_ctrl = self._backup_ctrls_to_process[index]
             self._backup_ctrl_being_processed = backup_ctrl
-            worker, thread = backup_ctrl.simulate()
+            worker = backup_ctrl.simulate()[0]
             worker.finished.connect(self.simulate,
                                     QtCore.Qt.QueuedConnection)
             worker.start()
@@ -574,7 +572,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         Override.
         """
-        self.setStyleSheet(".BMQueueJobView {background: #%s; "\
+        self.setStyleSheet(".BMQueueJobView {background: #%s; "
                            "border: 1px solid #%s; border-radius: 3px}"
                            % (bs.config.PALETTE[2],
                               bs.config.PALETTE[9], ))
@@ -587,7 +585,7 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
 
         Override.
         """
-        self.setStyleSheet(".BMQueueJobView {background: #%s; "\
+        self.setStyleSheet(".BMQueueJobView {background: #%s; "
                            "border-radius: 3px}"
                            % (bs.config.PALETTE[2], ))
         self._get_queue().focusOutEvent(e)
@@ -615,21 +613,21 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         :param bs.ctrl.backup.BackupUpdateEvent e:
         :rtype: *void*
 
-        This event emits when the currently running backup-execution updates \
-        (this happens after each fractional process has been completed; this \
-        could be the hashing- or encryption-/compression-/packing-process \
-        etc. and the step is dependent on the corresponding buffer-size \
-        used; gets evoked often throughout the processing of one (especially \
-        larger) file). Populates the *details-view* of the *backup-monitor* \
+        This event emits when the currently running backup-execution updates
+        (this happens after each fractional process has been completed; this
+        could be the hashing- or encryption-/compression-/packing-process
+        etc. and the step is dependent on the corresponding buffer-size
+        used; gets evoked often throughout the processing of one (especially
+        larger) file). Populates the *details-view* of the *backup-monitor*
         with details about the last processed file.
         """
         # CALC DATA
         current = 0
         total = 0
         for backup_ctrl in self._backup_ctrls_to_process:
-            if not backup_ctrl.byte_count_current == None:
+            if backup_ctrl.byte_count_current:
                 current += backup_ctrl.byte_count_current
-            if not backup_ctrl.byte_count_total == None:
+            if backup_ctrl.byte_count_total:
                 total += backup_ctrl.byte_count_total
         # all done, reset counts
         if current == total:
@@ -643,8 +641,8 @@ class BMQueueJobView(bs.gui.lib.BSFrame):
         # details view
         if self.hasFocus():
             # file-path
-            if e.file_path and\
-                self.details_view.current_item_path != e.file_path:
+            if (e.file_path and
+                    self.details_view.current_item_path != e.file_path):
                 self.details_view.current_item_path = e.file_path
             # progress-bar
             self.details_view.progress_bar.set_progress(current,
@@ -803,7 +801,7 @@ class BMDetailsProgressBarView(QtGui.QWidget):
         # labels
         self._bar_capacity_min_label = QtGui.QLabel(self)
         self._bar_capacity_min_label.setStyleSheet("color: #%s"
-                                             % (bs.config.PALETTE[9]))
+                                                   % (bs.config.PALETTE[9]))
         self._bar_capacity_min_label.move(0, 0)
         self._bar_capacity_min_label.resize(75, 30)
         self._bar_capacity_min_label.setAlignment(QtCore.Qt.AlignTop)
@@ -817,7 +815,7 @@ class BMDetailsProgressBarView(QtGui.QWidget):
         self._bar_capacity_max_label.setAlignment(QtCore.Qt.AlignRight)
         self._bar_capacity_current_label = QtGui.QLabel("0.00%", self)
         self._bar_capacity_current_label.setStyleSheet("color: #%s"
-                                                 % (bs.config.PALETTE[9]))
+                                                       % (bs.config.PALETTE[9]))
         self._bar_capacity_current_label.resize(50,
                                                 self._bar_capacity_current_label.height())
         self._bar_capacity_current_label.setAlignment(QtCore.Qt.AlignRight)

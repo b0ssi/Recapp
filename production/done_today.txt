@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-08
+- install sphinx on linux
+- start adding bs.gui.view_sets.BSMenuItemAdd
+- add "add-button" gui class bs.gui.view_sets.BSMenuItemAdd, also to BSMenu itself.
+- comprehensive, project-wide code-cleanup (pep8)
+
 2014-08-04
 - adds some details to README
 - file timestamps now get rounded to n positions after the fp (set it to 1 for now) to fix precision conflicts across different file systems/db precision

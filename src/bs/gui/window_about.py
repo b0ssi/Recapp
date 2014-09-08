@@ -5,7 +5,6 @@
 
 from PySide import QtCore, QtGui
 import bs.config
-import datetime
 import math
 import platform
 import time
@@ -44,7 +43,7 @@ class WindowAbout(QtGui.QDialog):
         self.setWindowTitle("About %s" % (bs.config.PROJECT_NAME, ))
         self.setModal(True)
         self.show()
-        ## FILL WITH CONTENTS ##
+        # FILL WITH CONTENTS
         # title
         widget = QtGui.QLabel("%s" % (bs.config.PROJECT_NAME, ))
         widget.setStyleSheet("font-weight: bold; font-size: 18px")
@@ -76,9 +75,11 @@ class WindowAbout(QtGui.QDialog):
         tz_offset_sign = "-" if tz_offset_total > 0 else "+"
         tz_offset_abs = math.sqrt(pow(tz_offset_total / 60, 2))
         tz_offset_h = str(math.floor(tz_offset_abs / 60))
-        if len(tz_offset_h) == 1: tz_offset_h = "0%s" % (tz_offset_h, )
+        if len(tz_offset_h) == 1:
+            tz_offset_h = "0%s" % (tz_offset_h, )
         tz_offset_min = str(int(tz_offset_abs % 60))
-        if len(tz_offset_min) == 1: tz_offset_min = "0%s" % (tz_offset_min, )
+        if len(tz_offset_min) == 1:
+            tz_offset_min = "0%s" % (tz_offset_min, )
         widget = QtGui.QLabel("%s UTC%s%s%s [%s]"
                               % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(bs.config.BUILD_TIMESTAMP)),
                                  tz_offset_sign,

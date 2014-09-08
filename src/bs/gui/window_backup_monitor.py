@@ -6,10 +6,9 @@
 The window GUI that hosts the *Backup-Monitor*.
 """
 
-from PySide import QtCore, QtGui
+from PySide import QtGui
 
 import bs.config
-import bs.gui.window_main
 import bs.gui.view_backup_monitor
 
 
@@ -20,7 +19,7 @@ class WindowBackupMonitor(QtGui.QMainWindow):
     :class:`~bs.ctrl.session.SessionsCtrl` managing all \
     :class:`~bs.ctrl.session.SessionCtrl`.
 
-    The central Backup-Monitor window that displays stati of and management \
+    The central Backup-Monitor window that displays stati of and management
     options for all dispatched backup-jobs.
     """
     _layout = None
@@ -80,7 +79,7 @@ class WindowBackupMonitor(QtGui.QMainWindow):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         # close itself
         self.close()

@@ -172,12 +172,10 @@ class ViewLoginForm(QtGui.QWidget):
             except:
                 pass
             # reconnect
-            signal.connect(
-                lambda: self._view_login.log_in(
-                    self._input_username.text(),
-                    self._input_password.text()
-                    )
-                )
+            signal.connect(lambda: self._view_login.log_in(self._input_username.text(),
+                                                           self._input_password.text()
+                                                           )
+                           )
 
     def _on_text_changed(self):
         """ ..
@@ -189,9 +187,9 @@ class ViewLoginForm(QtGui.QWidget):
         # Checks if session with `username` exists and if it's locked.
         if re.match(bs.config.REGEX_PATTERN_USERNAME, input_username_text):
             for session in self._sessions.sessions:
-                if session.user.username == input_username_text and\
-                    not session.is_unlocked and\
-                    session.is_logged_in:
+                if (session.user.username == input_username_text and
+                        not session.is_unlocked and
+                        session.is_logged_in):
                     self._set_into_unlock(True)
                     return True
         self._set_into_unlock(False)

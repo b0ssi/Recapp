@@ -45,13 +45,13 @@ class Signal(object):
         """ * """
         try:
             self.handlers.remove(handler)
-            logging.debug("%s: Handler '%s' successfully removed from event "\
+            logging.debug("%s: Handler '%s' successfully removed from event "
                           "dispatcher."
                           % (self.__class__.__name__,
                              handler, ))
         except Exception as e:
             raise(e)
-            logging.warning("%s: This handler is not currently registered "\
+            logging.warning("%s: This handler is not currently registered "
                             "with the event and can therefore not be detached."
                             % (self.__class__.__name__, ))
         return self
@@ -73,15 +73,15 @@ class Signal(object):
                                  handler, ))
             except RuntimeError as e:
                 self.disconnect(handler)
-                logging.debug("%s: Handler has thrown a RuntimeError and has "\
+                logging.debug("%s: Handler has thrown a RuntimeError and has "
                               "been disconnected from event (%s): %s"
                               % (self.__class__.__name__,
-                              handler,
-                              e))
+                                 handler,
+                                 e))
             except Exception as e:
-                logging.warning("%s: Handler emission error: %s" %
-                                (self.__class__.__name__,
-                                 handler, ))
+                logging.warning("%s: Handler emission error: %s"
+                                % (self.__class__.__name__,
+                                   handler, ))
                 raise e
         # disconnect
         for handler_to_disconnect in handlers_to_disconnect:
@@ -123,8 +123,7 @@ class BSString(object):
         """
         Pluralizes self.__unicode__ and returns self.
         """
-        endings = [
-                   ("e", "es"),
+        endings = [("e", "es"),
                    ("t", "ts"),
                    ("us", "i"),
                    ("um", "a")
@@ -139,8 +138,7 @@ class BSString(object):
         """
         Singularizes self.__unicode__ and returns self.
         """
-        endings = [
-                   ("s", ""),
+        endings = [("s", ""),
                    ("ts", "t"),
                    ("i", "us"),
                    ("a", "um")
@@ -207,7 +205,7 @@ class HashFile(object):
 
         """
         logging.debug("%s: Hash-calculation started."
-                     % (self.__class__.__name__, ))
+                      % (self.__class__.__name__, ))
 
         while self._status == 1 or len(self._data) > 0:
             if len(self._data) > 0:
@@ -232,7 +230,7 @@ class HashFile(object):
         """
         f = open(self._file_path, "rb")
         logging.debug("%s: Reading of data-stream started."
-                     % (self.__class__.__name__, ))
+                      % (self.__class__.__name__, ))
         while True:
             if not len(self._data) > 2:
                 logging.debug("%s: Reading more data... (%s)"
@@ -252,7 +250,7 @@ class HashFile(object):
     def start(self):
         """ * """
         logging.debug("%s: Starting to hash file: %s"
-                     % (self.__class__.__name__, self._file_path, ))
+                      % (self.__class__.__name__, self._file_path, ))
         # fire _data/_hash wrangler threads
         s = threading.Thread(target=self._read_data)
         t = threading.Thread(target=self._calc_hash)
@@ -261,8 +259,7 @@ class HashFile(object):
         s.join()
         t.join()
         logging.debug("%s: Hash successfully calculated: %s"
-                     % (self.__class__.__name__,
-                        self._hash), )
+                      % (self.__class__.__name__, self._hash), )
         return self._hash
 
 

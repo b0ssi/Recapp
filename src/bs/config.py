@@ -33,9 +33,9 @@ if os.path.isfile(bs_config_path):
     f.close()
 BUILD_TIMESTAMP = d.get("BUILD_TIMESTAMP", 0)
 
-## Static Data
+# Static Data
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.12"
+VERSION = "0.0.3.13"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"

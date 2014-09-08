@@ -1,18 +1,19 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+
 """ ..
 
 """
 
 from PySide import QtCore, QtGui
+import logging
+import os
 
 import bs.config
 import bs.ctrl.backup
 import bs.ctrl.session
 import bs.gui.lib
-import logging
-import os
 
 
 class BS(QtGui.QFrame):
@@ -158,7 +159,9 @@ class BS(QtGui.QFrame):
         """
         if self._backup_set_current:
             # update node data in memory
-            for node_widget in self._bs_sets_canvas.bs_source_widgets + self._bs_sets_canvas.bs_filter_widgets + self._bs_sets_canvas.bs_target_widgets:
+            for node_widget in (self._bs_sets_canvas.bs_source_widgets +
+                                self._bs_sets_canvas.bs_filter_widgets +
+                                self._bs_sets_canvas.bs_target_widgets):
                 node_widget.save_gui_data()
             # save node data to db
             self._backup_set_current.save_to_db()
@@ -187,7 +190,7 @@ class BS(QtGui.QFrame):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -246,20 +249,18 @@ class BSFilter(bs.gui.lib.BSNode):
         self.setMaximumWidth(400)
         # css
         self.css = ((self,
-                     "",
+                     ".",
                      "background: #%s; border: 1px solid #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[2], bs.config.PALETTE[2], ),
+                       ((bs.config.PALETTE[2], bs.config.PALETTE[2], ),
                         (bs.config.PALETTE[2], bs.config.PALETTE[2], ),
                         (bs.config.PALETTE[2], bs.config.PALETTE[2], ),
                         )
                        },
                       "has_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[2], bs.config.PALETTE[9], ),
+                       ((bs.config.PALETTE[2], bs.config.PALETTE[9], ),
                         (bs.config.PALETTE[2], bs.config.PALETTE[9], ),
                         (bs.config.PALETTE[2], bs.config.PALETTE[9], ),
                         )
@@ -273,8 +274,9 @@ class BSFilter(bs.gui.lib.BSNode):
         # backup-filter items
         for backup_filter_rule in self._backup_entity.backup_filter_rules:
             widget = BSFilterItem(self, backup_filter_rule)
-            self._custom_contents_container._layout.addWidget(widget, self._custom_contents_container._layout.count(), 0,
-                                                              1, 1)
+            self._custom_contents_container._layout.addWidget(widget,
+                                                              self._custom_contents_container._layout.count(),
+                                                              0, 1, 1)
         self.show()
 
     def mousePressEvent(self, e):
@@ -362,29 +364,27 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
         self.title_text = self._backup_filter_rule
         # CSS
         self.css = ((self,
-                     "",
+                     ".",
                      "background: #%s",
                      {"has_no_focus":
-                        {"enabled":
-                            (
-                                (bs.config.PALETTE[1], ),
-                                (bs.config.PALETTE[1], ),
-                                (bs.config.PALETTE[1], ),
-                            )
-                         }
+                      {"enabled":
+                       ((bs.config.PALETTE[1], ),
+                        (bs.config.PALETTE[1], ),
+                        (bs.config.PALETTE[1], ),
+                        )
+                       }
                       }
-                    ),
+                     ),
                     (self.title,
-                     "",
+                     ".",
                      "color: #%s",
                      {"has_no_focus":
-                        {"enabled":
-                            (
-                                (bs.config.PALETTE[3], ),
-                                (bs.config.PALETTE[3], ),
-                                (bs.config.PALETTE[3], ),
-                            )
-                         }
+                      {"enabled":
+                       ((bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[3], ),
+                        )
+                       }
                       }
                      ),
                     )
@@ -453,14 +453,20 @@ class BSMenu(bs.gui.lib.BSDraggable):
         Populates the menu with BSNodeItem
         """
         # delete old widgets
-        for layout_pos in range(self._layout.count() - 1):
+        count = self._layout.count() - 1
+        i = 0
+        while i < count:
             widget_item = self._layout.takeAt(1)
             widget_item.widget().deleteLater()
             del(widget_item)
+            i += 1
         # re-populate with widgets
         for backup_set in self._backup_sets.sets:
             widget = BSMenuItem(self, backup_set, self._bs, self._backup_sets)
             self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
+        # add button
+        btn_add = BSMenuItemAdd(self)
+        self._layout.addWidget(btn_add, self._layout.count(), 0, 1, 1)
         # spacer widget
         widget = QtGui.QWidget(self)
         widget.setMinimumHeight(10)
@@ -515,7 +521,7 @@ class BSMenu(bs.gui.lib.BSDraggable):
         """
         if e.oldSize().width() > 0:
             x = self._x_c - self.width() / 2
-            y = self._y_c - self.height() / 2
+#             y = self._y_c - self.height() / 2
             scale_factor_x = (e.size().width() / e.oldSize().width())
             scale_factor_y = (e.size().height() / e.oldSize().height())
             delta_y = e.size().height() - e.oldSize().height()
@@ -581,14 +587,12 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
                      "background: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[1], ),
+                       ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[0], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[0], ),
+                       ((bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[0], ),
                         ),
@@ -600,14 +604,12 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
                      "color: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[3], ),
+                       ((bs.config.PALETTE[3], ),
                         (bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[4], ),
+                       ((bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], ),
                         ),
@@ -625,6 +627,65 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
         self._bs._bs_sets_canvas.load_set(self._backup_set)
 
 
+class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
+    """ ..
+
+    This class represents the single button to be used in
+    :class:`bs.gui.view_sets.BSMenu` that adds a new backup-set.
+    """
+    def __init__(self, bs_menu):
+        """ ..
+        """
+        super(BSMenuItemAdd, self).__init__(bs_menu)
+
+        self._init_ui()
+
+    def _init_ui(self):
+        """ ..
+        """
+        # title
+        self.title_text = "Add Set"
+        # CSS
+        self.css = ((self,
+                     "",
+                     "background: #%s",
+                     {"has_no_focus":
+                      {"enabled":
+                       ((bs.config.PALETTE[8], ),
+                        (bs.config.PALETTE[7], ),
+                        (bs.config.PALETTE[7], ),
+                        ),
+                       }
+                      }
+                     ),
+                    (self.title,
+                     "",
+                     "color: #%s",
+                     {"has_no_focus":
+                      {"enabled":
+                       ((bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[4], ),
+                        (bs.config.PALETTE[4], ),
+                        ),
+                       }
+                      }
+                     ),
+                    )
+
+    def mouseReleaseEvent(self, e):
+        """ ..
+
+        :param `PySide.QtGui.QMouseEvent` e:
+        :rtype: *void*
+
+        Override.
+        """
+        super(BSMenuItemAdd, self).mouseReleaseEvent(e)
+
+        # Call set creator ctrl here
+        print("Adding set...")
+
+
 class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
     """ ..
 
@@ -636,7 +697,8 @@ class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
     _backup_sets = None
     _bs = None
 
-    def __init__(self, bs_menu, bs_menu_item, title, backup_set, backup_sets, bs):
+    def __init__(self, bs_menu, bs_menu_item, title, backup_set, backup_sets,
+                 bs):
         super(BSMenuItemBtnDel, self).__init__(bs_menu, title)
 
         self._title = title
@@ -652,13 +714,13 @@ class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
         """
         msg_box = bs.gui.lib.BSMessageBox(QtGui.QMessageBox.Warning,
                                           "Confirm Deletion",
-                                          "<p>Are you sure you wish to delete "\
-                                          "Backup-Set <b>%s</b>?</p>"\
-                                          "<p>The Backup-Sources, -Filters "\
-                                          "and -Targets contained in the "\
+                                          "<p>Are you sure you wish to "
+                                          "delete Backup-Set <b>%s</b>?</p>"
+                                          "<p>The Backup-Sources, -Filters "
+                                          "and -Targets contained in the "
                                           "Backup-Set will not be deleted.</p>"
                                           % (self._backup_set.set_name, ))
-        msg_box_cancel = msg_box.addButton(msg_box.Cancel)
+        msg_box.addButton(msg_box.Cancel)
         msg_box_ok = msg_box.addButton(msg_box.Ok)
         msg_box.exec_()
         if msg_box.clickedButton() == msg_box_ok:
@@ -702,14 +764,12 @@ class BSMenuItemSave(bs.gui.lib.BSNodeItem):
                      "background: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[8], ),
+                       ((bs.config.PALETTE[8], ),
                         (bs.config.PALETTE[7], ),
                         (bs.config.PALETTE[7], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[1], ),
+                       ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[1], ),
                         ),
@@ -721,14 +781,12 @@ class BSMenuItemSave(bs.gui.lib.BSNodeItem):
                      "color: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[3], ),
+                       ((bs.config.PALETTE[3], ),
                         (bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[6], ),
+                       ((bs.config.PALETTE[6], ),
                         (bs.config.PALETTE[6], ),
                         (bs.config.PALETTE[6], ),
                         ),
@@ -975,7 +1033,8 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         """ ..
 
         """
-        return [x for x in self.children() if isinstance(x, bs.gui.lib.BSArrowBtnDel)]
+        return [x for x in self.children()
+                if isinstance(x, bs.gui.lib.BSArrowBtnDel)]
 
     def _init_ui(self):
         """ ..
@@ -1001,17 +1060,21 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             # add entity on ctrl level
             backup_set.add_backup_source(backup_entity)
             # add widget
-            widget = BSSource(self, self._bs, backup_entity, backup_set, self._app)
+            widget = BSSource(self, self._bs, backup_entity, backup_set,
+                              self._app)
             self._bs_source_widgets.append(widget)
         elif isinstance(backup_entity, bs.ctrl.session.BackupFilterCtrl):
             # add entity on ctrl level
             backup_set.add_backup_filter(backup_entity)
             # add widget
-            widget = BSFilter(self, self._bs, backup_entity, backup_set, self._app)
+            widget = BSFilter(self, self._bs, backup_entity, backup_set,
+                              self._app)
             self._bs_filter_widgets.append(widget)
-        elif isinstance(backup_entity, list) and\
-            isinstance(backup_entity[0], bs.ctrl.session.BackupTargetCtrl):
-            widget = BSTarget(self, self._bs, backup_entity, backup_set, self._app)
+        elif (isinstance(backup_entity, list) and
+                isinstance(backup_entity[0],
+                           bs.ctrl.session.BackupTargetCtrl)):
+            widget = BSTarget(self, self._bs, backup_entity, backup_set,
+                              self._app)
             self._bs_target_widgets.append(widget)
         # set position
         if global_pos:
@@ -1054,7 +1117,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         # delete child-widgets
         for bs_source_widget in self._bs_source_widgets:
@@ -1113,24 +1176,28 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         for bs_source_widget in self._bs_source_widgets:
             backup_entity_ass = bs_source_widget.backup_entity.backup_entity_ass[self._bs.backup_set_current]
             if backup_set.backup_targets in backup_entity_ass:
-                widget = bs.gui.lib.BSArrow(self._bs, bs_source_widget, self._bs_target_widgets[0])
+                bs.gui.lib.BSArrow(self._bs, bs_source_widget,
+                                   self._bs_target_widgets[0])
             for bs_filter_widget in self._bs_filter_widgets:
                 backup_entity = bs_filter_widget.backup_entity
                 if backup_entity in backup_entity_ass:
                     # we have source and filter widget now. Connect!
-                    widget = bs.gui.lib.BSArrow(self._bs, bs_source_widget, bs_filter_widget)
+                    bs.gui.lib.BSArrow(self._bs, bs_source_widget,
+                                       bs_filter_widget)
         # filters - filters/targets
         for bs_filter_widget_a in self._bs_filter_widgets:
             backup_filter_a = bs_filter_widget_a.backup_entity
             backup_filter_a_ass = backup_filter_a.backup_entity_ass[self._bs.backup_set_current]
             if backup_set.backup_targets in backup_filter_a_ass:
-                widget = bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a, self._bs_target_widgets[0])
+                bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a,
+                                   self._bs_target_widgets[0])
             for bs_filter_widget_b in self._bs_filter_widgets:
                 backup_filter_b = bs_filter_widget_b.backup_entity
-                if backup_filter_b in backup_filter_a_ass and\
-                    backup_filter_b != backup_filter_a:
+                if (backup_filter_b in backup_filter_a_ass and
+                        backup_filter_b != backup_filter_a):
                     # we have both associated filters now. Connect!
-                    widget = bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a, bs_filter_widget_b)
+                    bs.gui.lib.BSArrow(self._bs, bs_filter_widget_a,
+                                       bs_filter_widget_b)
         # LAY-OUT NODES
         # sources
         for bs_source_widget in self._bs_source_widgets:
@@ -1188,7 +1255,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     def restack(self):
         """ ..
 
-        Re-stacks children in correct order so they don't overlap \
+        Re-stacks children in correct order so they don't overlap
         inappropriately.
         """
         for widget in self.bs_arrow_btn_del_widgets:
@@ -1201,7 +1268,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
 
         :rtype: *bool*
 
-        Executes exit calls to related objects and forwards request to all \
+        Executes exit calls to related objects and forwards request to all
         children.
         """
         # request exit for all children
@@ -1209,7 +1276,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -1271,9 +1338,9 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
 
         Override.
         """
-        if e.globalPos() == self._mouse_press_global_pos and\
-            e.button() & QtCore.Qt.MouseButton.RightButton and\
-            self._bs.backup_set_current:
+        if (e.globalPos() == self._mouse_press_global_pos and
+                e.button() & QtCore.Qt.MouseButton.RightButton and
+                self._bs.backup_set_current):
             # Main context menu
             menu_main = BSSetsCMenu(self, self._bs.backup_set_current, e.globalPos())
             menu_main.popup(e.globalPos())
@@ -1326,24 +1393,22 @@ class BSSource(bs.gui.lib.BSNode):
         """
         # CSS
         self.css = ((self,
-                     "",
+                     ".",
                      "background: #%s; border: 1px solid #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[8], bs.config.PALETTE[8], ),
+                       ((bs.config.PALETTE[8], bs.config.PALETTE[8], ),
                         (bs.config.PALETTE[8], bs.config.PALETTE[8], ),
                         (bs.config.PALETTE[8], bs.config.PALETTE[8], ),
                         )
                        },
                       "has_focus":
-                       {"enabled":
-                        (
-                         (bs.config.PALETTE[8], bs.config.PALETTE[9], ),
-                         (bs.config.PALETTE[8], bs.config.PALETTE[9], ),
-                         (bs.config.PALETTE[8], bs.config.PALETTE[9], ),
-                         )
-                        }
+                      {"enabled":
+                       ((bs.config.PALETTE[8], bs.config.PALETTE[9], ),
+                        (bs.config.PALETTE[8], bs.config.PALETTE[9], ),
+                        (bs.config.PALETTE[8], bs.config.PALETTE[9], ),
+                        )
+                       }
                       }
                      ),
                     )
@@ -1419,7 +1484,7 @@ class BSSource(bs.gui.lib.BSNode):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -1448,7 +1513,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
     :param bs.ctrl.session.BackupSourceCtrl backup_source:
     :param bs.ctrl.session.BackupSetCtrl backup_set:
 
-    The sub-widget on the :class:`~bs.gui.view_sets.BSSource` that display \
+    The sub-widget on the :class:`~bs.gui.view_sets.BSSource` that display
     extra information about the :class:`~bs.gui.view_sets.BSSource` widget.
     """
     _bs_source = None
@@ -1491,37 +1556,33 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
         self.title_text = "Calculate Pending Data"
         # CSS
         self.css = ((self,
-                     "",
+                     ".",
                      "background: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[1], ),
+                       ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[1], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[1], ),
+                       ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[1], ),
                         ),
                        }
                       }
                      ),
-                     (self.title,
-                      "",
-                      "color: #%s",
+                    (self.title,
+                     "",
+                     "color: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[3], ),
+                       ((bs.config.PALETTE[3], ),
                         (bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[3], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[3], ),
+                       ((bs.config.PALETTE[3], ),
                         (bs.config.PALETTE[3], ),
                         (bs.config.PALETTE[3], ),
                         ),
@@ -1548,7 +1609,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
         :rtype: *bool*
 
-        Executes exit calls to related objects and forwards request to all \
+        Executes exit calls to related objects and forwards request to all
         children.
         """
         # request exit for all children
@@ -1556,7 +1617,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -1574,13 +1635,13 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
         :rtype: *bool*
 
-        Updates the data displayed in the GUI, executing a pre-process on the \
-        backup controller to accumulate # of files and -bytes that are due \
+        Updates the data displayed in the GUI, executing a pre-process on the
+        backup controller to accumulate # of files and -bytes that are due
         to be backed up.
         """
         backup_ctrl = self._backup_set.backup_ctrls[self._backup_entity]
 
-        worker, thread = backup_ctrl.simulate()
+        worker = backup_ctrl.simulate()[0]
         self.setDisabled(True)
         worker.start()
         return True
@@ -1590,9 +1651,8 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
         :param bs.ctrl.backup.BackupUpdateEvent e:
         """
-        if not e.byte_count_total == None and\
-            not e.file_count_total == None:
-            self.title_text = "%s | %s files" \
+        if e.byte_count_total and e.file_count_total:
+            self.title_text = "%s | %s files"\
                               % (bs.utils.format_data_size(e.byte_count_total),
                                  e.file_count_total, )
 
@@ -1677,20 +1737,18 @@ class BSTarget(bs.gui.lib.BSNode):
                                                           0, 1, 1)
         # css
         self.css = ((self,
-                     "",
+                     ".",
                      "background: #%s; border: 1px solid #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[4], bs.config.PALETTE[4], ),
+                       ((bs.config.PALETTE[4], bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], bs.config.PALETTE[4], ),
                         (bs.config.PALETTE[4], bs.config.PALETTE[4], ),
                         )
                        },
                       "has_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[4], bs.config.PALETTE[9], ),
+                       ((bs.config.PALETTE[4], bs.config.PALETTE[9], ),
                         (bs.config.PALETTE[4], bs.config.PALETTE[9], ),
                         (bs.config.PALETTE[4], bs.config.PALETTE[9], ),
                         )
@@ -1785,40 +1843,36 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
                                        target_path, )
         # CSS
         self.css = ((self,
-                     "",
+                     ".",
                      "background: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[1], ),
+                       ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[1], ),
                         ),
                        "disabled":
-                        (
-                         (bs.config.PALETTE[1], ),
-                         (bs.config.PALETTE[1], ),
-                         (bs.config.PALETTE[1], ),
-                         ),
+                       ((bs.config.PALETTE[1], ),
+                        (bs.config.PALETTE[1], ),
+                        (bs.config.PALETTE[1], ),
+                        ),
                        }
                       }
                      ),
-                     (self.title,
-                      "",
-                      "color: #%s",
-                      {"has_no_focus":
-                       {"enabled":
-                        (
-                         (bs.config.PALETTE[3], ),
-                         (bs.config.PALETTE[3], ),
-                         (bs.config.PALETTE[3], ),
-                         ),
-                        "disabled":
-                        (
-                         (bs.config.PALETTE[3], ),
-                         (bs.config.PALETTE[3], ),
-                         (bs.config.PALETTE[3], ),
-                         ),
+                    (self.title,
+                     "",
+                     "color: #%s",
+                     {"has_no_focus":
+                      {"enabled":
+                       ((bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[3], ),
+                        ),
+                       "disabled":
+                       ((bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[3], ),
+                        ),
                        }
                       }
                      ),
@@ -1832,7 +1886,7 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
     :param bs.gui.view_sets.BS bs:
     :param bs.ctrl.session.BackupSetCtrl backup_set:
 
-    This is the backup-job-dispatch button on the target widget that submits \
+    This is the backup-job-dispatch button on the target widget that submits
     the *backup-set* to the *backup-monitor* for execution.
     """
 
@@ -1852,7 +1906,7 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
     def _check_authentication(self):
         """ ..
 
-        Checks if backup-set is authenticated and opens a password prompt if \
+        Checks if backup-set is authenticated and opens a password prompt if
         not. Dispatches the job to the queue on success.
         """
         def _dispatch_backup_job():
@@ -1860,16 +1914,16 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
 
             :rtype: *void*
 
-            Prompts for the password if *backup-set* is encrypted and dispatches \
-            it as a new *backup-job* to the *backup-monitor*'s queue for execution.
+            Prompts for the password if *backup-set* is encrypted and
+            dispatches it as a new *backup-job* to the *backup-monitor*'s queue
+            for execution.
             """
             bm_window = self._bs.session_gui.sessions.window_backup_monitor
-            widget = bs.gui.window_backup_monitor.WindowDispatchCheck(self._backup_set,
-                                                                      bm_window)
+            bs.gui.window_backup_monitor.WindowDispatchCheck(self._backup_set,
+                                                             bm_window)
 
-        if self._backup_set.salt_dk and\
-            self._backup_set.is_authenticated == False:
-            if self._backup_set.is_authenticated == False:
+        if (self._backup_set.salt_dk and self._backup_set.is_authenticated):
+            if self._backup_set.is_authenticated:
                 self._password_prompt = PasswordPromptView(self._backup_set.authenticate,
                                                            self._check_authentication)
         else:
@@ -1885,38 +1939,34 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
                      "background: #%s",
                      {"has_no_focus":
                       {"enabled":
-                       (
-                        (bs.config.PALETTE[1], ),
+                       ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[0], ),
                         ),
                        "disabled":
-                       (
-                        (bs.config.PALETTE[0], ),
+                       ((bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[0], ),
                         (bs.config.PALETTE[0], ),
                         ),
                        }
                       }
                      ),
-                     (self.title,
-                      "",
-                      "color: #%s",
-                      {"has_no_focus":
-                       {"enabled":
-                        (
-                         (bs.config.PALETTE[3], ),
-                         (bs.config.PALETTE[4], ),
-                         (bs.config.PALETTE[4], ),
-                         ),
-                        "disabled":
-                        (
-                         (bs.config.PALETTE[4], ),
-                         (bs.config.PALETTE[4], ),
-                         (bs.config.PALETTE[4], ),
-                         ),
-                        }
+                    (self.title,
+                     "",
+                     "color: #%s",
+                     {"has_no_focus":
+                      {"enabled":
+                       ((bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[4], ),
+                        (bs.config.PALETTE[4], ),
+                        ),
+                       "disabled":
+                       ((bs.config.PALETTE[4], ),
+                        (bs.config.PALETTE[4], ),
+                        (bs.config.PALETTE[4], ),
+                        ),
                        }
+                      }
                      ),
                     )
 
@@ -1966,7 +2016,7 @@ class PasswordPromptView(QtGui.QDialog):
         """
         self.setWindowTitle("Backup-Set Authentication")
         self._stacked_layout = QtGui.QStackedLayout(self)
-        ## BUILD VIEWS
+        # BUILD VIEWS
         # pw input
         self._widget_pw_input = QtGui.QWidget()
         self._stacked_layout.addWidget(self._widget_pw_input)

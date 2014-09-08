@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+#@PydevCodeAnalysisIgnore
 
 """ ..
 
@@ -46,7 +47,7 @@ class TestUserModel(unittest.TestCase):
         new_user = session.UserModel()
         new_user._configdb_path = self._mock_db_file_path
         new_user.log_in(test_username, "2")
-        self.assertTrue(new_user.sadd))
+        self.assertTrue(new_user.sadd())
 
         # clean-up mock db (file)
         self.clean_db_mock_file()
@@ -65,7 +66,7 @@ class TestUserModel(unittest.TestCase):
         new_user._username = "testUser"
         new_user._password = "testPassword"
         with self.assertRaises(SystemExit):
-            new_user.sadd)
+            new_user.sadd()
 
         conn.commit()
         conn.close()
