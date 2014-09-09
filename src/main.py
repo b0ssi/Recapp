@@ -66,7 +66,7 @@ if __name__ == '__main__':
     if dev_mode:
         pass
     # ------------------------------------------------------------------- LOGGER
-    logging_level = logging.DEBUG
+    logging_level = logging.WARNING
     logging_filename = bs.config.LOGFILE_PATH
     if dev_mode:
         logging_level = logging.WARNING
@@ -114,7 +114,7 @@ if __name__ == '__main__':
         # output warning
         if len(errors_acc) > 0:
             app = QtGui.QApplication("preliminary_check")
-            out = "Error(s) were detected when initializing %s:\n\n" \
+            out = "Error(s) were detected when initializing %s:\n\n"\
                   % (bs.config.PROJECT_NAME, )
             for i in range(len(errors_acc)):
                 out += "> " + errors_acc[i] + "\n"

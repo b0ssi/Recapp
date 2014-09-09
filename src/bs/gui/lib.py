@@ -1005,8 +1005,8 @@ class BSNode(BSDraggable):
     :param bs.gui.window_main.Application app:
     :param bool has_conn_pad:
 
-    The superclass to all floating, draggable nodes. Offers node-specific \
-    features such as arrow-connectors, arrow-association-management, node \
+    The superclass to all floating, draggable nodes. Offers node-specific
+    features such as arrow-connectors, arrow-association-management, node
     association management, etc.
     """
     _bs = None

@@ -919,17 +919,19 @@ class BackupSetCtrl(bs.model.models.Sets):
                                                                           backup_source)
         # if set_id == None, this is a new set, add to database
         if not self._backup_set_id:
-            target_ids = []
+            target_ids_list = []
             for target_obj in target_objs:
-                target_ids.append(target_obj._target_id)
-            target_ids_list = target_ids
-            res = self._add("user_id, set_uid, set_name, salt_dk, set_db_path, sources, filters, targets",
+                target_ids_list.append(target_obj._target_id)
+            res = self._add("user_id, set_uid, set_name, salt_dk, set_db_path, source_ass, filter_ass, targets, gui_data",
                             (self._session.user.id,
                              set_uid,
                              set_name,
                              salt_dk,
                              set_db_path,
-                             json.dumps(target_ids_list)
+                             json.dumps({}),
+                             json.dumps({}),
+                             json.dumps(target_ids_list),
+                             json.dumps({})
                              )
                             )
             self._backup_set_id = res.lastrowid
@@ -1440,22 +1442,34 @@ class BackupSetsCtrl(bs.model.models.Sets):
 
         :rtype: *boolean*
 
+        Raises an `Exception` with a tuple as its ``args`` field that contains
+        a boolean value for each of the following test outcomes:
+        ``((<set_name_valid>, <msg>), (<key_raw_valid>, <msg>), <<set_db_path_valid>, <msg>))``
+
         Creates a new (empty) backup-set.
         """
         # VALIDATE DATA
+        set_name_valid = True
+        set_name_msg = ""
+        key_raw_valid = True
+        key_raw_msg = ""
+        set_db_path_valid = True
+        set_db_path_msg = ""
         # set_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
-            logging.warning("%s: The name contains invalid characters. It "
-                            "needs to start  with an alphabetic and contain "
-                            "alphanumerical characters plus '\_\-\#' and "
-                            "space." % (self.__class__.__name__, ))
-            return False
+            msg = "The name contains invalid characters. It needs to "\
+                  "start with an alphabetic and contain alphanumerical "\
+                  "characters plus '\_\-\#' and space."
+            logging.warning("%s: %s" % (self.__class__.__name__, msg, ))
+            set_name_valid = False
+            set_name_msg = msg
         # key_raw
         if not re.match(bs.config.REGEX_PATTERN_KEY, key_raw):
-            logging.warning("%s: The password contains invalid characters "
-                            "and/or is of invalid length."
-                            % (self.__class__.__name__, ))
-            return False
+            msg = "The password contains invalid characters and/or is of "\
+                  "invalid length."
+            logging.warning("%s: %s" % (msg, self.__class__.__name__, ))
+            key_raw_valid = False
+            key_raw_msg = msg
         else:
             salt_dk = hashlib.sha512(key_raw.encode()).hexdigest()
         # set_db_path
@@ -1467,12 +1481,12 @@ class BackupSetsCtrl(bs.model.models.Sets):
         elif not re.match(".*\.sqlite$", set_db_path):
             check = True
         if check:
-            logging.warning("%s: The given path does not point to an existing"
-                            "location on this system or the filename is in "
-                            "an invalid format (extension <.sqlite> "
-                            "expected)."
-                            % (self.__class__.__name__, ))
-            return False
+            msg = "The given path does not point to an existing location "\
+                  "on this system or the filename is in an invalid format "\
+                  "(extension <.sqlite> expected)."
+            logging.warning("%s: %s" % (msg, self.__class__.__name__, ))
+            set_db_path_valid = False
+            set_db_path_msg = msg
         # source_objs
         if not isinstance(source_objs, (list, tuple)):
             check = True
@@ -1494,6 +1508,14 @@ class BackupSetsCtrl(bs.model.models.Sets):
             for target_obj in target_objs:
                 if not isinstance(target_obj, BackupTargetCtrl):
                     check = True
+        # raise exception if necessary
+        if not set_name_valid or not key_raw_valid or not set_db_path_valid:
+            e = Exception()
+            e.args = ((set_name_valid, set_name_msg),
+                      (key_raw_valid, key_raw_msg),
+                      (set_db_path_valid, set_db_path_msg)
+                      )
+            raise(e)
 
         if check:
             logging.warning("%s: The second, thrid and fourth arguments need "

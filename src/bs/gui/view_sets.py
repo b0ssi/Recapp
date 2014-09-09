@@ -430,8 +430,9 @@ class BSMenu(bs.gui.lib.BSDraggable):
         self._x_c = float(0.0)
         self._y_c = float(0.0)
         # title
-        self.title_text = "Sets"
-        self.title_size = 18
+        title = QtGui.QLabel("Backup Sets")
+        title.setStyleSheet("font-size: 18")
+        self._layout.addWidget(title, 0, 0, 1, 1)
         # refresh with set buttons
         self.refresh()
         self.setGeometry(20,
@@ -496,21 +497,18 @@ class BSMenu(bs.gui.lib.BSDraggable):
         # margins
         min_height += self._layout.contentsMargins().top()
         min_height += self._layout.contentsMargins().bottom()
-        # set pos
         self.show()
-        x = self.x()
-        y = self.y()
-        self.setMaximumHeight(min_height)
-        # have to reset pos() as resizeEvent would move the widget otherwise.
-        self.setGeometry(x,
-                         y,
+        # set pos
+        self.setGeometry(self.x(),
+                         self.y(),
                          self.width(),
-                         self.height()
+                         min_height
                          )
 
     @property
     def backup_sets(self):
         """ ..
+
         :rtype: :class:`bs.ctrl.session.BackupSetsCtrl`
 
         The :class:`bs.ctrl.session.BackupSetsCtrl` in use by the corresponding
@@ -533,7 +531,7 @@ class BSMenu(bs.gui.lib.BSDraggable):
         """
         if e.oldSize().width() > 0:
             x = self._x_c - self.width() / 2
-#             y = self._y_c - self.height() / 2
+            y = self._y_c - self.height() / 2
             scale_factor_x = (e.size().width() / e.oldSize().width())
             scale_factor_y = (e.size().height() / e.oldSize().height())
             delta_y = e.size().height() - e.oldSize().height()
@@ -699,26 +697,9 @@ class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
         Override. Creates and adds a new backup-set when clicked.
         """
         super(BSMenuItemAdd, self).mouseReleaseEvent(e)
-        # get data for new set from user input
-        values = {"set_name": None,
-                  "set_db_path": None
-                  }
-        BSMenuItemAddDialog(values)
-        print(values)
-        # add backup-set ctrl
-        if None not in [values[x] for x in values.keys()]:
-            print("good!")
-#             values["key_raw"] = 
-#             values["source_objs"] = 
-#             value["filter_objs"] = 
-#             value["target_objs"] = 
-#         self._bs_menu.backup_sets.create_backup_set(values["set_name"],
-#                                                     values["key_raw"],
-#                                                     values["set_db_path"],
-#                                                     values["source_objs"],
-#                                                     values["filter_objs"],
-#                                                     values["target_objs"]
-#                                                     )
+
+        # launch dialog to enter details and crete backup-set
+        BSMenuItemAddDialog(self._bs_menu.backup_sets)
         # refresh menu
         self._bs_menu.refresh()
 
@@ -726,26 +707,26 @@ class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
 class BSMenuItemAddDialog(QtGui.QDialog):
     """ ..
 
-    :param dict values: A dictionary containing the following keys:
-
-        - *set_name* (`string`): Should be set to ``None``
-        - *set_db_path* (`string`): Should be set to ``None``
+    :param bs.ctrl.session.BackupSetsCtrl backup_sets: The\
+    :class:`bs.ctrl.session.BackupSetsCtrl` of the current session.
 
     This is the dialog window where particulars about the backup-set to be
     added are specified.
     """
-    _values = None
+    _backup_sets = None
     _input_name = None
     _input_name_title = None
     _inpub_db_path = None
     _input_db_path_title = None
+    _input_pw = None
+    _input_pw_title = None
 
-    def __init__(self, values):
+    def __init__(self, backup_sets):
         """ ..
         """
         super(BSMenuItemAddDialog, self).__init__()
 
-        self._values = values
+        self._backup_sets = backup_sets
 
         self._init_ui()
 
@@ -754,60 +735,76 @@ class BSMenuItemAddDialog(QtGui.QDialog):
         """
         layout = QtGui.QGridLayout(self)
         # set name
-        self._input_name_title = QtGui.QLabel("Please specify a name for the"
+        self._input_name_title = QtGui.QLabel("Please specify a name for the "
                                               "new Backup-Set.\n"
-                                              "The name must be between 5 and"
+                                              "The name must be between 5 and "
                                               "32 characters in length:")
         layout.addWidget(self._input_name_title, 0, 0, 1, 3)
         self._input_name = QtGui.QLineEdit()
         layout.addWidget(self._input_name, 1, 0, 1, 3)
         # set db path
-        self._input_db_path_title = QtGui.QLabel("Please specify a path where"
-                                                 "the Backup-Set's database"
+        self._input_db_path_title = QtGui.QLabel("Please specify a path where "
+                                                 "the Backup-Set's database "
                                                  "will be stored.\n"
-                                                 "The path must exist and be"
+                                                 "The path must exist and be "
                                                  "a folder:")
         layout.addWidget(self._input_db_path_title, 2, 0, 1, 3)
         self._input_db_path = QtGui.QLineEdit()
         layout.addWidget(self._input_db_path, 3, 0, 1, 3)
+        # set pw
+        self._input_pw_title = QtGui.QLabel("Please specify a password.\n"
+                                            "The length must be between 8 and "
+                                            "128 characters long:")
+        layout.addWidget(self._input_pw_title, 4, 0, 1, 3)
+        self._input_pw = QtGui.QLineEdit()
+        self._input_pw.setEchoMode(QtGui.QLineEdit.Password)
+        layout.addWidget(self._input_pw, 5, 0, 1, 3)
         # add button
         btn_add = QtGui.QPushButton("&Add")
         btn_add.clicked.connect(self._submit)
-        layout.addWidget(btn_add, 4, 1, 1, 1)
+        layout.addWidget(btn_add, 6, 1, 1, 1)
         # cancel button
         btn_cancel = QtGui.QPushButton("&Cancel")
         btn_cancel.clicked.connect(self.close)
-        layout.addWidget(btn_cancel, 4, 2, 1, 1)
+        layout.addWidget(btn_cancel, 6, 2, 1, 1)
         self.exec_()
 
     def _submit(self):
         """ ..
         :rtype: `void`
 
-        Verifies entered data and submits, reading field data into
-        ``self._values`` and closing itself
+        Verifies entered data by attempting to add the backup-set.
         """
-        valid = True
-        # validate data
-        if (len(self._input_name.text()) < 5 or
-                len(self._input_name.text()) > 32):
-            self._input_name_title.setStyleSheet("color: red")
-            valid = False
-        else:
-            self._input_name_title.setStyleSheet("")
-
-        if not os.path.isdir(self._input_db_path.text()):
-            self._input_db_path_title.setStyleSheet("color: red")
-            valid = False
-        else:
-            self._input_db_path_title.setStyleSheet("")
-
-        if valid:
-            # copy into values package
-            self._values["set_name"] = self._input_name.text()
-            self._values["set_db_path"] = self._input_db_path.text()
+        try:
+            self._backup_sets.create_backup_set(self._input_name.text(),
+                                                self._input_pw.text(),
+                                                self._input_db_path.text(),
+                                                [],
+                                                [],
+                                                []
+                                                )
             # close
             self.close()
+        except Exception as e:
+            # set_name
+            if not e.args[0][0]:
+                self._input_name_title.setStyleSheet("color: red")
+                print(e.args[0][1])
+            else:
+                self._input_name_title.setStyleSheet("")
+            # key_raw
+            if not e.args[1][0]:
+                self._input_pw_title.setStyleSheet("color: red")
+                print(e.args[1][1])
+            else:
+                self._input_pw_title.setStyleSheet("")
+            # db_path
+            if not e.args[2][0]:
+                self._input_db_path_title.setStyleSheet("color: red")
+                print(e.args[2][1])
+            else:
+                self._input_db_path_title.setStyleSheet("")
+            print(e.args)
 
     def closeEvent(self, e):
         """ ..
@@ -863,8 +860,9 @@ class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
         msg_box.exec_()
         if msg_box.clickedButton() == msg_box_ok:
             self._backup_sets.delete_backup_set(self._backup_set)
-            # empty the canvas
-            self._bs.bs_sets_canvas.empty_canvas()
+            # empty the canvas if set to be deleted is currently loaded set
+            if self._backup_set == self._bs.backup_set_current:
+                self._bs.bs_sets_canvas.close_set()
             # refresh the menu
             self._bs_menu.refresh()
 
@@ -1249,6 +1247,8 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         :rtype: *bool*
 
         Empties the canvas, removing/deleting all loaded widgets and arrows.
+        Be aware that this deletes the arrow-carrier-widget as well.
+        :meth:`close_set` should be used in most cases.
         """
         # request exit for all children
         for child in self.children():
@@ -1282,7 +1282,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
         """ ..
 
         :param bs.ctrl.session.BackupSetCtrl backup_set:
-        :rtype: *bool*
+        :rtype: *boolean*
 
         Loads a :class:`~bs.ctrl.session.BackupSetCtrl` onto the canvas.
         """
@@ -1404,7 +1404,7 @@ class BSSetsCanvas(bs.gui.lib.BSCanvas):
     def request_exit(self):
         """ ..
 
-        :rtype: *bool*
+        :rtype: *boolean*
 
         Executes exit calls to related objects and forwards request to all
         children.
