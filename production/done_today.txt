@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-09
+- adds dialog window that prompts for details when adding set through menu in sets view. Dialog window also performs simple validation. 
+
 2014-09-08
 - install sphinx on linux
 - start adding bs.gui.view_sets.BSMenuItemAdd

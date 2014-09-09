@@ -450,7 +450,9 @@ class BSMenu(bs.gui.lib.BSDraggable):
     def refresh(self):
         """ ..
 
-        Populates the menu with BSNodeItem
+        Populates the menu with BSNodeItems.
+        To be called when initially populating the menu or updating after a
+        backup-set has been added or deleted.
         """
         # delete old widgets
         count = self._layout.count() - 1
@@ -505,6 +507,16 @@ class BSMenu(bs.gui.lib.BSDraggable):
                          self.width(),
                          self.height()
                          )
+
+    @property
+    def backup_sets(self):
+        """ ..
+        :rtype: :class:`bs.ctrl.session.BackupSetsCtrl`
+
+        The :class:`bs.ctrl.session.BackupSetsCtrl` in use by the corresponding
+        session.
+        """
+        return self._backup_sets
 
     def mouseMoveEvent(self, e):
         """ ..
@@ -630,13 +642,19 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
 class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
     """ ..
 
+    :param bs.gui.view_sets.BSMenu bs_menu: The menu that hosts this button.
+
     This class represents the single button to be used in
     :class:`bs.gui.view_sets.BSMenu` that adds a new backup-set.
     """
+    _bs_menu = None
+
     def __init__(self, bs_menu):
         """ ..
         """
         super(BSMenuItemAdd, self).__init__(bs_menu)
+
+        self._bs_menu = bs_menu
 
         self._init_ui()
 
@@ -675,15 +693,135 @@ class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
     def mouseReleaseEvent(self, e):
         """ ..
 
-        :param `PySide.QtGui.QMouseEvent` e:
+        :param PySide.QtGui.QMouseEvent e:
         :rtype: *void*
+
+        Override. Creates and adds a new backup-set when clicked.
+        """
+        super(BSMenuItemAdd, self).mouseReleaseEvent(e)
+        # get data for new set from user input
+        values = {"set_name": None,
+                  "set_db_path": None
+                  }
+        BSMenuItemAddDialog(values)
+        print(values)
+        # add backup-set ctrl
+        if None not in [values[x] for x in values.keys()]:
+            print("good!")
+#             values["key_raw"] = 
+#             values["source_objs"] = 
+#             value["filter_objs"] = 
+#             value["target_objs"] = 
+#         self._bs_menu.backup_sets.create_backup_set(values["set_name"],
+#                                                     values["key_raw"],
+#                                                     values["set_db_path"],
+#                                                     values["source_objs"],
+#                                                     values["filter_objs"],
+#                                                     values["target_objs"]
+#                                                     )
+        # refresh menu
+        self._bs_menu.refresh()
+
+
+class BSMenuItemAddDialog(QtGui.QDialog):
+    """ ..
+
+    :param dict values: A dictionary containing the following keys:
+
+        - *set_name* (`string`): Should be set to ``None``
+        - *set_db_path* (`string`): Should be set to ``None``
+
+    This is the dialog window where particulars about the backup-set to be
+    added are specified.
+    """
+    _values = None
+    _input_name = None
+    _input_name_title = None
+    _inpub_db_path = None
+    _input_db_path_title = None
+
+    def __init__(self, values):
+        """ ..
+        """
+        super(BSMenuItemAddDialog, self).__init__()
+
+        self._values = values
+
+        self._init_ui()
+
+    def _init_ui(self):
+        """ ..
+        """
+        layout = QtGui.QGridLayout(self)
+        # set name
+        self._input_name_title = QtGui.QLabel("Please specify a name for the"
+                                              "new Backup-Set.\n"
+                                              "The name must be between 5 and"
+                                              "32 characters in length:")
+        layout.addWidget(self._input_name_title, 0, 0, 1, 3)
+        self._input_name = QtGui.QLineEdit()
+        layout.addWidget(self._input_name, 1, 0, 1, 3)
+        # set db path
+        self._input_db_path_title = QtGui.QLabel("Please specify a path where"
+                                                 "the Backup-Set's database"
+                                                 "will be stored.\n"
+                                                 "The path must exist and be"
+                                                 "a folder:")
+        layout.addWidget(self._input_db_path_title, 2, 0, 1, 3)
+        self._input_db_path = QtGui.QLineEdit()
+        layout.addWidget(self._input_db_path, 3, 0, 1, 3)
+        # add button
+        btn_add = QtGui.QPushButton("&Add")
+        btn_add.clicked.connect(self._submit)
+        layout.addWidget(btn_add, 4, 1, 1, 1)
+        # cancel button
+        btn_cancel = QtGui.QPushButton("&Cancel")
+        btn_cancel.clicked.connect(self.close)
+        layout.addWidget(btn_cancel, 4, 2, 1, 1)
+        self.exec_()
+
+    def _submit(self):
+        """ ..
+        :rtype: `void`
+
+        Verifies entered data and submits, reading field data into
+        ``self._values`` and closing itself
+        """
+        valid = True
+        # validate data
+        if (len(self._input_name.text()) < 5 or
+                len(self._input_name.text()) > 32):
+            self._input_name_title.setStyleSheet("color: red")
+            valid = False
+        else:
+            self._input_name_title.setStyleSheet("")
+
+        if not os.path.isdir(self._input_db_path.text()):
+            self._input_db_path_title.setStyleSheet("color: red")
+            valid = False
+        else:
+            self._input_db_path_title.setStyleSheet("")
+
+        if valid:
+            # copy into values package
+            self._values["set_name"] = self._input_name.text()
+            self._values["set_db_path"] = self._input_db_path.text()
+            # close
+            self.close()
+
+    def closeEvent(self, e):
+        """ ..
 
         Override.
         """
-        super(BSMenuItemAdd, self).mouseReleaseEvent(e)
+        self.deleteLater()
 
-        # Call set creator ctrl here
-        print("Adding set...")
+    def hideEvent(self, e):
+        """ ..
+
+        Override.
+        """
+        self.deleteLater()
 
 
 class BSMenuItemBtnDel(bs.gui.lib.BSNodeItemButton):
@@ -1984,12 +2122,13 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
 class PasswordPromptView(QtGui.QDialog):
     """ ..
 
-    :param method auth_method: The function/method to be called by the \
+    :param method auth_method: The function/method to be called by the\
     implemented thread to verify the password and authenticate.
-    :parm method callback: The callback to be invoked on success.
 
-    This password-prompt window implements a threaded authentication \
-    mechanic, visual progress feedback and a ``callback`` to be invoked on \
+    :param method callback: The callback to be invoked on success.
+
+    This password-prompt window implements a threaded authentication
+    mechanic, visual progress feedback and a ``callback`` to be invoked on
     success.
     """
     _auth_method = None

@@ -14,6 +14,7 @@ view_sets
     BSMenu
     BSMenuItem
     BSMenuItemAdd
+    BSMenuItemAddDialog
     BSMenuItemBtnDel
     BSMenuItemSave
     BSSetsCMenu

@@ -8,6 +8,7 @@ Synopsis
 
 Instance-Variables
 ==================
+   | :attr:`backup_sets`
 
 Methods
 =======

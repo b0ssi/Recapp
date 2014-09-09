@@ -8,7 +8,7 @@
 - clean-up
 	- new/updated code
 		- code
-			> sort fields/methods alphabetically
+			> sort classes/methods/fields alphabetically
 			- clean-up
 				> dev comments
 				> tests
@@ -25,11 +25,11 @@
 				> parameters
 				> (r)types
 				> description
-> update documentation
 > reset day-modification marks (".. x" -> "..")
 > increment version number
 > build
 > commit
+> push
 - backup
 	> create synchronicity
 	> 7zip local

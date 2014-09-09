@@ -1325,9 +1325,9 @@ class BackupSetCtrl(bs.model.models.Sets):
 class BackupSetsCtrl(bs.model.models.Sets):
     """ ..
 
-    :param SessionCtrl session: The session this these sets belong to.
+    :param SessionCtrl session: The session these sets belong to.
 
-    Encapsulates all sets that are associated with a \
+    Encapsulates all sets that are associated with a
     :class:`~bs.ctrl.session.SessionCtrl`.
     """
     _session = None
@@ -1437,6 +1437,8 @@ class BackupSetsCtrl(bs.model.models.Sets):
 
         :param list target_objs: A list of :class:`~bs.ctrl.session.BackupTargetCtrl` to \
         associate with the set.
+
+        :rtype: *boolean*
 
         Creates a new (empty) backup-set.
         """
