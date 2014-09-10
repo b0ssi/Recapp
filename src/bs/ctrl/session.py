@@ -14,6 +14,7 @@ import bs.config
 import bs.ctrl.backup
 import bs.gui.window_main
 import bs.gui.window_backup_monitor
+import bs.gui.window_filter_manager
 import bs.messages
 import bs.model.models
 import Crypto.Protocol.KDF
@@ -2483,6 +2484,7 @@ class SessionsCtrl(object):
     _app = None
     _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
     _window_backup_monitor = None
+    _window_filter_manager = None
     _gui_mode = None
 
     def __init__(self, gui_mode=False):
@@ -2496,6 +2498,7 @@ class SessionsCtrl(object):
             self._app = bs.gui.window_main.Application("recapp")
             self.add_session_gui()
             self._window_backup_monitor = bs.gui.window_backup_monitor.WindowBackupMonitor(self)
+            self._window_filter_manager = bs.gui.window_filter_manager.WindowFilterManager(self)
             self._app.exec_()
 
     def __repr__(self):
@@ -2522,17 +2525,6 @@ class SessionsCtrl(object):
         return self._guis
 
     @property
-    def window_backup_monitor(self):
-        """ ..
-
-        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
-
-        The central Backup-Monitor window that displays stati of and \
-        management options for all dispatched backup-jobs.
-        """
-        return self._window_backup_monitor
-
-    @property
     def sessions(self):
         """
         :type: :class:`~bs.ctrl.session.SessionsCtrl`
@@ -2540,6 +2532,29 @@ class SessionsCtrl(object):
         The :class:`~bs.ctrl.session.SessionsCtrl` this session is associated with.
         """
         return self._sessions
+
+    @property
+    def window_backup_monitor(self):
+        """ ..
+
+        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
+
+        The central Backup-Monitor window that displays state of and \
+        management options for all dispatched and currently idle/active \
+        backup-jobs.
+        """
+        return self._window_backup_monitor
+
+    @property
+    def window_filter_manager(self):
+        """ ..
+
+        :type: :class:`~bs.gui.window_filter_manager.WindowFilterManager`
+
+        The central Filter-Manager window that displays all filters for the \
+        current user and offers editing and management options.
+        """
+        return self._window_filter_manager
 
     def add_session(self, username, password):
         """

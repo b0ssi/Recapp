@@ -23,7 +23,7 @@
 				> functions/methods
 			- check docstrings for validity
 				> parameters
-				> (r)types
+				> types
 				> description
 			> build docs
 > reset day-modification marks (".. x" -> "..")
@@ -190,6 +190,7 @@
 	[...] basic set-management view
 		[...] list widget for sets
 			[...] ability to create a new set
+				[...] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
 			[X] ability to delete an existing set
 			[X] edit an existing set
 				[X] add an existing unused source
@@ -209,8 +210,11 @@
 				[X] add name and use as title on node ("Files > 1GiB"/".pdf Files")
 				[X] display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
 				[...] start writing filter-type classes (path, size, date, ...) and db serialization of said
-					[ ] implement and/or association among filter rules
-					[ ] (better implicit that explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)__repr__: hide properties that are irrelevant for given combination or even contradictory/confusing
+					[...] add filter manager
+						[...] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
+						[ ] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
+					[ ] implement "and/or" association among filter rules
+					[ ] (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)__repr__: hide properties that are irrelevant for given combination or even contradictory/confusing
 					[ ] filterRule: implement "is/is not" per rule
 				[.] start implementing gui on filter node
 			[.] targets

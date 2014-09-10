@@ -3,6 +3,9 @@
 ################################
 
 2014-09-10
+- Adds initial backup-filter-monitor window which is also accessible through main-menu -> window -> Filter-Manager
+
+2014-09-10
 - Backup-Set add dialog now responds to validation errors with a message popup specifying the exact error.
 
 2014-09-10
