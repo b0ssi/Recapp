@@ -6,20 +6,35 @@
 
 ## DAILY PROCEDURE #############
 - clean-up
-	- sort fields/methods alphabetically
-	- add new modules/packages/classes/functions to docs
-		+ check docstrings for validity (params, (r)types, description)
-	- clean-up dev comments, tests, commented-out elements
-		+ clean-up warnings/long lines
-- update documentation
-- reset day-modification marks (".. x" -> "..")
-- increment version number
-- build
-- commit
+	- new/updated code
+		- code
+			> sort classes/methods/fields alphabetically
+			- clean-up
+				> dev comments
+				> tests
+				> commented-out elements
+				> warnings
+				> long lines
+		- docs
+			- add to docs
+				> packages
+				> modules
+				> classes
+				> functions/methods
+			- check docstrings for validity
+				> parameters
+				> (r)types
+				> description
+			> build docs
+> reset day-modification marks (".. x" -> "..")
+> increment version number
+> build
+> commit
+> push
 - backup
-	- create synchronicity
-	- 7zip local
-	- 7zip google drive
+	> create synchronicity
+	> 7zip local
+	> 7zip google drive
 
 
 ################################################################################
@@ -162,9 +177,14 @@
 	[ ] remove unused imports
 	[ ] Make sure all modified-flags (*) are reset
 ################################################################################
-[.] ### NEXT MILESTONE: 0.0.3 ##
+[(X)] ### NEXT MILESTONE: 0.0.3 ##
+################################
+(skipped due to inconsistency in version counting)
+################################################################################
+[...] ### NEXT MILESTONE: 0.0.4 ##
 ################################
 [...] views:
+>>>>>>> feature_add_backup_set
 	[X] basic main-window
 	[X] basic login-view
 	[...] basic set-management view
@@ -271,7 +291,7 @@
 ################################
 [ ] .
 ################################################################################
-[ ] ### NEXT MILESTONE: 0.0.4 ##
+[ ] ### NEXT MILESTONE: 0.0.5 ##
 ################################
 [ ] .
 ################################

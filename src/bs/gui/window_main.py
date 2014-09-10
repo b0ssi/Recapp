@@ -57,9 +57,9 @@ class Application(QtGui.QApplication):
         receiver = args[0]
         e = args[1]
         if isinstance(e, QtCore.QEvent):
-            if e.type() == QtCore.QEvent.KeyPress or\
-                e.type() == QtCore.QEvent.MouseMove and\
-                self._idle_1s_timer.isActive():
+            if (e.type() == QtCore.QEvent.KeyPress or
+                    e.type() == QtCore.QEvent.MouseMove and
+                    self._idle_1s_timer.isActive()):
                 self._idle_1s_timer.start()
             # global_mouse_pos
             if e.type() == QtCore.QEvent.Type.MouseMove:
@@ -129,7 +129,7 @@ class WindowMain(QtGui.QMainWindow):
         if isinstance(arg, bs.gui.window_about.WindowAbout):
             self._window_about = arg
         else:
-            logging.warning("%s: The first argument needs to be of type "\
+            logging.warning("%s: The first argument needs to be of type "
                             "`WindowAbout`"
                             % (self.__class__.__name__, ))
 
@@ -180,9 +180,9 @@ class WindowMain(QtGui.QMainWindow):
                 if session.is_logged_in:
                     window_msg = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
                                                    "Cannot Exit",
-                                                   "Other sessions are "\
-                                                   "active. %s can only exit "\
-                                                   "once all other sessions "\
+                                                   "Other sessions are "
+                                                   "active. %s can only exit "
+                                                   "once all other sessions "
                                                    "are logged out."
                                                    % (bs.config.PROJECT_NAME, )
                                                    )
@@ -199,7 +199,7 @@ class WindowMain(QtGui.QMainWindow):
             while len(self._sessions.guis) > 0:
                 gui = self._sessions.guis[0]
                 if gui.main_window.view.request_exit():
-#                     self._sessions.remove_session_gui(gui)
+                    # self._sessions.remove_session_gui(gui)
                     gui.main_window.close()
 
     def lock(self):
@@ -246,7 +246,7 @@ class WindowMain(QtGui.QMainWindow):
             try:
                 if not child.request_exit():
                     return False
-            except AttributeError as e:
+            except AttributeError:
                 pass
         return True
 
@@ -313,8 +313,8 @@ class WindowMain(QtGui.QMainWindow):
         """
         if isinstance(e, QtGui.QKeyEvent):
             # Ctrl + M
-            if e.key() == QtCore.Qt.Key_M and \
-                (e.modifiers() & QtCore.Qt.ControlModifier):
+            if (e.key() == QtCore.Qt.Key_M and
+                    (e.modifiers() & QtCore.Qt.ControlModifier)):
                 self._sessions.window_backup_monitor.show()
 
 

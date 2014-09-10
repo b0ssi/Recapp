@@ -29,8 +29,8 @@ class BSModel(object):
         """
         out = []
         for attribute_name, attribute_object in inspect.getmembers(self):
-            if not attribute_name[:1] == "_" and \
-                isinstance(attribute_object, list):
+            if (not attribute_name[:1] == "_" and
+                    isinstance(attribute_object, list)):
                 out.append([attribute_name, attribute_object])
         return out
 
@@ -41,7 +41,7 @@ class BSModel(object):
         this BSModel).
         """
         if not parent:
-            parent=self.__class__
+            parent = self.__class__
 
         for child in parent.__bases__:
             if child.__name__ == "BSModel":
@@ -95,7 +95,7 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._add_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot save "\
+                logging.warning("%s: PermissionError: Object cannot save "
                                 "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return False
@@ -103,18 +103,18 @@ class BSModel(object):
         # columns
         if (not isinstance(columns, str) or
                 not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns)):
-            logging.critical("%s: ValueError: Attribute 1 is in invalid "\
-                             "format. Valid syntax: "\
-                             "(<value1>[, <value2>]...), where values need "\
-                             "to begin/end with an alphanumeric character "\
-                             "and contain '_' in addition. with a length "\
+            logging.critical("%s: ValueError: Attribute 1 is in invalid "
+                             "format. Valid syntax: "
+                             "(<value1>[, <value2>]...), where values need "
+                             "to begin/end with an alphanumeric character "
+                             "and contain '_' in addition. with a length "
                              "between 2 and 32 characters."
                              % (self.__class__.__name__, ))
             raise SystemExit()
         # datasets
         if not isinstance(datasets, (list, tuple, )):
-            logging.critical("%s: ValueError: Attribute 2 needs to be a list "\
-                             "containing lists of datasets/tuple containing "\
+            logging.critical("%s: ValueError: Attribute 2 needs to be a list "
+                             "containing lists of datasets/tuple containing "
                              "tuples of datasets."
                              % (self.__class__.__name__, ))
             raise SystemExit()
@@ -127,21 +127,21 @@ class BSModel(object):
             # if datasets is tuple of tuples (/list of lists)
             if type(datasets[0]) is (list, tuple):
                 res = conn.executemany("INSERT INTO %s (%s) VALUES (%s)"
-                                 % (db_table_name,
-                                    columns,
-                                    str("?, " * len(datasets[0]))[:-2], ),
-                                 datasets)
+                                       % (db_table_name,
+                                          columns,
+                                          str("?, " * len(datasets[0]))[:-2], ),
+                                       datasets)
             # if dataset only contains one tuple/list
             else:
                 res = conn.execute("INSERT INTO %s (%s) VALUES (%s)"
-                                 % (db_table_name,
-                                    columns,
-                                    str("?, " * len(datasets))[:-2], ),
-                                 datasets)
+                                   % (db_table_name,
+                                      columns,
+                                      str("?, " * len(datasets))[:-2], ),
+                                   datasets)
             conn.commit()
             conn.close()
             logging.debug("%s: Data successfully saved to database."
-                         % (self.__class__.__name__))
+                          % (self.__class__.__name__))
             return res
         except Exception as e:
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
@@ -151,9 +151,9 @@ class BSModel(object):
     def _get_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param args: Arbitrary arguments passed in by overloading \
+        :param args: Arbitrary arguments passed in by overloading\
         implementations.
-        :param dict kwargs: A `dict` containing arbitrary data passed in by \
+        :param dict kwargs: A `dict` containing arbitrary data passed in by\
         overloading implementations.
         :type: *bool*
 
@@ -185,21 +185,21 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._get_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot _get "\
+                logging.warning("%s: PermissionError: Object cannot _get "
                                 "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return []
         # VALIDATE PARAMETERS
         # columns
-        if not isinstance(columns, str) or \
-            not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns) and\
-            not columns == "*":
-            logging.critical("%s: Argument 1 has invalid data. The column(s) "\
-                             "need to be defined as a single or "\
-                             "comma-separated list of valid column-names "\
-                             "(containing alpha-numeric plus '_', starting "\
-                             "with alphabetic and ending with alphanumeric "\
-                             "characters only) and be between 2 and 32 "\
+        if (not isinstance(columns, str) or
+                not re.search(bs.config.REGEX_PATTERN_COLUMNS, columns) and
+                not columns == "*"):
+            logging.critical("%s: Argument 1 has invalid data. The column(s) "
+                             "need to be defined as a single or "
+                             "comma-separated list of valid column-names "
+                             "(containing alpha-numeric plus '_', starting "
+                             "with alphabetic and ending with alphanumeric "
+                             "characters only) and be between 2 and 32 "
                              "characters in length."
                              % (self.__class__.__name__, ))
             raise SystemExit()
@@ -207,7 +207,7 @@ class BSModel(object):
         self._validate_conditions(conditions)
 
         logging.debug("%s: Loading data from columns '%s'..."
-                     % (self.__class__.__name__, columns, ))
+                      % (self.__class__.__name__, columns, ))
         # build conditions
         conditions_sql = ""
         conditions_parameters = []
@@ -229,9 +229,9 @@ class BSModel(object):
                                   conditions_sql, ),
                                tuple(conditions_parameters)).fetchall()
             conn.close()
-            logging.debug("%s: Data from columns '%s' successfully loaded "\
-                         "from database."
-                         % (self.__class__.__name__, columns, ))
+            logging.debug("%s: Data from columns '%s' successfully loaded "
+                          "from database."
+                          % (self.__class__.__name__, columns, ))
             return res
         except Exception as e:
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
@@ -241,9 +241,9 @@ class BSModel(object):
     def _remove_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param arbitrary args: Arbitrary arguments passed in by overwriting \
+        :param arbitrary args: Arbitrary arguments passed in by overwriting\
         implementations.
-        :param dict kwargs: A `dict` containing arbitrary data passed in by \
+        :param dict kwargs: A `dict` containing arbitrary data passed in by\
         overloading implementations.
         :type: *bool*
 
@@ -270,7 +270,7 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._remove_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot _remove "\
+                logging.warning("%s: PermissionError: Object cannot _remove "
                                 "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return False
@@ -278,7 +278,7 @@ class BSModel(object):
         self._validate_conditions(conditions)
 
         logging.debug("%s: Removing data..."
-                     % (self.__class__.__name__, ))
+                      % (self.__class__.__name__, ))
         # build conditions
         conditions_sql = ""
         conditions_parameters = []
@@ -300,7 +300,7 @@ class BSModel(object):
             conn.commit()
             conn.close()
             logging.debug("%s: Data successfully deleted from database."
-                         % (self.__class__.__name__, ))
+                          % (self.__class__.__name__, ))
             return True
         except Exception as e:
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
@@ -310,15 +310,15 @@ class BSModel(object):
     def _update_is_permitted(self, *args, **kwargs):
         """ ..
 
-        :param args: Arbitrary arguments passed in by overloading \
+        :param args: Arbitrary arguments passed in by overloading\
         implementations.
-        :param dict kwargs: A ``dict`` containing arbitrary data passed in by \
+        :param dict kwargs: A ``dict`` containing arbitrary data passed in by\
         overloading implementations.
         :type: *bool*
 
-        This method is designed to be overloaded by inheriting classes to \
-        implement individual access checks to be performed to grant \
-        self._update() permissions to execute. The return value must be a \
+        This method is designed to be overloaded by inheriting classes to
+        implement individual access checks to be performed to grant
+        self._update() permissions to execute. The return value must be a
         boolean.
         """
         return True
@@ -335,7 +335,7 @@ class BSModel(object):
         # get permissions
         if not no_auth_required:
             if not self._remove_is_permitted:
-                logging.warning("%s: PermissionError: Object cannot _remove "\
+                logging.warning("%s: PermissionError: Object cannot _remove "
                                 "data due to a lack of permission."
                                 % (self.__class__.__name__))
                 return False
@@ -351,15 +351,15 @@ class BSModel(object):
                             column_assignment[0]):
                 check = False
         if not check:
-            logging.warning("%s: The first argument is in a wrong format or "\
-                            "contains invalid characters. It needs to be a "\
-                            "list or tuple of lists or tuples containing two "\
-                            "positions: "\
+            logging.warning("%s: The first argument is in a wrong format or "
+                            "contains invalid characters. It needs to be a "
+                            "list or tuple of lists or tuples containing two "
+                            "positions: "
                             "(<column_name string>, <new_value string, int, float, ...>)"
                             % (self.__class__.__name__, ))
             return False
         logging.debug("%s: Updating data..."
-                     % (self.__class__.__name__, ))
+                      % (self.__class__.__name__, ))
         # build column_assignments
         sql_parameters = []
         column_assignments_parameters = ""
@@ -391,12 +391,11 @@ class BSModel(object):
             conn.commit()
             conn.close()
             logging.debug("%s: Data successfully updated in database."
-                         % (self.__class__.__name__, ))
+                          % (self.__class__.__name__, ))
             return True
         except Exception as e:
             logging.critical(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[0])
             raise SystemExit(bs.messages.database.general_error(bs.config.CONFIGDB_PATH, e)[1])
-
 
     def _validate_conditions(self, conditions):
         """
@@ -409,8 +408,8 @@ class BSModel(object):
             for condition in conditions:
                 if isinstance(condition, (list, tuple, )):
                     if len(condition) == 3:
-                        if re.search(bs.config.REGEX_PATTERN_COLUMN, condition[0]) and\
-                            re.search("^[\=\>\<]$", condition[1]):
+                        if (re.search(bs.config.REGEX_PATTERN_COLUMN, condition[0]) and
+                                re.search("^[\=\>\<]$", condition[1])):
                             validity_check_pass = True
                         else:
                             validity_check_pass = False
@@ -423,9 +422,9 @@ class BSModel(object):
         else:
             validity_check_pass = False
         if not validity_check_pass:
-            logging.critical("%s: Argument 2 has invalid data. The "\
-                             "conditions need to be a 2-dimensional list or "\
-                             "tuple in the following form: "\
+            logging.critical("%s: Argument 2 has invalid data. The "
+                             "conditions need to be a 2-dimensional list or "
+                             "tuple in the following form: "
                              "(('<column-name>', ('=' or '>' or '<'), ('<string>'), ), ...)"
                              % (self.__class__.__name__, ))
             raise SystemExit()

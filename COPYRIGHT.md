@@ -1,4 +1,5 @@
 Recapp Backup System
+====================
 
 Copyright 2012-2014 Frieder Czeschla, www.isotoxin.de; all rights reserved.
 
@@ -6,7 +7,8 @@ Portions copyright Qt Project, Dwayne C. Litzenberger and used with permission
 or subject to their respective license agreements.
 
 
-                             License Agreement
+License Agreement
+-----------------
 
 The software with all of its components bundled in this hierarchy/package is a
 product under development and only to be used for early preview or evaluation
@@ -22,7 +24,9 @@ copyright holders be liable for any claim, damages or other liability, whether
 in an action of contract, tort or otherwise, arising from, out of or in
 connection with the software or the use or other dealings in the software.
 
-Exceptions:
+Exceptions
+~~~~~~~~~~
+
 - "PySide" is copyright to the Qt Project and licensed
   under the LGPL.
 - "PyCrypto" components are copyright to Dwayne C. Litzenberger and subject to

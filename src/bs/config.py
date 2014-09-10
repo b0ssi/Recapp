@@ -33,9 +33,9 @@ if os.path.isfile(bs_config_path):
     f.close()
 BUILD_TIMESTAMP = d.get("BUILD_TIMESTAMP", 0)
 
-## Static Data
+# Static Data
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.12"
+VERSION = "0.0.3.16"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"
@@ -67,7 +67,7 @@ REGEX_PATTERN_USERNAME = "^[a-zA-Z][a-zA-Z0-9\_]{2,30}[a-zA-Z0-9]$"
 # names for sources, targets, filters... etc.
 REGEX_PATTERN_NAME = "^[a-zA-Z][a-zA-Z0-9\_\-\ \#]{3,30}[a-zA-Z0-9\_\-\#]$"
 # password-keys
-REGEX_PATTERN_KEY = "^[a-zA-Z0-9]{8,64}$"
+REGEX_PATTERN_KEY = "^[a-zA-Z0-9]{8,128}$"
 
 PALETTE = ["59554e",  # 0
            "6a665d",  # 1

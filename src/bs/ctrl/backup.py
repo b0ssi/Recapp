@@ -27,7 +27,7 @@ import zlib
 
 
 class BackupUpdateEvent(object):
-    """ 
+    """
 
     :param int byte_count_total:
     :param int byte_count_current:
@@ -255,7 +255,7 @@ class BackupCtrl(QtCore.QObject):
         # If not authorized, abort.
         if self._backup_set.salt_dk:
             if not self._backup_set.is_authenticated:
-                logging.warning("%s: The backup-set seems to be encrypted "\
+                logging.warning("%s: The backup-set seems to be encrypted "
                                 "but has not been unlocked yet."
                                 % (self.__class__.__name__, ))
                 return False
@@ -271,7 +271,9 @@ class BackupCtrl(QtCore.QObject):
             self._byte_count_total = 0
             self._file_count_total = 0
         # iterate through file-system
-        for folder_path, folders, files in os.walk(backup_source_path):
+        for data in os.walk(backup_source_path):
+            folder_path = data[0]
+            files = data[2]
             for file in files:
                 # exit thread prematurely on request
                 if self._request_exit:
@@ -335,20 +337,30 @@ class BackupCtrl(QtCore.QObject):
                     entity_ctime = entity_datas[0][2]
                     entity_mtime = entity_datas[0][3]
                     entity_atime = entity_datas[0][4]
-                    entity_inode = entity_datas[0][5]
+#                     entity_inode = entity_datas[0][5]
                     entity_size = entity_datas[0][6]
                     entity_sha512 = entity_datas[0][7]
 
-                    if file_obj.path == entity_path: path = 1
-                    else: path = 0
-                    if file_obj.ctime == entity_ctime: ctime = 1
-                    else: ctime = 0
-                    if file_obj.mtime == entity_mtime: mtime = 1
-                    else: mtime = 0
-                    if file_obj.atime == entity_atime: atime = 1
-                    else: atime = 0
-                    if file_obj.size == entity_size: size = 1
-                    else: size = 0
+                    if file_obj.path == entity_path:
+                        path = 1
+                    else:
+                        path = 0
+                    if file_obj.ctime == entity_ctime:
+                        ctime = 1
+                    else:
+                        ctime = 0
+                    if file_obj.mtime == entity_mtime:
+                        mtime = 1
+                    else:
+                        mtime = 0
+                    if file_obj.atime == entity_atime:
+                        atime = 1
+                    else:
+                        atime = 0
+                    if file_obj.size == entity_size:
+                        size = 1
+                    else:
+                        size = 0
 
                     combinations = "%s%s%s%s%s" \
                                    % (path, ctime, mtime, atime, size, )
@@ -733,8 +745,8 @@ class BackupCtrl(QtCore.QObject):
         Returns the currently active worker/thread, creates and returns a \
         new pair otherwise.
         """
-        if self._thread == None or self._thread.isFinished():
-
+        if (not self._thread or
+                self._thread.isFinished()):
             def reset_refs():
                 self._thread = None
 
@@ -756,23 +768,23 @@ class BackupCtrl(QtCore.QObject):
         conn.execute("CREATE TABLE IF NOT EXISTS ctime (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS inode (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS lookup (id INTEGER PRIMARY KEY, "
-                                                         "path TEXT UNIQUE, "
-                                                         "ctime REAL, "
-                                                         "mtime REAL, "
-                                                         "atime REAL, "
-                                                         "inode INTEGER, "
-                                                         "size INTEGER, "
-                                                         "sha512 TEXT, "
-                                                         "backup_archive_name TEXT)")
+                     "path TEXT UNIQUE, "
+                     "ctime REAL, "
+                     "mtime REAL, "
+                     "atime REAL, "
+                     "inode INTEGER, "
+                     "size INTEGER, "
+                     "sha512 TEXT, "
+                     "backup_archive_name TEXT)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS lookup_path ON lookup (path)")
         conn.execute("CREATE TABLE IF NOT EXISTS mtime (id INTEGER PRIMARY KEY)")
         conn.execute("CREATE TABLE IF NOT EXISTS online (id INTEGER PRIMARY KEY)")
-        conn.execute("CREATE TABLE IF NOT EXISTS path (id INTEGER PRIMARY KEY, "\
-                                                      "path TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS path (id INTEGER PRIMARY KEY, "
+                     "path TEXT)")
         conn.execute("CREATE TABLE IF NOT EXISTS sha512 (id INTEGER PRIMARY KEY)")
         # a hash index table with all hashes (data-streams) in backup-set.
-        conn.execute("CREATE TABLE IF NOT EXISTS sha512_index (sha512 TEXT PRIMARY KEY, "\
-                                                              "backup_archive_name TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS sha512_index (sha512 TEXT PRIMARY KEY, "
+                     "backup_archive_name TEXT)")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sha512_index_sha512 ON sha512_index (sha512)")
         conn.execute("CREATE TABLE IF NOT EXISTS size (id INTEGER PRIMARY KEY)")
         # create new columns for current run
@@ -820,47 +832,56 @@ class BackupCtrl(QtCore.QObject):
             entity_id = kwargs["entity_id"]
             columns_to_update.append("id")
             columns_to_update_data.append(entity_id)
-        except: pass
+        except:
+            pass
         try:
             file_atime = kwargs["file_atime"]
             columns_to_update.append("atime")
             columns_to_update_data.append(file_atime)
-        except: pass
+        except:
+            pass
         try:
             backup_archive_name = kwargs["backup_archive_name"]
             columns_to_update.append("backup_archive_name")
             columns_to_update_data.append(backup_archive_name)
-        except: pass
+        except:
+            pass
         try:
             file_ctime = kwargs["file_ctime"]
             columns_to_update.append("ctime")
             columns_to_update_data.append(file_ctime)
-        except: pass
+        except:
+            pass
         try:
             file_inode = kwargs["file_inode"]
             columns_to_update.append("inode")
             columns_to_update_data.append(file_inode)
-        except: pass
+        except:
+            pass
         try:
             file_mtime = kwargs["file_mtime"]
             columns_to_update.append("mtime")
             columns_to_update_data.append(file_mtime)
-        except: pass
+        except:
+            pass
         try:
             file_path = kwargs["file_path"]
             columns_to_update.append("path")
             columns_to_update_data.append(file_path)
-        except: pass
+        except:
+            pass
         try:
             file_size = kwargs["file_size"]
             columns_to_update.append("size")
             columns_to_update_data.append(file_size)
-        except: pass
+        except:
+            pass
         try:
             file_sha512 = kwargs["file_sha512"]
             columns_to_update.append("sha512")
             columns_to_update_data.append(file_sha512)
-        except: pass
+        except:
+            pass
 
         try:
             # check if entity already exists
@@ -912,7 +933,8 @@ class BackupCtrl(QtCore.QObject):
                                  (file_atime, entity_id, ))
                     logging.debug("%s: atime updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
                 # update ctime
                 try:
                     conn.execute("UPDATE ctime SET %s = ? WHERE id = ?"
@@ -920,7 +942,8 @@ class BackupCtrl(QtCore.QObject):
                                  (file_ctime, entity_id, ))
                     logging.debug("%s: ctime updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
                 # update inode
                 try:
                     conn.execute("UPDATE inode SET %s = ? WHERE id = ?"
@@ -928,7 +951,8 @@ class BackupCtrl(QtCore.QObject):
                                  (file_inode, entity_id, ))
                     logging.debug("%s: inode updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
                 # update mtime
                 try:
                     conn.execute("UPDATE mtime SET %s = ? WHERE id = ?"
@@ -936,7 +960,8 @@ class BackupCtrl(QtCore.QObject):
                                  (file_mtime, entity_id, ))
                     logging.debug("%s: mtime updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
                 # update online
                 try:
                     conn.execute("UPDATE online SET %s = ? WHERE id = ?"
@@ -944,7 +969,8 @@ class BackupCtrl(QtCore.QObject):
                                  (True, entity_id, ))
                     logging.debug("%s: online updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
                 # update path
                 # no need to update: path is primary representation of entity,
                 # thus would never change between snapshots for a single entity
@@ -955,7 +981,8 @@ class BackupCtrl(QtCore.QObject):
                                  (file_size, entity_id, ))
                     logging.debug("%s: size updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
                 # update sha512
                 try:
                     conn.execute("UPDATE sha512 SET %s = ? WHERE id = ?"
@@ -963,7 +990,8 @@ class BackupCtrl(QtCore.QObject):
                                  (file_sha512, entity_id, ))
                     logging.debug("%s: sha512 updated: %s"
                                   % (self.__class__.__name__, entity_id, ))
-                except: pass
+                except:
+                    pass
             # update sha512_index
             # add hash to db and stream to targets
             try:
@@ -972,11 +1000,11 @@ class BackupCtrl(QtCore.QObject):
                 logging.debug("%s: sha512_index updated: %s"
                               % (self.__class__.__name__, entity_id, ))
             # If hash already exists in index table, pass following exception
-            except sqlite3.IntegrityError as e:
+            except sqlite3.IntegrityError:
                 pass
             # if data is not available (attributes weren't passed into method,
             # e.g. when only marking entity as online...)
-            except UnboundLocalError as e:
+            except UnboundLocalError:
                 pass
         except:
             raise
@@ -1017,12 +1045,10 @@ class BackupCtrl(QtCore.QObject):
         Requests any threads running on the object to exit and returns *True* \
         when done so.
         """
-        if self._thread and\
-            self._thread.isRunning():
+        if (self._thread and self._thread.isRunning()):
             self._worker.request_exit()
             self._request_exit = True
-            while self._thread.isRunning() or\
-                self._request_exit:
+            while self._thread.isRunning() or self._request_exit:
                 time.sleep(0.1)
         return True
 
@@ -1226,8 +1252,9 @@ class BackupFileCtrl(object):
         if self._current_backup_archive_name:
             return self._current_backup_archive_name
         else:
-            ## ABSTRACT ####################
-            ################################
+            # ==================================================================
+            # Abstract
+            # ==================================================================
             # if sha_512 already in db index (already backed-up), get corresponding archive name
             # else if not backed-up yet (not in db)
                 # scan all targets, select latest archive name of all of them
@@ -1245,8 +1272,7 @@ class BackupFileCtrl(object):
 
             # try to get archive-name from db
             sql = "SELECT backup_archive_name FROM sha512_index WHERE sha512 = ?"
-            res = self._conn.execute(sql,
-                               (self.sha512, )).fetchall()
+            res = self._conn.execute(sql, (self.sha512, )).fetchall()
             if len(res) == 1:
                 return res[0][0]
             else:
@@ -1258,15 +1284,14 @@ class BackupFileCtrl(object):
                     backup_set_path = os.path.join(target_path, self._backup_set.set_uid)
                     if not os.path.isdir(backup_set_path):
                         os.makedirs(backup_set_path)
-                    for folder_path, folders, files in os.walk(backup_set_path):
-                        folders = []
+                    for data in os.walk(backup_set_path):
+                        files = data[2]
                         for file in sorted(files, reverse=True):
                             try:
-                                file_path = os.path.join(folder_path, file)
                                 # if found latest archive (name) is "newer" than
                                 # current latest_archive_name, replace with current
-                                if not latest_archive_name or \
-                                    int(os.path.splitext(file)[0]) > int(os.path.splitext(latest_archive_name)[0]):
+                                if (not latest_archive_name or
+                                        int(os.path.splitext(file)[0]) > int(os.path.splitext(latest_archive_name)[0])):
                                     latest_archive_name = file
                                 break
                             except:
@@ -1276,12 +1301,13 @@ class BackupFileCtrl(object):
                 try:
                     backup_archive_path = os.path.join(backup_set_path,
                                                        latest_archive_name)
-                except: pass
+                except:
+                    pass
                 # if latest archive found and size below threshold, use this
                 # latest archive
-                if latest_archive_name and\
-                    backup_archive_path and\
-                    os.path.getsize(backup_archive_path) < self._target_archive_max_size:
+                if (latest_archive_name and
+                        backup_archive_path and
+                        os.path.getsize(backup_archive_path) < self._target_archive_max_size):
                     # on all targets:
                     for target in self._targets:
                         target_path = target.target_path
@@ -1385,7 +1411,7 @@ class BackupFileCtrl(object):
         Encrypts and compresses the file and stores it into all targets.
         """
         time_start = time.time()
-        logging.debug("%s: Compressing (zlib)/encrypting (AES) file: %s" \
+        logging.debug("%s: Compressing (zlib)/encrypting (AES) file: %s"
                       % (self.__class__.__name__, self._path, ))
 
         f_in = open(self._path, "rb")
@@ -1427,7 +1453,7 @@ class BackupFileCtrl(object):
         self._tmp_file_path = f_out.name
 
         time_elapsed = time.time() - time_start
-        logging.debug("%s: Compression/Encryption done (%.2fs)." \
+        logging.debug("%s: Compression/Encryption done (%.2fs)."
                       % (self.__class__.__name__, time_elapsed))
         # add to target(s)
         self._add_to_targets()
@@ -1464,12 +1490,12 @@ class BackupFileCtrl(object):
                 f_archive.close()
 
                 time_elapsed = time.time() - time_start
-                logging.info("%s: Successfully added to target archive(s) "\
-                              "(%.2fs)."
-                              % (self.__class__.__name__,
-                                 time_elapsed))
+                logging.info("%s: Successfully added to target archive(s) "
+                             "(%.2fs)."
+                             % (self.__class__.__name__,
+                                time_elapsed))
             else:
-                logging.warning("%s: The backup file already exists in the "\
+                logging.warning("%s: The backup file already exists in the "
                                 "current archive file: %s"
                                 % (self.__class__.__name__,
                                    self.sha512))
@@ -1605,7 +1631,7 @@ class BackupRestoreCtrl(object):
         """
         if not self._key_hash_32:
             while not self._key_hash_32:
-                key_raw = getpass.getpass("This set is encrypted; please "\
+                key_raw = getpass.getpass("This set is encrypted; please "
                                           "enter the corresponding password:")
                 salt_dk = hashlib.sha512(key_raw.encode()).hexdigest()
                 # verify hash_64
@@ -1624,8 +1650,8 @@ class BackupRestoreCtrl(object):
         for entity_id in self._entity_ids:
             # restore-file obj, provides all necessary metadata about entity
             backup_restore_file = BackupRestoreFileCtrl(self._set_obj,
-                                                    entity_id,
-                                                    self._snapshot_to_restore_tstamp)
+                                                        entity_id,
+                                                        self._snapshot_to_restore_tstamp)
             self._unzip_file(backup_restore_file)
             self._decrypt_aes_decompress_zlib(backup_restore_file)
 
@@ -1669,8 +1695,8 @@ class BackupRestoreCtrl(object):
                                       backup_restore_file.file_path[:1],
                                       backup_restore_file.file_path[3:])
         else:
-            logging.critical("%s: This ouput path format still needs to be "\
-                             "configured to be appended to the "\
+            logging.critical("%s: This ouput path format still needs to be "
+                             "configured to be appended to the "
                              "restore_location: %s"
                              % (self.__class__.__name__,
                                 backup_restore_file.file_path, ))
@@ -1807,9 +1833,9 @@ class BackupRestoreFileCtrl(object):
         # sorted list of of all snapshot_timestamps (snapshot column-names) in
         # table_name, latest first, descending
         res = conn.execute("PRAGMA table_info(%s)"
-                                      % (table_name, )).fetchall()
+                           % (table_name, )).fetchall()
         column_names = sorted([x[1] for x in res], reverse=True)
-        column_names.pop(len(column_names)-1)
+        column_names.pop(len(column_names) - 1)
         # extract timestamps from snapshot-column-names and cast into int
         snapshot_timestamps = []
         for column_name in column_names:

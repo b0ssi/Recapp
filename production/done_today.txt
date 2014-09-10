@@ -2,6 +2,22 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-10
+- Backup-Set add dialog now responds to validation errors with a message popup specifying the exact error.
+
+2014-09-10
+- The "add" button now fully adds a backup-set, on the gui- as well as ctrl-level.
+- Bugfix: backup-set-gui is now unloaded correctly when loaded and its corresponding set deleted. Crashed before due to emptying canvas completely (through empty_canvas instead of close_set, including arrow carrier); also empties canvas only if deleted set is the currently loaded one.
+
+2014-09-09
+- adds dialog window that prompts for details when adding set through menu in sets view. Dialog window also performs simple validation. 
+
+2014-09-08
+- install sphinx on linux
+- start adding bs.gui.view_sets.BSMenuItemAdd
+- add "add-button" gui class bs.gui.view_sets.BSMenuItemAdd, also to BSMenu itself.
+- comprehensive, project-wide code-cleanup (pep8)
+
 2014-08-04
 - adds some details to README
 - file timestamps now get rounded to n positions after the fp (set it to 1 for now) to fix precision conflicts across different file systems/db precision

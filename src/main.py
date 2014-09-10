@@ -13,9 +13,7 @@ import bs.ctrl.session
 import logging
 import os
 import re
-import sqlite3
 import sys
-import time
 
 
 # extract sys.argv
@@ -68,7 +66,7 @@ if __name__ == '__main__':
     if dev_mode:
         pass
     # ------------------------------------------------------------------- LOGGER
-    logging_level = logging.DEBUG
+    logging_level = logging.WARNING
     logging_filename = bs.config.LOGFILE_PATH
     if dev_mode:
         logging_level = logging.WARNING
@@ -116,7 +114,7 @@ if __name__ == '__main__':
         # output warning
         if len(errors_acc) > 0:
             app = QtGui.QApplication("preliminary_check")
-            out = "Error(s) were detected when initializing %s:\n\n" \
+            out = "Error(s) were detected when initializing %s:\n\n"\
                   % (bs.config.PROJECT_NAME, )
             for i in range(len(errors_acc)):
                 out += "> " + errors_acc[i] + "\n"
@@ -152,36 +150,36 @@ if __name__ == '__main__':
 # print(my_backup.files_num_total)
 
 
-#print(my_sets_1.sets[0].targets)
-#my_sets_1.sets[0].sources = [
-#                             my_sources_1.sources[0],
-#                             my_sources_1.sources[1]
-#                            ]
-#my_sets_1.sets[0].filters = [
-#                             my_filters_1.filters[0],
-#                             my_filters_1.filters[1],
-#                             my_filters_1.filters[2]
-#                            ]
-#my_sets_1.sets[0].targets = [
-#                             my_targets_1.targets[0]
-#                            ]
-#my_sets_1.add("My awesommmmme set2",
-#              "12345678",
-#              "Z:\\test.sqlite",
-#              (my_sources_1.sources[0], my_sources_1.sources[1], ),
-#              (my_filters_1.filters[0], my_filters_1.filters[1], my_filters_1.filters[2], ),
-#              (my_targets_1.targets[0], )
-#              )
-#my_targets_1.remove(my_targets_1.targets[0])
-#print(my_sets_1.sets[0].targets)
+# print(my_sets_1.sets[0].targets)
+# my_sets_1.sets[0].sources = [
+#                              my_sources_1.sources[0],
+#                              my_sources_1.sources[1]
+#                             ]
+# my_sets_1.sets[0].filters = [
+#                              my_filters_1.filters[0],
+#                              my_filters_1.filters[1],
+#                              my_filters_1.filters[2]
+#                             ]
+# my_sets_1.sets[0].targets = [
+#                              my_targets_1.targets[0]
+#                             ]
+# my_sets_1.add("My awesommmmme set2",
+#               "12345678",
+#               "Z:\\test.sqlite",
+#               (my_sources_1.sources[0], my_sources_1.sources[1], ),
+#               (my_filters_1.filters[0], my_filters_1.filters[1], my_filters_1.filters[2], ),
+#               (my_targets_1.targets[0], )
+#               )
+# my_targets_1.remove(my_targets_1.targets[0])
+# print(my_sets_1.sets[0].targets)
 
 # my_backup = bs.ctrl.backup.Backup(
 #                                   my_sets_1.sets[0]
 #                                   )
 # my_backup.backup_exec()
 
-#my_backup_restore = bs.ctrl.backup.BackupRestore(my_sets_1.sets[0],
-#                                            [10261],
-#                                            "Z:\\test_restore",
-#                                            1367853693)
-#my_backup_restore.start()
+# my_backup_restore = bs.ctrl.backup.BackupRestore(my_sets_1.sets[0],
+#                                             [10261],
+#                                             "Z:\\test_restore",
+#                                             1367853693)
+# my_backup_restore.start()
