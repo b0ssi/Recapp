@@ -3,7 +3,10 @@
 ################################
 
 2014-09-10
-- Adds initial backup-filter-monitor window which is also accessible through main-menu -> window -> Filter-Manager
+- filter-list in filter-manager now lists available filters. It does session-state-sensitive refreshing, which means that it disables filters for sessions that are currently locked or logged-out all together (and re-enables if locked-in and unlocked).
+
+2014-09-10
+- Adds initial filter-manager window which is also accessible through main-menu -> window -> Filter-Manager
 
 2014-09-10
 - Backup-Set add dialog now responds to validation errors with a message popup specifying the exact error.

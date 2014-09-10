@@ -47,6 +47,7 @@ class WindowBackupMonitor(QtGui.QMainWindow):
         y = self._sessions_ctrl.guis[0].main_window.geometry().y()
         self.setGeometry(x, y, 699, 512)
         self.setMinimumSize(699, 512)
+        self.setMaximumSize(699, 512)
         # layout
         self._layout = QtGui.QGridLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)

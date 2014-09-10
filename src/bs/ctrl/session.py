@@ -34,7 +34,8 @@ if platform.system().startswith("win"):
 class BackupFilterCtrl(bs.model.models.Filters):
     """ ..
 
-    :param bs.ctrl.session.SessionGuiCtrl session_gui: The session's GUI controller.
+    :param bs.ctrl.session.SessionCtrl session: The corresponding session \
+    controller.
     :param int backup_filter_id: The filter's ID identifying it uniquely in \
     the database.
 
@@ -47,8 +48,8 @@ class BackupFilterCtrl(bs.model.models.Filters):
     _backup_entity_ass = None
     _backup_filter_rules = None
 
-    def __init__(self, session_gui, backup_filter_id):
-        self._session = session_gui
+    def __init__(self, session, backup_filter_id):
+        self._session = session
         self._backup_filter_id = backup_filter_id
         # if flter_id == None, this is a new filter, add to database
         if not self._backup_filter_id:
@@ -215,6 +216,16 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                         backup_entity_ass[backup_set_obj].append(backup_filter_obj_iter)
             self._backup_entity_ass = backup_entity_ass
         return self._backup_entity_ass
+
+    @property
+    def session(self):
+        """ ..
+
+        :rtype: :class:`bs.ctrl.session.SessionCtrl`
+
+        The corresponding :class:`bs.ctrl.session.SessionCtrl`.
+        """
+        return self._session
 
     def associate(self, backp_set, backup_entity):
         """ ..

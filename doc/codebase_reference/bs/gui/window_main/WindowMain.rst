@@ -8,15 +8,21 @@ Synopsis
 
 Instance-Variables
 ==================
+   | :attr:`view`
 
 Methods
 =======
-	| :meth:`request_exit`
+   | :meth:`check_if_exit_legal`
+   | :meth:`exit`
+   | :meth:`lock`
+   | :meth:`log_out`
+   | :meth:`request_exit`
+   | :meth:`set_view`
 
 Events
 ======
-	| :meth:`closeEvent`
-	| :meth:`keyPressEvent`
+   | :meth:`closeEvent`
+   | :meth:`keyPressEvent`
 
 Detailed Description
 ********************

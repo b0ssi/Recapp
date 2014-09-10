@@ -135,6 +135,13 @@ class WindowMain(QtGui.QMainWindow):
 
     @property
     def view(self):
+        """ ..
+
+        :rtype: :class:`bs.gui.view_login.ViewLogin`
+
+        The main view the window currently holds. This could be the
+        login- or the sets-view for instance.
+        """
         return self._view
 
     def _init_ui(self):
