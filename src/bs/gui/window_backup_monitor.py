@@ -114,6 +114,7 @@ class WindowDispatchCheck(QtGui.QDialog):
         """ ..
 
         """
+        self.setWindowTitle("Backup-Job Dispatch")
         self._layout = QtGui.QGridLayout(self)
         # if backup-set already exists in any of the monitor's queues,
         # deactivate and notify

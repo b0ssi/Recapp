@@ -25,6 +25,7 @@
 				> parameters
 				> (r)types
 				> description
+			> build docs
 > reset day-modification marks (".. x" -> "..")
 > increment version number
 > build

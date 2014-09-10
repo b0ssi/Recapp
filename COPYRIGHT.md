@@ -26,6 +26,7 @@ connection with the software or the use or other dealings in the software.
 
 Exceptions
 ~~~~~~~~~~
+
 - "PySide" is copyright to the Qt Project and licensed
   under the LGPL.
 - "PyCrypto" components are copyright to Dwayne C. Litzenberger and subject to

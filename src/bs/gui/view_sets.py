@@ -734,27 +734,23 @@ class BSMenuItemAddDialog(QtGui.QDialog):
         """ ..
         """
         layout = QtGui.QGridLayout(self)
+        #title
+        self.setWindowTitle("Add new Backup-Set")
         # set name
         self._input_name_title = QtGui.QLabel("Please specify a name for the "
-                                              "new Backup-Set.\n"
-                                              "The name must be between 5 and "
-                                              "32 characters in length:")
+                                              "new Backup-Set:")
         layout.addWidget(self._input_name_title, 0, 0, 1, 3)
         self._input_name = QtGui.QLineEdit()
         layout.addWidget(self._input_name, 1, 0, 1, 3)
         # set db path
         self._input_db_path_title = QtGui.QLabel("Please specify a path where "
                                                  "the Backup-Set's database "
-                                                 "will be stored.\n"
-                                                 "The path must exist and be "
-                                                 "a folder:")
+                                                 "will be stored:")
         layout.addWidget(self._input_db_path_title, 2, 0, 1, 3)
         self._input_db_path = QtGui.QLineEdit()
         layout.addWidget(self._input_db_path, 3, 0, 1, 3)
         # set pw
-        self._input_pw_title = QtGui.QLabel("Please specify a password.\n"
-                                            "The length must be between 8 and "
-                                            "128 characters long:")
+        self._input_pw_title = QtGui.QLabel("Please specify a password:")
         layout.addWidget(self._input_pw_title, 4, 0, 1, 3)
         self._input_pw = QtGui.QLineEdit()
         self._input_pw.setEchoMode(QtGui.QLineEdit.Password)
@@ -786,25 +782,32 @@ class BSMenuItemAddDialog(QtGui.QDialog):
             # close
             self.close()
         except Exception as e:
+            err = ""
             # set_name
             if not e.args[0][0]:
                 self._input_name_title.setStyleSheet("color: red")
-                print(e.args[0][1])
+                err += "- %s\n" % e.args[0][1]
             else:
                 self._input_name_title.setStyleSheet("")
             # key_raw
             if not e.args[1][0]:
                 self._input_pw_title.setStyleSheet("color: red")
-                print(e.args[1][1])
+                err += "- %s\n" % e.args[1][1]
             else:
                 self._input_pw_title.setStyleSheet("")
             # db_path
             if not e.args[2][0]:
                 self._input_db_path_title.setStyleSheet("color: red")
-                print(e.args[2][1])
+                err += "- %s\n" % e.args[2][1]
             else:
                 self._input_db_path_title.setStyleSheet("")
-            print(e.args)
+            # promt error dialog
+            if err != "":
+                msg_box = QtGui.QMessageBox()
+                msg_box.setWindowTitle("Validation error")
+                msg_box.setText("%s's a bit picky, sorry." % bs.config.PROJECT_NAME)
+                msg_box.setInformativeText(err)
+                msg_box.exec_()
 
     def closeEvent(self, e):
         """ ..

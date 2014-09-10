@@ -1457,16 +1457,17 @@ class BackupSetsCtrl(bs.model.models.Sets):
         set_db_path_msg = ""
         # set_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
-            msg = "The name contains invalid characters. It needs to "\
-                  "start with an alphabetic and contain alphanumerical "\
-                  "characters plus '\_\-\#' and space."
+            msg = "The name contains invalid characters: It needs to "\
+                  "start with an alphabetical character and continue with "\
+                  "alphanumerical characters, plus _ - # and space."
             logging.warning("%s: %s" % (self.__class__.__name__, msg, ))
             set_name_valid = False
             set_name_msg = msg
         # key_raw
         if not re.match(bs.config.REGEX_PATTERN_KEY, key_raw):
             msg = "The password contains invalid characters and/or is of "\
-                  "invalid length."
+                  "invalid length. Valid characters are alphanumerical with a "\
+                  "length between 8 and 128 characters."
             logging.warning("%s: %s" % (msg, self.__class__.__name__, ))
             key_raw_valid = False
             key_raw_msg = msg
@@ -1474,16 +1475,31 @@ class BackupSetsCtrl(bs.model.models.Sets):
             salt_dk = hashlib.sha512(key_raw.encode()).hexdigest()
         # set_db_path
         check = False
+        msg = ""
         if not isinstance(set_db_path, str):
             check = True
+            msg = "The given database-path is not of type string."
         elif not os.path.isdir(os.path.dirname(set_db_path)):
             check = True
+            msg = "The given database-path does not point to an existing "\
+                  "folder."
         elif not re.match(".*\.sqlite$", set_db_path):
             check = True
+            msg = "The given database-path does not have the required .sqlite "\
+                  "extension."
+        elif os.path.isfile(set_db_path):
+            check = True
+            msg = "The given database-path points to an already existing file."
+        else:
+            try:
+                with open(set_db_path, "w") as f:
+                    f.write(".")
+                    os.unlink(set_db_path)
+            except:
+                check = True
+                msg = "The location the database-path points to cannot be "\
+                      "written to."
         if check:
-            msg = "The given path does not point to an existing location "\
-                  "on this system or the filename is in an invalid format "\
-                  "(extension <.sqlite> expected)."
             logging.warning("%s: %s" % (msg, self.__class__.__name__, ))
             set_db_path_valid = False
             set_db_path_msg = msg
