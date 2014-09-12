@@ -2,8 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-12
+- Filter manager now loads filter edit view when selecting filter in list.
+
 2014-09-10
-- filter-list in filter-manager now lists available filters. It does session-state-sensitive refreshing, which means that it disables filters for sessions that are currently locked or logged-out all together (and re-enables if locked-in and unlocked).
+- Filter-list in filter-manager now lists available filters. It does session-state-sensitive refreshing, which means that it disables filters for sessions that are currently locked or logged-out all together (and re-enables if locked-in and unlocked).
 
 2014-09-10
 - Adds initial filter-manager window which is also accessible through main-menu -> window -> Filter-Manager

@@ -16,7 +16,7 @@ Methods
 
 Events
 ======
-   | :meth:`focusInEvent`
+   | :meth:`mouseReleaseEvent`
 
 Detailed Description
 ********************

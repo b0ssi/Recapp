@@ -10,5 +10,7 @@ window_filter_manager
 
    WindowFilterManager
    FilterEditView
+   FilterEditEmptyView
+   FilterEditInterface
    FilterListView
    FilterListItemView

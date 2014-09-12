@@ -18,27 +18,75 @@ class WindowFilterManager(QtGui.QMainWindow):
     This is the filter manager that lists all filters for a user and offers the
     ability to edit them.
     """
+    _layout = None
     _sessions_ctrl = None
 
     def __init__(self, sessions_ctrl):
         super(WindowFilterManager, self).__init__()
 
         self._sessions_ctrl = sessions_ctrl
+        self._filter_edit_views = {}
 
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy(QtCore.Qt.StrongFocus | QtCore.Qt.WheelFocus))
+        # geometry
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(500)
         # title
         self.setWindowTitle("Filter Manager")
 
         centralWidget = QtGui.QWidget(self)
-        layout = QtGui.QGridLayout(centralWidget)
+        self._layout = QtGui.QGridLayout(centralWidget)
         self.setCentralWidget(centralWidget)
         # filter list
         filter_list = FilterListView(self, self._sessions_ctrl)
-        layout.addWidget(filter_list, 0, 0, 1, 1)
+        self._layout.addWidget(filter_list, 0, 0, 1, 1)
+        # load placeholder edit widget
+        self.load_filter(None)
+
+    def load_filter(self, backup_filter):
+        """ ..
+
+        :param bs.ctrl.session.BackupFilterCtrl backup_filter:
+
+        :rtype: `void`
+
+        Loads the filter ``backup_filter`` into the details widget.
+        """
+        # remove currently loaded widget
+        current_edit_widget_item = self._layout.itemAtPosition(0, 1)
+        if current_edit_widget_item:
+            # remove widget; this also deletes the C++ object
+            widget = current_edit_widget_item.widget()
+            self._layout.removeWidget(widget)
+            widget.deleteLater()
+        # load placeholder widget
+        if not backup_filter:
+            # set placeholder widget
+            widget = FilterEditEmptyView(self)
+            self._layout.addWidget(widget, 0, 1, 1, 1)
+        else:  # load details view
+            widget = FilterEditView(self, backup_filter)
+            self._layout.addWidget(widget, 0, 1, 1, 1)
+
+    def refresh(self):
+        """ ..
+
+        :rtype: `void`
+
+        Refreshes the contents of all child widgets. They need to implement a
+        ``refresh()`` method to be refreshed.
+        """
+        # refresh all widgets
+        for widget in [self._layout.itemAt(x).widget() for x in range(self._layout.count())]:
+            try:
+                widget.refresh()
+            except:
+                pass
 
     def request_exit(self):
         """ ..
@@ -50,13 +98,117 @@ class WindowFilterManager(QtGui.QMainWindow):
         self.close()
         return True
 
+    def show(self):
+        """ ..
 
-class FilterEditView(QtGui.QWidget):
+        Override. Refreshes contents of window.
+        """
+        super(WindowFilterManager, self).show()
+
+        self.refresh()
+
+    def focusInEvent(self, e):
+        """ ..
+
+        Override. Refreshes contents of window.
+        """
+        self.refresh()
+
+
+class FilterEditInterface(QtGui.QWidget):
     """ ..
+
+    :param QtGui.QWidget parent: The widget to act as a parent.
+
+    This is the interface for all FilterEdit*View's.
+    """
+    _layout = None
+
+    def __init__(self, parent):
+        """ ..
+        """
+        super(FilterEditInterface, self).__init__(parent)
+
+        # layout
+        self._layout = QtGui.QGridLayout(self)
+        # geometry
+        self.setMinimumWidth(200)
+
+
+class FilterEditView(FilterEditInterface):
+    """ ..
+
+    :param QtGui.QWidget parent: \
+    The :class:`QtGui.QWidget` that is to act as the widget's parent.
+
+    :param bs.ctrl.session.BackupFilterCtrl backup_filter: The \
+    :class:`bs.ctrl.session.BackupFilterCtrl` managed by this edit view.
 
     The edit view for a filter. This is where all details about a filter can be
     adjusted.
     """
+    _backup_filter = None
+
+    def __init__(self, parent, backup_filter):
+        """ ..
+        """
+        super(FilterEditView, self).__init__(parent)
+
+        self._backup_filter = backup_filter
+
+        self._init_ui()
+
+    def _init_ui(self):
+        """ ..
+        """
+        # title
+        title = QtGui.QLabel(self)
+        title.setStyleSheet("font-size: 14px; font-weight: 500")
+        title.setMaximumHeight(30)
+        title.setText(self._backup_filter.backup_filter_name)
+        self._layout.addWidget(title, 0, 0, 1, 1)
+        # empty placeholder widget for now
+        self._layout.addWidget(QtGui.QWidget(self), 1, 0, 1, 1)
+
+    def refresh(self):
+        """ ..
+
+        :rtype: `void`
+
+        Disables the view if user logged out or user session locked.
+        """
+        if (not self._backup_filter.session.is_logged_in or
+                not self._backup_filter.session.is_unlocked):
+            self.setDisabled(True)
+        else:
+            self.setEnabled(True)
+
+
+class FilterEditEmptyView(FilterEditInterface):
+    """ ..
+
+    :param QtGui.QWidget parent: \
+    The :class:`QtGui.QWidget` that is to act as the widget's parent.
+
+    The placeholder widget for the details view of the filter manager that is \
+    usually occupied by the \
+    :class:`bs.gui.window_filter_manager.FilterEditView`.
+    """
+
+    def __init__(self, parent):
+        """ ..
+        """
+        super(FilterEditEmptyView, self).__init__(parent)
+
+        self._init_ui()
+
+    def _init_ui(self):
+        """ ..
+        """
+        # info text
+        info_text = QtGui.QLabel(self)
+        info_text.setText("Select a filter to edit its details.")
+        self._layout.addWidget(info_text, 0, 0, 1, 1)
 
 
 class FilterListView(QtGui.QListWidget):
@@ -99,6 +251,9 @@ class FilterListView(QtGui.QListWidget):
     def _init_ui(self):
         """ ..
         """
+        # disable focus otherwise list widget steals it from window-parent
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        # (re)populate list
         self.refresh()
 
     def refresh(self):
@@ -124,12 +279,16 @@ class FilterListView(QtGui.QListWidget):
             else:
                 item.set_enabled()
 
-    def focusInEvent(self, e):
+    def mouseReleaseEvent(self, e):
         """ ..
 
-        Override. Refreshes contents.
+        Override. Triggers load of clicked item.
         """
-        self.refresh()
+        super(FilterListView, self).mouseReleaseEvent(e)
+
+        clicked_item = self.itemAt(e.x(), e.y())
+        if clicked_item and clicked_item.is_enabled:
+            self._window_filter_manager.load_filter(clicked_item._backup_filter)
 
 
 class FilterListItemView(QtGui.QListWidgetItem):
@@ -141,11 +300,13 @@ class FilterListItemView(QtGui.QListWidgetItem):
     A single item in :class:`bs.gui.window_filter_manager.FilterListView`.
     """
     _backup_filter = None
+    _enabled = None
 
     def __init__(self, backup_filter):
         super(FilterListItemView, self).__init__()
 
         self._backup_filter = backup_filter
+        self._enabled = True
 
         self._init_ui()
 
@@ -159,6 +320,22 @@ class FilterListItemView(QtGui.QListWidgetItem):
         """
         return self._backup_filter
 
+    @property
+    def is_disabled(self):
+        """ ..
+
+        :rtype: `boolean`
+        """
+        return not self._enabled
+
+    @property
+    def is_enabled(self):
+        """ ..
+
+        :rtype: `boolean`
+        """
+        return self._enabled
+
     def _init_ui(self):
         """ ..
         """
@@ -167,17 +344,19 @@ class FilterListItemView(QtGui.QListWidgetItem):
     def set_enabled(self):
         """ ..
 
-        :rtype: `boolean`
+        :rtype: `void`
 
         Enables the item.
         """
         self.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+        self._enabled = True
 
     def set_disabled(self):
         """ ..
 
-        :rtype: `boolean`
+        :rtype: `void`
 
         Disables the item.
         """
         self.setFlags(QtCore.Qt.NoItemFlags)
+        self._enabled = False

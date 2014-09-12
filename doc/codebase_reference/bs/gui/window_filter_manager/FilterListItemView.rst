@@ -9,6 +9,8 @@ Synopsis
 Instance-Variables
 ==================
    | :attr:`backup_filter`
+   | :attr:`is_disabled`
+   | :attr:`is_enabled`
 
 Methods
 =======
