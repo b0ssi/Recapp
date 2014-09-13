@@ -3,6 +3,9 @@
 ################################
 
 2014-09-13
+- In the backup-filter edit-view, adds scroll area for filter rules as well as initial rule widgets for size and path. Also extends view to chance rule title, mode (and/or/xor) and adds a drop-down list to add a rule. 
+
+2014-09-13
 - Filter manager now refreshes directly on log-in/-out/lock/unlock signal. Did on focusIn before which was a bit dirty.
 
 2014-09-12

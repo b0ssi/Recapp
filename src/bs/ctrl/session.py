@@ -653,111 +653,60 @@ class BackupFilterRuleCtrl(object):
         return self._include_subfolders
 
 
-class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
+class BackupFilterRuleAgeCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
     :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_size: A *mode_size* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param int size: The *data-size* in bytes to be compared against.
 
-    This class represent a *file-/directory-size filter* that is set for a
+    This class represent a *file-age filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _mode_size = None  # >, >=, =, <=, <
-    _size = None  # int bytes
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
-                 mode_size, size):
-        super(BackupFilterRuleSizeCtrl, self).__init__(key_id,
-                                                       category,
-                                                       file_folder,
-                                                       include_subfolders)
-
-        self._mode_size = mode_size
-        self._size = size
-
-    @property
-    def mode_size(self):
-        """
-        :type: *enum*
-
-        The mode the size attribution is evaluated as.
-        """
-        return self._mode_size
-
-    @property
-    def size(self):
-        """
-        :type: *int*
-
-        The size to be used as reference, in bytes.
-        """
-        return self._size
+    def __init__(self, key_id, category, file_folder, include_subfolders):
+        super(BackupFilterRuleAgeCtrl, self).__init__(key_id,
+                                                      category,
+                                                      file_folder,
+                                                      include_subfolders)
 
 
-class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
+class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
     :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_path: A *mode-path* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param bool match_case: If `True`, filter will be evaluated case-sensitively.
-    :param str path_pattern: The (file-/directory path-)pattern that is to be \
-    matched.
+    :param enum attribute: An *attribute* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
-    This class represent a *file-/directory-path filter* that is set for a
+    This class represent a *file-attribute filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _mode_path = None  # contains, starts with, ends with, ...
-    _match_case = None  # bool
-    _path_pattern = None  # pattern, path, regex, ...
+    _attribute = None
 
     def __init__(self, key_id, category, file_folder, include_subfolders,
-                 mode_path, match_case, path_pattern):
-        super(BackupFilterRulePathCtrl, self).__init__(key_id,
-                                                       category,
-                                                       file_folder,
-                                                       include_subfolders)
+                 attribute):
+        super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
+                                                             category,
+                                                             file_folder,
+                                                             include_subfolders)
 
-        self._mode_path = mode_path
-        self._match_case = match_case
-        self._path_pattern = path_pattern
+        self._attribute = attribute
 
     @property
-    def mode_path(self):
+    def attribute(self):
         """
         :type: *enum*
 
-        The mode the :attr:`path_pattern` is evaluated as.
+        The attribute value set on this object.
         """
-        return self._mode_path
-
-    @property
-    def match_case(self):
-        """
-        :type: *bool*
-
-        If `True`, file-/directory paths will be evaluated case-sensitively.
-        """
-        return self._match_case
-
-    @property
-    def path_pattern(self):
-        """
-        :type: *str*
-
-        The (file-/directory path-)pattern that is to be matched.
-        """
-        return self._path_pattern
+        return self._attribute
 
 
 class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
@@ -831,39 +780,111 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         return self._offset
 
 
-class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
+class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
     :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum attribute: An *attribute* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum mode_path: A *mode-path* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param bool match_case: If `True`, filter will be evaluated case-sensitively.
+    :param str path_pattern: The (file-/directory path-)pattern that is to be \
+    matched.
 
-    This class represent a *file-attribute filter* that is set for a
+    This class represent a *file-/directory-path filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _attribute = None
+    _mode_path = None  # contains, starts with, ends with, ...
+    _match_case = None  # bool
+    _path_pattern = None  # pattern, path, regex, ...
 
     def __init__(self, key_id, category, file_folder, include_subfolders,
-                 attribute):
-        super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
-                                                             category,
-                                                             file_folder,
-                                                             include_subfolders)
+                 mode_path, match_case, path_pattern):
+        super(BackupFilterRulePathCtrl, self).__init__(key_id,
+                                                       category,
+                                                       file_folder,
+                                                       include_subfolders)
 
-        self._attribute = attribute
+        self._mode_path = mode_path
+        self._match_case = match_case
+        self._path_pattern = path_pattern
 
     @property
-    def attribute(self):
+    def mode_path(self):
         """
         :type: *enum*
 
-        The attribute value set on this object.
+        The mode the :attr:`path_pattern` is evaluated as.
         """
-        return self._attribute
+        return self._mode_path
+
+    @property
+    def match_case(self):
+        """
+        :type: *bool*
+
+        If `True`, file-/directory paths will be evaluated case-sensitively.
+        """
+        return self._match_case
+
+    @property
+    def path_pattern(self):
+        """
+        :type: *str*
+
+        The (file-/directory path-)pattern that is to be matched.
+        """
+        return self._path_pattern
+
+
+class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
+    """ ..
+
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum mode_size: A *mode_size* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param int size: The *data-size* in bytes to be compared against.
+
+    This class represent a *file-/directory-size filter* that is set for a
+    :class:`~bs.ctrl.session.BackupFilterCtrl`.
+
+    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    """
+    _mode_size = None  # >, >=, =, <=, <
+    _size = None  # int bytes
+
+    def __init__(self, key_id, category, file_folder, include_subfolders,
+                 mode_size, size):
+        super(BackupFilterRuleSizeCtrl, self).__init__(key_id,
+                                                       category,
+                                                       file_folder,
+                                                       include_subfolders)
+
+        self._mode_size = mode_size
+        self._size = size
+
+    @property
+    def mode_size(self):
+        """
+        :type: *enum*
+
+        The mode the size attribution is evaluated as.
+        """
+        return self._mode_size
+
+    @property
+    def size(self):
+        """
+        :type: *int*
+
+        The size to be used as reference, in bytes.
+        """
+        return self._size
 
 
 class BackupSetCtrl(bs.model.models.Sets):

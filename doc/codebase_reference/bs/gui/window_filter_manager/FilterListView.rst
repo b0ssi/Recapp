@@ -12,11 +12,11 @@ Instance-Variables
 
 Methods
 =======
+   | :meth:`load_current_item`
    | :meth:`refresh`
 
 Events
 ======
-   | :meth:`mouseReleaseEvent`
 
 Detailed Description
 ********************

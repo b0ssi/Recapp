@@ -317,8 +317,9 @@
 			[ ] targets
 				[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
 				[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
-			[ ] execution-panel...
-			[ ] Set-save: Optimize
+		[ ] arrows: implement and/or/xor selector
+		[ ] execution-panel...
+		[ ] Set-save: Optimize
 ################################
 [ ] ### Q/A ####################
 ################################

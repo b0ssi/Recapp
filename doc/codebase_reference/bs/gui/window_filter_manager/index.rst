@@ -11,6 +11,12 @@ window_filter_manager
    WindowFilterManager
    FilterEditView
    FilterEditEmptyView
+   FilterEditRuleInterface
+   FilterEditRuleAgeView
+   FilterEditRuleAttributesView
+   FilterEditRuleDateView
+   FilterEditRulePathView
+   FilterEditRuleSizeView
    FilterEditInterface
    FilterListView
    FilterListItemView
