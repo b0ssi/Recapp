@@ -713,13 +713,27 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum timestamp_type: A *typestamp_type* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum position: A *position* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum reference_date: A *reference_date* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum offset: An *offset* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum timestamp_type: A *typestamp_type* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum position: A *position* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum reference_date: A *reference_date* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum offset: An *offset* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
     This class represent a *date filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.

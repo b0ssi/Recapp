@@ -152,9 +152,11 @@ class FilterEditView(FilterEditInterface):
         """ ..
         """
         # geometry
-        self.setMinimumWidth(550)
+        self.setMinimumWidth(600)
         # title
-        self._layout.addWidget(QtGui.QLabel("Name", self), 0, 0, 1, 1)
+        widget = QtGui.QLabel("Name", self)
+        widget.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Preferred))
+        self._layout.addWidget(widget, 0, 0, 1, 1)
         line_edit = QtGui.QLineEdit(self._backup_filter.backup_filter_name, self)
         self._layout.addWidget(line_edit, 0, 1, 1, 3)
         # logical mode selector
@@ -247,6 +249,8 @@ class FilterEditEmptyView(FilterEditInterface):
     def _init_ui(self):
         """ ..
         """
+        # geometry
+        self.setMinimumWidth(600)
         # info text
         info_text = QtGui.QLabel(self)
         info_text.setText("Select a filter to edit its details.")
@@ -278,13 +282,15 @@ class FilterEditRuleInterface(QtGui.QFrame):
         # style
         self.setFrameStyle(self.Panel | self.Raised)
         # geometry
-        self.setMinimumHeight(50)
-        self.setMaximumHeight(50)
+        self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,
+                                             QtGui.QSizePolicy.Fixed))
 
         # del button
         icon = QtGui.QIcon("img/icons_forget.png")
         widget = QtGui.QPushButton(icon, None)
-        self._layout.addWidget(widget, 0, self._layout.count(), 1, 1)
+        widget.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                               QtGui.QSizePolicy.Fixed))
+        self._layout.addWidget(widget)
 
 
 class FilterEditRuleAgeView(FilterEditRuleInterface):
@@ -304,13 +310,14 @@ class FilterEditRuleAgeView(FilterEditRuleInterface):
         """ ..
         """
         super(FilterEditRuleAgeView, self).__init__(parent,
-                                                      backup_filter_rule_ctrl)
+                                                    backup_filter_rule_ctrl)
 
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
+        self._layout.addWidget(QtGui.QLabel("Age", self), 0, 1, 1, 1)
 
 
 class FilterEditRuleAttributesView(FilterEditRuleInterface):
@@ -330,13 +337,14 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         """ ..
         """
         super(FilterEditRuleAttributesView, self).__init__(parent,
-                                                             backup_filter_rule_ctrl)
+                                                           backup_filter_rule_ctrl)
 
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
+        self._layout.addWidget(QtGui.QLabel("Attributes", self), 0, 1, 1, 1)
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -356,13 +364,104 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         """ ..
         """
         super(FilterEditRuleDateView, self).__init__(parent,
-                                                       backup_filter_rule_ctrl)
+                                                     backup_filter_rule_ctrl)
 
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                        QtGui.QSizePolicy.Preferred)
+        # ======================================================================
+        # Row 1
+        # ======================================================================
+        widget = QtGui.QWidget(self)
+        self._layout.addWidget(widget, 0, 1, 1, 1)
+        layout = QtGui.QHBoxLayout(widget)
+        # "File"
+        layout.addWidget(QtGui.QLabel("File", self))
+        # creation|modification|access
+        c_box = QtGui.QComboBox(self)
+        c_box.addItems(["creation", "modification", "access"])
+        layout.addWidget(c_box)
+        # "lies"
+        layout.addWidget(QtGui.QLabel("lies", self))
+        # before|on|after
+        c_box = QtGui.QComboBox(self)
+        c_box.addItems(["before", "on", "after"])
+        layout.addWidget(c_box)
+        # [current date|file date|folder|volume backup|fixed date]
+        c_box = QtGui.QComboBox(self)
+        c_box.addItems(["current", "file", "folder", "volume backup", "fixed"])
+        layout.addWidget(c_box)
+        # "date"
+        layout.addWidget(QtGui.QLabel("date", self))
+        # [date-selector]
+        date_edit = QtGui.QDateEdit(self)
+        date_edit.setDisplayFormat("yyyy-MM-dd")
+        date_edit.setCalendarPopup(True)
+        date_edit.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
+        layout.addWidget(date_edit)
+        # ======================================================================
+        # Row 2
+        # ======================================================================
+        widget = QtGui.QWidget(self)
+        self._layout.addWidget(widget, 1, 1, 1, 1)
+        layout = QtGui.QHBoxLayout(widget)
+        # [checkBox: time]
+        widget = QtGui.QCheckBox("and time", self)
+        widget.setSizePolicy(size_policy)
+        layout.addWidget(widget)
+        # [timeSelector]
+        layout.addWidget(QtGui.QTimeEdit(self))
+        # "with an offset of"
+        layout.addWidget(QtGui.QCheckBox("with an offset of", self))
+        # spacer
+        widget = QtGui.QWidget(self)
+        widget.setSizePolicy(size_policy)
+        layout.addWidget(widget)
+        # ======================================================================
+        # Row 3
+        # ======================================================================
+        widget = QtGui.QWidget(self)
+        self._layout.addWidget(widget, 2, 1, 1, 1)
+        layout = QtGui.QHBoxLayout(widget)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(99)
+        spin_box.setSuffix(" y")
+        layout.addWidget(spin_box)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(11)
+        spin_box.setSuffix(" m")
+        layout.addWidget(spin_box)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(51)
+        spin_box.setSuffix(" w")
+        layout.addWidget(spin_box)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(365)
+        spin_box.setSuffix(" d")
+        layout.addWidget(spin_box)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(23)
+        spin_box.setSuffix(" h")
+        layout.addWidget(spin_box)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(59)
+        spin_box.setSuffix(" min")
+        layout.addWidget(spin_box)
+        # [lineEdit]
+        spin_box = QtGui.QSpinBox(self)
+        spin_box.setMaximum(59)
+        spin_box.setSuffix(" s")
+        layout.addWidget(spin_box)
 
 
 class FilterEditRulePathView(FilterEditRuleInterface):
@@ -382,33 +481,31 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         """ ..
         """
         super(FilterEditRulePathView, self).__init__(parent,
-                                                       backup_filter_rule_ctrl)
+                                                     backup_filter_rule_ctrl)
 
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
-        self._layout.addWidget(QtGui.QLabel("Path pattern", self),
-                               0, self._layout.count(), 1, 1)
+        self._layout.addWidget(QtGui.QLabel("Path pattern", self), 0, 1, 1, 1)
         # does/does not
         widget = QtGui.QComboBox(self)
         widget.addItems(["does", "does not"])
-        self._layout.addWidget(widget, 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(widget, 0, 2, 1, 1)
         # mode
         c_box = QtGui.QComboBox(self)
         c_box.addItems(["start with", "contain", "end with", "match regex"])
-        self._layout.addWidget(c_box, 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(c_box, 0, 3, 1, 1)
         # pattern
         self._layout.addWidget(QtGui.QLineEdit(self._backup_filter_rule_ctrl.path_pattern, self),
-                               0, self._layout.count(), 1, 1)
+                               0, 4, 1, 1)
         # match case
-        self._layout.addWidget(QtGui.QLabel("and", self),
-                               0, self._layout.count(), 1, 1)
+        self._layout.addWidget(QtGui.QLabel("and", self), 0, 5, 1, 1)
         check_box = QtGui.QCheckBox("match case", self)
         if self._backup_filter_rule_ctrl.match_case:
             check_box.setCheckState(QtCore.Qt.Checked)
-        self._layout.addWidget(check_box, 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(check_box, 0, 6, 1, 1)
 
 
 class FilterEditRuleSizeView(FilterEditRuleInterface):
@@ -428,38 +525,30 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         """ ..
         """
         super(FilterEditRuleSizeView, self).__init__(parent,
-                                                       backup_filter_rule_ctrl)
+                                                     backup_filter_rule_ctrl)
 
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
-        self._layout.addWidget(QtGui.QLabel("File size"), 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(QtGui.QLabel("File size"), 0, 1, 1, 1)
         # is/is not
         widget = QtGui.QComboBox(self)
         widget.addItems(["is", "is not"])
-        self._layout.addWidget(widget, 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(widget, 0, 2, 1, 1)
         # less, less/equal, equal, equal/larger, larger
         widget = QtGui.QComboBox(self)
         widget.addItems(["less than", "less or equal to", "equal to", "equal or larger than", "larger than"])
-        self._layout.addWidget(widget, 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(widget, 0, 3, 1, 1)
         # quantity
-
-        class Validator(QtGui.QValidator):
-            def validate(self, arg_1, arg_2):
-                if not re.match("^\d*$", arg_1):
-                    return QtGui.QValidator.Invalid
-                else:
-                    return QtGui.QValidator.Acceptable
-        validator = Validator(self)
-        widget = QtGui.QLineEdit(self)
-        widget.setValidator(validator)
-        self._layout.addWidget(widget, 0, self._layout.count(), 1, 1)
+        widget = QtGui.QSpinBox(self)
+        widget.setMaximum(1023)
+        self._layout.addWidget(widget, 0, 4, 1, 1)
         # unit
         widget = QtGui.QComboBox(self)
         widget.addItems(["byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB"])
-        self._layout.addWidget(widget, 0, self._layout.count(), 1, 1)
+        self._layout.addWidget(widget, 0, 5, 1, 1)
 
 
 class FilterListView(QtGui.QListWidget):
