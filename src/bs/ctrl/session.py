@@ -2244,6 +2244,10 @@ class BackupTargetsCtrl(bs.model.models.Targets):
 
 class SessionCtrl(object):
     """
+
+    :param bs.ctrl.session.SessionsCtrl sessions_ctrl: The central \
+    :class:`bs.ctrl.session.SessionsCtrl` hosting this session.
+
     Stores and manages contents of a single session. user, sources, targets,
     filters, sets, etc..
 
@@ -2257,8 +2261,9 @@ class SessionCtrl(object):
     _backup_sets = None
     _is_unlocked = None
     _is_logged_in = None
+    _sessions_ctrl = None
 
-    def __init__(self):
+    def __init__(self, sessions_ctrl):
         super(SessionCtrl, self).__init__()
 
         self._user = UserCtrl(self)
@@ -2268,6 +2273,7 @@ class SessionCtrl(object):
         self._backup_sets = BackupSetsCtrl(self)
         self._is_unlocked = False
         self._is_logged_in = False
+        self._sessions_ctrl = sessions_ctrl
 
     def __repr__(self):
         return(str((self._user,
@@ -2388,6 +2394,7 @@ class SessionCtrl(object):
                 self.is_logged_in = True
                 logging.info("%s: Session successfully logged in."
                              % (self.__class__.__name__, ))
+                self._sessions_ctrl.session_activity_signal.emit()
                 return True
             else:
                 logging.warning("%s: Session login failed: Invalid credentials."
@@ -2413,6 +2420,7 @@ class SessionCtrl(object):
             self.is_logged_in = False
             logging.info("%s: Session successfully logged out."
                          % (self.__class__.__name__, ))
+            self._sessions_ctrl.session_activity_signal.emit()
             return True
         else:
             logging.warning("%s: Session logout failed: Already logged out."
@@ -2431,6 +2439,7 @@ class SessionCtrl(object):
                 self.is_unlocked = False
                 logging.info("%s: Session successfully locked."
                              % (self.__class__.__name__, ))
+                self._sessions_ctrl.session_activity_signal.emit()
                 return True
             else:
                 logging.warning("%s: Session lock failed: Already locked."
@@ -2466,6 +2475,7 @@ class SessionCtrl(object):
                     self.is_unlocked = True
                     logging.info("%s: Session successfully unlocked."
                                  % (self.__class__.__name__, ))
+                    self._sessions_ctrl.session_activity_signal.emit()
                     return True
                 else:
                     logging.warning("%s: Session unlock failed: Invalid "
@@ -2494,14 +2504,16 @@ class SessionsCtrl(object):
     # gui
     _app = None
     _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
+    _session_activity_signal = None
     _window_backup_monitor = None
     _window_filter_manager = None
     _gui_mode = None
 
     def __init__(self, gui_mode=False):
         super(SessionsCtrl, self).__init__()
-        self._gui_mode = gui_mode
 
+        self._gui_mode = gui_mode
+        self._session_activity_signal = bs.utils.Signal()
         self._sessions = []
         self._guis = []
         # gui stuff
@@ -2534,6 +2546,14 @@ class SessionsCtrl(object):
         session.
         """
         return self._guis
+
+    @property
+    def session_activity_signal(self):
+        """ ..
+
+        This signal fires when a session loggs in, out, locks or unlocks.
+        """
+        return self._session_activity_signal
 
     @property
     def sessions(self):
@@ -2592,14 +2612,13 @@ class SessionsCtrl(object):
         # if no existing session for user was found
         if not new_session:
             # create new session
-            new_session = SessionCtrl()
+            new_session = SessionCtrl(self)
         # verify scenarios
-        if new_session.is_logged_in:
+        if new_session.is_logged_in:  # logged in but locked
             if not new_session.is_unlocked:
+                if new_session not in self._sessions:
+                    self._sessions.append(new_session)
                 if new_session.log_in(username, password):
-                    # add new_session to self._sessions
-                    if new_session not in self._sessions:
-                        self._sessions.append(new_session)
                     logging.info("%s: New session successfully unlocked."
                                  % (self.__class__.__name__, ))
                     return new_session
@@ -2608,20 +2627,20 @@ class SessionsCtrl(object):
                                     % (self.__class__.__name__, ))
                     return False
             else:
-                logging.warning("%s: The session for this user is already active."
-                                % (self.__class__.__name__, ))
+                logging.warning("%s: The session for this user is already "
+                                "active." % (self.__class__.__name__, ))
                 return -1
-        else:
+        else:  # not logged in, new session
+            self._sessions.append(new_session)
             if new_session.log_in(username, password):
-                # add new_session to self._sessions
-                if new_session not in self._sessions:
-                    self._sessions.append(new_session)
-                logging.info("%s: New session successfully logged in and unlocked."
-                             % (self.__class__.__name__, ))
+                logging.info("%s: New session successfully logged in and "
+                             "unlocked." % (self.__class__.__name__, ))
                 return new_session
             else:
                 logging.warning("%s: No session created: Log-on failed."
                                 % (self.__class__.__name__, ))
+                # remove session again since invalid
+                self._sessions.remove(new_session)
                 return False
 
     def add_session_gui(self):

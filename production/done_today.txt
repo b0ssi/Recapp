@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-13
+- Filter manager now refreshes directly on log-in/-out/lock/unlock signal. Did on focusIn before which was a bit dirty.
+
 2014-09-12
 - Filter manager now loads filter edit view when selecting filter in list.
 

@@ -27,4 +27,5 @@
 !/doc/software_documentation/**
 /modeling/
 !/modeling/recapp.asta
+/src/bs/config.json
 /src/img/

@@ -32,7 +32,8 @@ class WindowFilterManager(QtGui.QMainWindow):
     def _init_ui(self):
         """ ..
         """
-        self.setFocusPolicy(QtCore.Qt.FocusPolicy(QtCore.Qt.StrongFocus | QtCore.Qt.WheelFocus))
+        # connect sessions activity signal to refresh of ui
+        self._sessions_ctrl.session_activity_signal.connect(self.refresh)
         # geometry
         self.setMinimumWidth(500)
         self.setMinimumHeight(500)
@@ -97,22 +98,6 @@ class WindowFilterManager(QtGui.QMainWindow):
         """
         self.close()
         return True
-
-    def show(self):
-        """ ..
-
-        Override. Refreshes contents of window.
-        """
-        super(WindowFilterManager, self).show()
-
-        self.refresh()
-
-    def focusInEvent(self, e):
-        """ ..
-
-        Override. Refreshes contents of window.
-        """
-        self.refresh()
 
 
 class FilterEditInterface(QtGui.QWidget):
@@ -251,8 +236,6 @@ class FilterListView(QtGui.QListWidget):
     def _init_ui(self):
         """ ..
         """
-        # disable focus otherwise list widget steals it from window-parent
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
         # (re)populate list
         self.refresh()
 

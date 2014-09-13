@@ -14,11 +14,9 @@ Methods
    | :meth:`load_filter`
    | :meth:`refresh`
    | :meth:`request_exit`
-   | :meth:`show`
 
 Events
 ======
-   | :meth:`focusInEvent`
 
 Detailed Description
 ********************

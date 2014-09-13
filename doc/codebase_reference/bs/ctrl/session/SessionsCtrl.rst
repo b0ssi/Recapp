@@ -10,6 +10,7 @@ Instance-Variables
 ==================
    | :attr:`app`
    | :attr:`guis`
+   | :attr:`session_activity_signal`
    | :attr:`sessions`
    | :attr:`window_backup_monitor`
    | :attr:`window_filter_manager`
