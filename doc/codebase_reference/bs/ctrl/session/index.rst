@@ -10,7 +10,6 @@ session
 
    BackupFilterCtrl
    BackupFilterRuleCtrl
-   BackupFilterRuleAgeCtrl
    BackupFilterRuleAttributesCtrl
    BackupFilterRuleDateCtrl
    BackupFilterRulePathCtrl

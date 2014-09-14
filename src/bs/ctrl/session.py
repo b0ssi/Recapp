@@ -653,27 +653,6 @@ class BackupFilterRuleCtrl(object):
         return self._include_subfolders
 
 
-class BackupFilterRuleAgeCtrl(BackupFilterRuleCtrl):
-    """ ..
-
-    :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-
-    This class represent a *file-age filter* that is set for a
-    :class:`~bs.ctrl.session.BackupFilterCtrl`.
-
-    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    """
-
-    def __init__(self, key_id, category, file_folder, include_subfolders):
-        super(BackupFilterRuleAgeCtrl, self).__init__(key_id,
-                                                      category,
-                                                      file_folder,
-                                                      include_subfolders)
-
-
 class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """ ..
 
@@ -688,7 +667,7 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _attribute = None
+    _attribute = None  # owner, group, backup flag, hidden flag/file prefix
 
     def __init__(self, key_id, category, file_folder, include_subfolders,
                  attribute):

@@ -12,7 +12,6 @@ window_filter_manager
    FilterEditView
    FilterEditEmptyView
    FilterEditRuleInterface
-   FilterEditRuleAgeView
    FilterEditRuleAttributesView
    FilterEditRuleDateView
    FilterEditRulePathView

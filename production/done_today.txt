@@ -3,6 +3,9 @@
 ################################
 
 2014-09-14
+- Optimizes layout of filter-edit-view: date/time. Adds the filter-edit-view: attribute and removes filter-edit-view: age (as age can already be expressed through date rule).
+
+2014-09-14
 - Adds initial GUI for backup-filter-rule-date.
 
 2014-09-13

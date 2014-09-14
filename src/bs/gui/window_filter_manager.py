@@ -6,8 +6,6 @@
 The window GUI that hosts the *Filter-Manager* and all its widgets.
 """
 
-import re
-
 import bs.ctrl.session
 
 from PySide import QtCore, QtGui
@@ -39,7 +37,7 @@ class WindowFilterManager(QtGui.QMainWindow):
         # connect sessions activity signal to refresh of UI
         self._sessions_ctrl.session_activity_signal.connect(self.refresh)
         # geometry
-        self.setMinimumWidth(800)
+        self.setMinimumWidth(1100)
         self.setMinimumHeight(350)
         # title
         self.setWindowTitle("Filter Manager")
@@ -151,39 +149,51 @@ class FilterEditView(FilterEditInterface):
     def _init_ui(self):
         """ ..
         """
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                        QtGui.QSizePolicy.Preferred)
         # geometry
-        self.setMinimumWidth(600)
+        self.setMinimumWidth(900)
+        # ======================================================================
+        # Row 1/2
+        # ======================================================================
         # title
         widget = QtGui.QLabel("Name", self)
-        widget.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Preferred))
+        widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
+                             QtGui.QSizePolicy.Preferred)
         self._layout.addWidget(widget, 0, 0, 1, 1)
         line_edit = QtGui.QLineEdit(self._backup_filter.backup_filter_name, self)
-        self._layout.addWidget(line_edit, 0, 1, 1, 3)
+        self._layout.addWidget(line_edit, 0, 1, 1, 4)
         # logical mode selector
         mode_cbox = QtGui.QComboBox(self)
+        mode_cbox.setSizePolicy(size_policy)
         mode_cbox.addItems(["All filters (AND)", "Any filter (OR)", "Only one filter (XOR)"])
         self._layout.addWidget(mode_cbox, 1, 1, 1, 1)
-        self._layout.addWidget(QtGui.QLabel("must meet specified criteria.", self), 1, 2, 1, 1)
-        # ======================================================================
+
+        widget = QtGui.QLabel("must meet specified criteria.", self)
+        widget.setSizePolicy(size_policy)
+        self._layout.addWidget(widget, 1, 2, 1, 1)
+        # spacer
+        self._layout.addWidget(QtGui.QWidget(self), 1, 3, 1, 1)
         # add menu
-        # ======================================================================
         add_btn = QtGui.QPushButton(self)
         add_btn.setText("Add filter aspect")
+        add_btn.setSizePolicy(size_policy)
         add_btn_menu = QtGui.QMenu(add_btn)
         # actions
         add_btn_menu_action_path = QtGui.QAction("Path", add_btn_menu)
         add_btn_menu.addAction(add_btn_menu_action_path)
         add_btn_menu_action_size = QtGui.QAction("Size", add_btn_menu)
         add_btn_menu.addAction(add_btn_menu_action_size)
-        add_btn_menu_action_date = QtGui.QAction("Date", add_btn_menu)
+        add_btn_menu_action_date = QtGui.QAction("Date/Time", add_btn_menu)
         add_btn_menu.addAction(add_btn_menu_action_date)
-        add_btn_menu_action_age = QtGui.QAction("Age", add_btn_menu)
-        add_btn_menu.addAction(add_btn_menu_action_age)
         add_btn_menu_action_attributes = QtGui.QAction("Attributes", add_btn_menu)
         add_btn_menu.addAction(add_btn_menu_action_attributes)
 
         add_btn.setMenu(add_btn_menu)
-        self._layout.addWidget(add_btn, 1, 3, 1, 1)
+        self._layout.addWidget(add_btn, 1, 4, 1, 1)
+        # ======================================================================
+        # Row 3
+        # ======================================================================
         # filter rule container, embedded in a scroll-area
         scroll_area = QtGui.QScrollArea(self)
         scroll_area.setWidgetResizable(True)
@@ -194,13 +204,11 @@ class FilterEditView(FilterEditInterface):
         self._filter_rules_container._layout.setSpacing(0)
 
         scroll_area.setWidget(self._filter_rules_container)
-        self._layout.addWidget(scroll_area, 2, 0, 1, 4)
+        self._layout.addWidget(scroll_area, 2, 0, 1, 5)
         # add filter rules
         for backup_filter_rule in self._backup_filter.backup_filter_rules:
             widget = None
-            if isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleAgeCtrl):
-                widget = FilterEditRuleAgeView(self._filter_rules_container, backup_filter_rule)
-            elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleAttributesCtrl):
+            if isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleAttributesCtrl):
                 widget = FilterEditRuleAttributesView(self._filter_rules_container, backup_filter_rule)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleDateCtrl):
                 widget = FilterEditRuleDateView(self._filter_rules_container, backup_filter_rule)
@@ -250,11 +258,16 @@ class FilterEditEmptyView(FilterEditInterface):
         """ ..
         """
         # geometry
-        self.setMinimumWidth(600)
+        self.setMinimumWidth(900)
+        # buffer
+        self._layout.addWidget(QtGui.QWidget(self), 0, 0, 1, 1)
         # info text
-        info_text = QtGui.QLabel(self)
-        info_text.setText("Select a filter to edit its details.")
-        self._layout.addWidget(info_text, 0, 0, 1, 1)
+        widget = QtGui.QLabel("Select a filter to edit its details", self)
+        widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
+                             QtGui.QSizePolicy.Preferred)
+        self._layout.addWidget(widget, 0, 1, 1, 1)
+        # buffer
+        self._layout.addWidget(QtGui.QWidget(self), 0, 2, 1, 1)
 
 
 class FilterEditRuleInterface(QtGui.QFrame):
@@ -282,42 +295,15 @@ class FilterEditRuleInterface(QtGui.QFrame):
         # style
         self.setFrameStyle(self.Panel | self.Raised)
         # geometry
-        self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred,
-                                             QtGui.QSizePolicy.Fixed))
+        self.setSizePolicy(QtGui.QSizePolicy.Preferred,
+                           QtGui.QSizePolicy.Fixed)
 
         # del button
         icon = QtGui.QIcon("img/icons_forget.png")
         widget = QtGui.QPushButton(icon, None)
-        widget.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                               QtGui.QSizePolicy.Fixed))
+        widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
+                             QtGui.QSizePolicy.Fixed)
         self._layout.addWidget(widget)
-
-
-class FilterEditRuleAgeView(FilterEditRuleInterface):
-    """ ..
-
-    :param QtGui.QWidget parent: The widget to act as a parent.
-
-    :param bs.ctrl.session.BackupFilterRuleAgeCtrl backup_filter_ctrl: The \
-    backup-filter-rule managed by this GUI.
-
-    **Inherits from:** \
-    :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
-
-    This is the edit-view for the age-rule.
-    """
-    def __init__(self, parent, backup_filter_rule_ctrl):
-        """ ..
-        """
-        super(FilterEditRuleAgeView, self).__init__(parent,
-                                                    backup_filter_rule_ctrl)
-
-        self._init_ui()
-
-    def _init_ui(self):
-        """ ..
-        """
-        self._layout.addWidget(QtGui.QLabel("Age", self), 0, 1, 1, 1)
 
 
 class FilterEditRuleAttributesView(FilterEditRuleInterface):
@@ -344,7 +330,26 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
-        self._layout.addWidget(QtGui.QLabel("Attributes", self), 0, 1, 1, 1)
+        # "File"
+        self._layout.addWidget(QtGui.QLabel("File", self), 0, 1, 1, 1)
+        # attribute type
+        c_box = QtGui.QComboBox(self)
+        c_box.addItems(["owner", "group", "backup flag", "hidden flag/file prefix"])
+        self._layout.addWidget(c_box, 0, 2, 1, 1)
+        # is/is not set
+        c_box = QtGui.QComboBox(self)
+        c_box.addItems(["is", "is not"])
+        self._layout.addWidget(c_box, 0, 3, 1, 1)
+        # ======================================================================
+        # case 1
+        # ======================================================================
+        # line edit
+        self._layout.addWidget(QtGui.QLineEdit(self), 0, 4, 1, 1)
+        # ======================================================================
+        # case 2
+        # ======================================================================
+#         # "set"
+#         self._layout.addWidget(QtGui.QLabel("set.", self), 0, 4, 1, 1)
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -385,15 +390,15 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         c_box = QtGui.QComboBox(self)
         c_box.addItems(["creation", "modification", "access"])
         layout.addWidget(c_box)
-        # "lies"
-        layout.addWidget(QtGui.QLabel("lies", self))
+        # "time lies"
+        layout.addWidget(QtGui.QLabel("time lies", self))
         # before|on|after
         c_box = QtGui.QComboBox(self)
         c_box.addItems(["before", "on", "after"])
         layout.addWidget(c_box)
         # [current date|file date|folder|volume backup|fixed date]
         c_box = QtGui.QComboBox(self)
-        c_box.addItems(["current", "file", "folder", "volume backup", "fixed"])
+        c_box.addItems(["current file", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
         layout.addWidget(c_box)
         # "date"
         layout.addWidget(QtGui.QLabel("date", self))
@@ -403,64 +408,58 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         date_edit.setCalendarPopup(True)
         date_edit.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
         layout.addWidget(date_edit)
-        # ======================================================================
-        # Row 2
-        # ======================================================================
-        widget = QtGui.QWidget(self)
-        self._layout.addWidget(widget, 1, 1, 1, 1)
-        layout = QtGui.QHBoxLayout(widget)
         # [checkBox: time]
         widget = QtGui.QCheckBox("and time", self)
         widget.setSizePolicy(size_policy)
         layout.addWidget(widget)
         # [timeSelector]
-        layout.addWidget(QtGui.QTimeEdit(self))
-        # "with an offset of"
-        layout.addWidget(QtGui.QCheckBox("with an offset of", self))
-        # spacer
-        widget = QtGui.QWidget(self)
-        widget.setSizePolicy(size_policy)
-        layout.addWidget(widget)
+        time_edit = QtGui.QTimeEdit(self)
+        time_edit.setSizePolicy(size_policy)
+        layout.addWidget(time_edit)
+        # buffer
+        layout.addWidget(QtGui.QWidget())
         # ======================================================================
-        # Row 3
+        # Row 2
         # ======================================================================
         widget = QtGui.QWidget(self)
         self._layout.addWidget(widget, 2, 1, 1, 1)
         layout = QtGui.QHBoxLayout(widget)
+        # "with an offset of"
+        layout.addWidget(QtGui.QCheckBox("with an offset of", self))
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(99)
-        spin_box.setSuffix(" y")
+        spin_box.setSuffix(" years")
         layout.addWidget(spin_box)
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(11)
-        spin_box.setSuffix(" m")
+        spin_box.setSuffix(" months")
         layout.addWidget(spin_box)
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(51)
-        spin_box.setSuffix(" w")
+        spin_box.setSuffix(" weeks")
         layout.addWidget(spin_box)
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(365)
-        spin_box.setSuffix(" d")
+        spin_box.setSuffix(" days")
         layout.addWidget(spin_box)
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(23)
-        spin_box.setSuffix(" h")
+        spin_box.setSuffix(" hours")
         layout.addWidget(spin_box)
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(59)
-        spin_box.setSuffix(" min")
+        spin_box.setSuffix(" minutes")
         layout.addWidget(spin_box)
         # [lineEdit]
         spin_box = QtGui.QSpinBox(self)
         spin_box.setMaximum(59)
-        spin_box.setSuffix(" s")
+        spin_box.setSuffix(" seconds")
         layout.addWidget(spin_box)
 
 
@@ -532,23 +531,34 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
-        self._layout.addWidget(QtGui.QLabel("File size"), 0, 1, 1, 1)
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                        QtGui.QSizePolicy.Preferred)
+        # "File size"
+        widget = QtGui.QLabel("File size")
+        widget.setSizePolicy(size_policy)
+        self._layout.addWidget(widget, 0, 1, 1, 1)
         # is/is not
         widget = QtGui.QComboBox(self)
+        widget.setSizePolicy(size_policy)
         widget.addItems(["is", "is not"])
         self._layout.addWidget(widget, 0, 2, 1, 1)
         # less, less/equal, equal, equal/larger, larger
         widget = QtGui.QComboBox(self)
+        widget.setSizePolicy(size_policy)
         widget.addItems(["less than", "less or equal to", "equal to", "equal or larger than", "larger than"])
         self._layout.addWidget(widget, 0, 3, 1, 1)
         # quantity
         widget = QtGui.QSpinBox(self)
+        widget.setSizePolicy(size_policy)
         widget.setMaximum(1023)
         self._layout.addWidget(widget, 0, 4, 1, 1)
         # unit
         widget = QtGui.QComboBox(self)
+        widget.setSizePolicy(size_policy)
         widget.addItems(["byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB"])
         self._layout.addWidget(widget, 0, 5, 1, 1)
+        # spacer
+        self._layout.addWidget(QtGui.QWidget(self), 0, 6, 1, 1)
 
 
 class FilterListView(QtGui.QListWidget):
