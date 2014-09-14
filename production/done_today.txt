@@ -3,6 +3,9 @@
 ################################
 
 2014-09-14
+- Binds the following filter-edit-rule views to their respective controller-data on init: size, path, date. Also implements full conditional widget-switching (e.g. time widget hides when "and time" tickbox is unticked). 
+
+2014-09-14
 - Optimizes layout of filter-edit-view: date/time. Adds the filter-edit-view: attribute and removes filter-edit-view: age (as age can already be expressed through date rule).
 
 2014-09-14

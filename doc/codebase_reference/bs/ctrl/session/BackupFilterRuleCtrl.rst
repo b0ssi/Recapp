@@ -6,8 +6,8 @@ BackupFilterRuleCtrl
 Synopsis
 ********
 
-Instance-Variables
-==================
+Enums
+=====
 	| :attr:`attribute_archive`
 	| :attr:`attribute_encrypted`
 	| :attr:`attribute_hidden`
@@ -33,19 +33,19 @@ Instance-Variables
 	| :attr:`mode_size_smaller_equal`
 	| :attr:`position_after`
 	| :attr:`position_before`
-	| :attr:`position_exactly`
 	| :attr:`position_on`
 	| :attr:`reference_date_current_date`
 	| :attr:`reference_date_file_backup`
 	| :attr:`reference_date_fixed`
 	| :attr:`reference_date_folder_backup`
 	| :attr:`reference_date_volume_backup`
-	| :attr:`timestamp_type_adate`
 	| :attr:`timestamp_type_atime`
-	| :attr:`timestamp_type_cdate`
 	| :attr:`timestamp_type_ctime`
-	| :attr:`timestamp_type_mdate`
 	| :attr:`timestamp_type_mtime`
+
+Instance-Variables
+==================
+   | :attr:`truth`
 
 Methods
 =======

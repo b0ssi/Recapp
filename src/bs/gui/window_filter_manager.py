@@ -6,6 +6,8 @@
 The window GUI that hosts the *Filter-Manager* and all its widgets.
 """
 
+import time
+
 import bs.ctrl.session
 
 from PySide import QtCore, QtGui
@@ -37,7 +39,7 @@ class WindowFilterManager(QtGui.QMainWindow):
         # connect sessions activity signal to refresh of UI
         self._sessions_ctrl.session_activity_signal.connect(self.refresh)
         # geometry
-        self.setMinimumWidth(1100)
+        self.setMinimumWidth(1150)
         self.setMinimumHeight(350)
         # title
         self.setWindowTitle("Filter Manager")
@@ -152,7 +154,7 @@ class FilterEditView(FilterEditInterface):
         size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
                                         QtGui.QSizePolicy.Preferred)
         # geometry
-        self.setMinimumWidth(900)
+        self.setMinimumWidth(950)
         # ======================================================================
         # Row 1/2
         # ======================================================================
@@ -258,7 +260,7 @@ class FilterEditEmptyView(FilterEditInterface):
         """ ..
         """
         # geometry
-        self.setMinimumWidth(900)
+        self.setMinimumWidth(950)
         # buffer
         self._layout.addWidget(QtGui.QWidget(self), 0, 0, 1, 1)
         # info text
@@ -339,6 +341,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         # is/is not set
         c_box = QtGui.QComboBox(self)
         c_box.addItems(["is", "is not"])
+        if not self._backup_filter_rule_ctrl.truth:
+            c_box.setCurrentIndex(1)
         self._layout.addWidget(c_box, 0, 3, 1, 1)
         # ======================================================================
         # case 1
@@ -365,6 +369,21 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
 
     This is the edit-view for the date-rule.
     """
+    _date_edit = None
+    _time_edit = None
+    _time_edit_check_box = None
+    _offset_check_box = None
+    # the spin box widgets for the time units
+    _time_offset_years = None
+    _time_offset_months = None
+    _time_offset_weeks = None
+    _time_offset_days = None
+    _time_offset_hours = None
+    _time_offset_minutes = None
+    _time_offset_seconds = None
+    _reference_date_time_type_c_box = None
+    _time_offset_direction_c_box = None
+
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
@@ -382,85 +401,224 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # Row 1
         # ======================================================================
         widget = QtGui.QWidget(self)
+        widget.setMinimumHeight(50)
         self._layout.addWidget(widget, 0, 1, 1, 1)
         layout = QtGui.QHBoxLayout(widget)
         # "File"
-        layout.addWidget(QtGui.QLabel("File", self))
-        # creation|modification|access
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["creation", "modification", "access"])
-        layout.addWidget(c_box)
-        # "time lies"
-        layout.addWidget(QtGui.QLabel("time lies", self))
-        # before|on|after
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["before", "on", "after"])
-        layout.addWidget(c_box)
-        # [current date|file date|folder|volume backup|fixed date]
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["current file", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
-        layout.addWidget(c_box)
-        # "date"
-        layout.addWidget(QtGui.QLabel("date", self))
-        # [date-selector]
-        date_edit = QtGui.QDateEdit(self)
-        date_edit.setDisplayFormat("yyyy-MM-dd")
-        date_edit.setCalendarPopup(True)
-        date_edit.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
-        layout.addWidget(date_edit)
-        # [checkBox: time]
-        widget = QtGui.QCheckBox("and time", self)
+        widget = QtGui.QLabel("File", self)
         widget.setSizePolicy(size_policy)
         layout.addWidget(widget)
+        # timestamp_type (creation|modification|access)
+        c_box = QtGui.QComboBox(self)
+        c_box.setSizePolicy(size_policy)
+        c_box.addItems(["creation", "modification", "access"])
+        if self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_ctime:
+            c_box.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_mtime:
+            c_box.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime:
+            c_box.setCurrentIndex(2)
+        layout.addWidget(c_box)
+        # "time"
+        widget = QtGui.QLabel("time", self)
+        widget.setSizePolicy(size_policy)
+        layout.addWidget(widget)
+        # truth
+        c_box = QtGui.QComboBox(self)
+        c_box.setSizePolicy(size_policy)
+        c_box.addItems(["does", "does not"])
+        if not self._backup_filter_rule_ctrl.truth:
+            c_box.setCurrentIndex(1)
+        layout.addWidget(c_box)
+        # "lie"
+        widget = QtGui.QLabel("lie", self)
+        widget.setSizePolicy(size_policy)
+        layout.addWidget(widget)
+        # position
+        c_box = QtGui.QComboBox(self)
+        c_box.setSizePolicy(size_policy)
+        c_box.addItems(["before", "on", "after"])
+        if self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_before:
+            c_box.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_on:
+            c_box.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_after:
+            c_box.setCurrentIndex(2)
+        layout.addWidget(c_box)
+        # reference_date_time_type
+        self._reference_date_time_type_c_box = QtGui.QComboBox(self)
+        self._reference_date_time_type_c_box.setSizePolicy(size_policy)
+        self._reference_date_time_type_c_box.addItems(["current file", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
+        self._reference_date_time_type_c_box.currentIndexChanged.connect(self._on_date_time_reference_changed)
+        layout.addWidget(self._reference_date_time_type_c_box)
+        # "date"
+        widget = QtGui.QLabel("date", self)
+        widget.setSizePolicy(size_policy)
+        layout.addWidget(widget)
+        # [date-selector]
+        self._date_edit = QtGui.QDateEdit(self)
+        self._date_edit.setSizePolicy(size_policy)
+        self._date_edit.setDisplayFormat("yyyy-MM-dd")
+        self._date_edit.setCalendarPopup(True)
+        self._date_edit.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
+        layout.addWidget(self._date_edit)
+        # checkBox: "and time"
+        self._time_edit_check_box = QtGui.QCheckBox("and time", self)
+        self._time_edit_check_box.setSizePolicy(size_policy)
+        self._time_edit_check_box.toggled.connect(self._on_time_edit_check_box_toggled)
+        layout.addWidget(self._time_edit_check_box)
         # [timeSelector]
-        time_edit = QtGui.QTimeEdit(self)
-        time_edit.setSizePolicy(size_policy)
-        layout.addWidget(time_edit)
+        self._time_edit = QtGui.QTimeEdit(self)
+        self._time_edit.setSizePolicy(size_policy)
+        self._time_edit.setDisplayFormat("hh:mm:ss")
+        layout.addWidget(self._time_edit)
         # buffer
         layout.addWidget(QtGui.QWidget())
         # ======================================================================
         # Row 2
         # ======================================================================
         widget = QtGui.QWidget(self)
+        widget.setMinimumHeight(50)
         self._layout.addWidget(widget, 2, 1, 1, 1)
         layout = QtGui.QHBoxLayout(widget)
-        # "with an offset of"
-        layout.addWidget(QtGui.QCheckBox("with an offset of", self))
+        # checkbox: offset_timestamp
+        self._offset_check_box = QtGui.QCheckBox("with an offset of", self)
+        self._offset_check_box.toggled.connect(self._on_offset_check_box_toggled)
+        layout.addWidget(self._offset_check_box)
+        # combo box: positive/negative
+        self._time_offset_direction_c_box = QtGui.QComboBox(self)
+        self._time_offset_direction_c_box.addItems(["positive", "negative"])
+        layout.addWidget(self._time_offset_direction_c_box)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(99)
-        spin_box.setSuffix(" years")
-        layout.addWidget(spin_box)
+        self._time_offset_years = QtGui.QSpinBox(self)
+        self._time_offset_years.setMaximum(99)
+        self._time_offset_years.setSuffix(" years")
+        layout.addWidget(self._time_offset_years)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(11)
-        spin_box.setSuffix(" months")
-        layout.addWidget(spin_box)
+        self._time_offset_months = QtGui.QSpinBox(self)
+        self._time_offset_months.setMaximum(11)
+        self._time_offset_months.setSuffix(" months")
+        layout.addWidget(self._time_offset_months)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(51)
-        spin_box.setSuffix(" weeks")
-        layout.addWidget(spin_box)
+        self._time_offset_weeks = QtGui.QSpinBox(self)
+        self._time_offset_weeks.setMaximum(51)
+        self._time_offset_weeks.setSuffix(" weeks")
+        layout.addWidget(self._time_offset_weeks)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(365)
-        spin_box.setSuffix(" days")
-        layout.addWidget(spin_box)
+        self._time_offset_days = QtGui.QSpinBox(self)
+        self._time_offset_days.setMaximum(365)
+        self._time_offset_days.setSuffix(" days")
+        layout.addWidget(self._time_offset_days)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(23)
-        spin_box.setSuffix(" hours")
-        layout.addWidget(spin_box)
+        self._time_offset_hours = QtGui.QSpinBox(self)
+        self._time_offset_hours.setMaximum(23)
+        self._time_offset_hours.setSuffix(" hours")
+        layout.addWidget(self._time_offset_hours)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(59)
-        spin_box.setSuffix(" minutes")
-        layout.addWidget(spin_box)
+        self._time_offset_minutes = QtGui.QSpinBox(self)
+        self._time_offset_minutes.setMaximum(59)
+        self._time_offset_minutes.setSuffix(" minutes")
+        layout.addWidget(self._time_offset_minutes)
         # [lineEdit]
-        spin_box = QtGui.QSpinBox(self)
-        spin_box.setMaximum(59)
-        spin_box.setSuffix(" seconds")
-        layout.addWidget(spin_box)
+        self._time_offset_seconds = QtGui.QSpinBox(self)
+        self._time_offset_seconds.setMaximum(59)
+        self._time_offset_seconds.setSuffix(" seconds")
+        layout.addWidget(self._time_offset_seconds)
+        # ======================================================================
+        # set-up
+        # ======================================================================
+        # reference_date_time_type
+        if self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date:
+            self._reference_date_time_type_c_box.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_file_backup:
+            self._reference_date_time_type_c_box.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_folder_backup:
+            self._reference_date_time_type_c_box.setCurrentIndex(2)
+        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_volume_backup:
+            self._reference_date_time_type_c_box.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_fixed:
+            self._reference_date_time_type_c_box.setCurrentIndex(4)
+        # set timestamp
+        if self._backup_filter_rule_ctrl.reference_date_time_timestamp:  # date
+            struct_time = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
+            self._date_edit.setDate(QtCore.QDate(struct_time.tm_year,
+                                                 struct_time.tm_mon,
+                                                 struct_time.tm_mday))
+            # time
+            if (struct_time.tm_hour != 0 or
+                    struct_time.tm_min != 0 or
+                    struct_time.tm_sec != 0):
+                self._time_edit_check_box.setCheckState(QtCore.Qt.Checked)
+                self._time_edit.setTime(QtCore.QTime(struct_time.tm_hour,
+                                                     struct_time.tm_min,
+                                                     struct_time.tm_sec))
+            else:
+                self._time_edit_check_box.setCheckState(QtCore.Qt.Unchecked)
+        # offset: timestamp
+        offset = self._backup_filter_rule_ctrl.reference_date_time_offsets
+        self._offset_check_box.setCheckState(QtCore.Qt.Checked)
+        if offset:
+            self._time_offset_direction_c_box.setCurrentIndex(1 - offset[0])
+            self._time_offset_years.setValue(offset[1])
+            self._time_offset_months.setValue(offset[2])
+            self._time_offset_weeks.setValue(offset[3])
+            self._time_offset_days.setValue(offset[4])
+            self._time_offset_hours.setValue(offset[5])
+            self._time_offset_minutes.setValue(offset[6])
+            self._time_offset_seconds.setValue(offset[7])
+        else:
+            self._offset_check_box.setCheckState(QtCore.Qt.Unchecked)
+
+    def _on_date_time_reference_changed(self, index):
+        """ ..
+
+        Event that fires when the value of the date-time-reference (current \
+        file, latest backup, etc.) selection is changed.
+        """
+        if index == 4:  # "fixed" is chosen, activate date/time widgets
+            self._date_edit.show()
+            if self._time_edit_check_box.isChecked():
+                self._time_edit.show()
+        else:  # anything else is chosen. Deactivate date/time widgets
+            self._date_edit.hide()
+            self._time_edit.hide()
+
+    def _on_time_edit_check_box_toggled(self, checked):
+        """ ..
+
+        Event that fires when the "and time" checkbox is clicked. \
+        Shows/hides time chooser widget.
+        """
+        if self._reference_date_time_type_c_box.currentIndex() == 4:
+            if checked:
+                self._time_edit.show()
+            else:
+                self._time_edit.hide()
+
+    def _on_offset_check_box_toggled(self, checked):
+        """ ..
+
+        Event that fires when the "with an offset of" checkbox is clicked. \
+        Shows/hides widgets used to specify the time-offset.
+        """
+        if checked:
+            self._time_offset_direction_c_box.show()
+            self._time_offset_years.show()
+            self._time_offset_months.show()
+            self._time_offset_weeks.show()
+            self._time_offset_days.show()
+            self._time_offset_hours.show()
+            self._time_offset_minutes.show()
+            self._time_offset_seconds.show()
+        else:
+            self._time_offset_direction_c_box.hide()
+            self._time_offset_years.hide()
+            self._time_offset_months.hide()
+            self._time_offset_weeks.hide()
+            self._time_offset_days.hide()
+            self._time_offset_hours.hide()
+            self._time_offset_minutes.hide()
+            self._time_offset_seconds.hide()
 
 
 class FilterEditRulePathView(FilterEditRuleInterface):
@@ -487,24 +645,35 @@ class FilterEditRulePathView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
-        self._layout.addWidget(QtGui.QLabel("Path pattern", self), 0, 1, 1, 1)
+        self._layout.addWidget(QtGui.QLabel("Path", self), 0, 1, 1, 1)
         # does/does not
         widget = QtGui.QComboBox(self)
         widget.addItems(["does", "does not"])
+        if not self._backup_filter_rule_ctrl.truth:
+            widget.setCurrentIndex(1)
         self._layout.addWidget(widget, 0, 2, 1, 1)
         # mode
         c_box = QtGui.QComboBox(self)
-        c_box.addItems(["start with", "contain", "end with", "match regex"])
+        c_box.addItems(["start with", "contain", "end with", "match pattern", "match regex"])
+        if self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with:
+            c_box.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_contains:
+            c_box.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with:
+            c_box.setCurrentIndex(2)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_matches:
+            c_box.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern:
+            c_box.setCurrentIndex(4)
         self._layout.addWidget(c_box, 0, 3, 1, 1)
         # pattern
         self._layout.addWidget(QtGui.QLineEdit(self._backup_filter_rule_ctrl.path_pattern, self),
                                0, 4, 1, 1)
         # match case
-        self._layout.addWidget(QtGui.QLabel("and", self), 0, 5, 1, 1)
-        check_box = QtGui.QCheckBox("match case", self)
+        check_box = QtGui.QCheckBox("matching case", self)
         if self._backup_filter_rule_ctrl.match_case:
             check_box.setCheckState(QtCore.Qt.Checked)
-        self._layout.addWidget(check_box, 0, 6, 1, 1)
+        self._layout.addWidget(check_box, 0, 5, 1, 1)
 
 
 class FilterEditRuleSizeView(FilterEditRuleInterface):
@@ -520,45 +689,98 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
 
     This is the edit-view for the size-rule.
     """
+    _size_widget = None
+    _size_policy = None
+
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleSizeView, self).__init__(parent,
                                                      backup_filter_rule_ctrl)
 
+        self._size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                              QtGui.QSizePolicy.Preferred)
+
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
-        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                        QtGui.QSizePolicy.Preferred)
         # "File size"
         widget = QtGui.QLabel("File size")
-        widget.setSizePolicy(size_policy)
+        widget.setSizePolicy(self._size_policy)
         self._layout.addWidget(widget, 0, 1, 1, 1)
         # is/is not
         widget = QtGui.QComboBox(self)
-        widget.setSizePolicy(size_policy)
+        widget.setSizePolicy(self._size_policy)
         widget.addItems(["is", "is not"])
+        if not self._backup_filter_rule_ctrl.truth:
+            widget.setCurrentIndex(1)
         self._layout.addWidget(widget, 0, 2, 1, 1)
         # less, less/equal, equal, equal/larger, larger
         widget = QtGui.QComboBox(self)
-        widget.setSizePolicy(size_policy)
+        widget.setSizePolicy(self._size_policy)
         widget.addItems(["less than", "less or equal to", "equal to", "equal or larger than", "larger than"])
+        if self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller:
+            widget.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal:
+            widget.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal:
+            widget.setCurrentIndex(2)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger_equal:
+            widget.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger:
+            widget.setCurrentIndex(4)
         self._layout.addWidget(widget, 0, 3, 1, 1)
         # quantity
-        widget = QtGui.QSpinBox(self)
-        widget.setSizePolicy(size_policy)
-        widget.setMaximum(1023)
-        self._layout.addWidget(widget, 0, 4, 1, 1)
+        unit_index = 0
+        size = float(self._backup_filter_rule_ctrl.size)
+        while True:
+            if size > 1023:
+                size = size / 1024
+                unit_index += 1
+            else:
+                break
+        self._size_widget = QtGui.QSpinBox(self)
+        self._layout.addWidget(self._size_widget, 0, 4, 1, 1)
         # unit
         widget = QtGui.QComboBox(self)
-        widget.setSizePolicy(size_policy)
+        widget.setSizePolicy(self._size_policy)
         widget.addItems(["byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB"])
+        widget.currentIndexChanged.connect(self._on_unit_changed)
+        widget.setCurrentIndex(unit_index)
         self._layout.addWidget(widget, 0, 5, 1, 1)
         # spacer
         self._layout.addWidget(QtGui.QWidget(self), 0, 6, 1, 1)
+
+    def _on_unit_changed(self, index):
+        """ ..
+
+        Event that gets called when index of unit-selector is changed. \
+        Switches between an integer or float combo box, depending on selected \
+        unit.
+        """
+        size = float(self._backup_filter_rule_ctrl.size)
+        while True:
+            if size > 1023:
+                size = size / 1024
+            else:
+                break
+        if index == 0:  # "byte(s)" is chosen
+            self._size_widget.deleteLater()
+            self._size_widget = QtGui.QSpinBox(self)
+            self._size_widget.setSizePolicy(self._size_policy)
+            self._size_widget.setMaximum(1023)
+            self._size_widget.setValue(size)
+            self._layout.addWidget(self._size_widget, 0, 4, 1, 1)
+        else:  # any larger unit is chosen
+            self._size_widget.deleteLater()
+            self._size_widget = QtGui.QDoubleSpinBox(self)
+            self._size_widget.setSizePolicy(self._size_policy)
+            self._size_widget.setMaximum(1024.0)
+            self._size_widget.setDecimals(2)
+            self._size_widget.setValue(size)
+            self._layout.addWidget(self._size_widget, 0, 4, 1, 1)
 
 
 class FilterListView(QtGui.QListWidget):

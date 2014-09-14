@@ -107,6 +107,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                 category = data_sets[key_id]["category"]
                 file_folder = data_sets[key_id]["file_folder"]
                 include_subfolders = data_sets[key_id]["include_subfolders"]
+                truth = data_sets[key_id]["truth"]
                 # instantiate object
                 if category == BackupFilterRuleCtrl.category_size:
                     mode_size = data_sets[key_id]["mode_size"]
@@ -115,6 +116,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
+                                                   truth,
                                                    mode_size,
                                                    size)
                 if category == BackupFilterRuleCtrl.category_path:
@@ -125,53 +127,37 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
+                                                   truth,
                                                    mode_path,
                                                    match_case,
                                                    path_pattern)
                 if category == BackupFilterRuleCtrl.category_date:
                     timestamp_type = data_sets[key_id]["timestamp_type"]
                     position = data_sets[key_id]["position"]
-                    reference_date = data_sets[key_id]["reference_date"]
-                    offset = data_sets[key_id]["offset"]
+                    reference_date_time_type = data_sets[key_id]["reference_date_time_type"]
+                    reference_date_time_timestamp = data_sets[key_id]["reference_date_time_timestamp"]
+                    reference_date_time_offsets = data_sets[key_id]["reference_date_time_offsets"]
                     obj = BackupFilterRuleDateCtrl(key_id,
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
+                                                   truth,
                                                    timestamp_type,
                                                    position,
-                                                   reference_date,
-                                                   offset)
+                                                   reference_date_time_type,
+                                                   reference_date_time_timestamp,
+                                                   reference_date_time_offsets)
                 if category == BackupFilterRuleCtrl.category_attributes:
                     attribute = data_sets[key_id]["attribute"]
                     obj = BackupFilterRuleAttributesCtrl(key_id,
                                                          category,
                                                          file_folder,
                                                          include_subfolders,
+                                                         truth,
                                                          attribute)
                 self._backup_filter_rules.append(obj)
             self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
         return self._backup_filter_rules
-
-#     @backup_filter_rules.setter
-#     def backup_filter_rules(self, backup_filter_rules):
-#         """ * """
-#         # VALIDATE DATA
-#         # backup_filter_rules
-#         if not re.match("$.*^", backup_filter_rules):
-#             logging.warning("%s: The backup_filter_rules contains invalid "\
-#                             "characters. It needs to start with an "\
-#                             "alphabetic and contain alphanumerical "\
-#                             "characters plus '\_\-\#' and space."
-#                             % (self.__class__.__name__, ))
-#             return False
-#         # change data in db
-#         self._update(
-#                      ("filter_pattern", backup_filter_rules, ),
-#                      ("id", "=", self._backup_filter_id, ),
-#                      )
-#         self._backup_filter_rules = backup_filter_rules
-#         # out
-#         return True
 
     @property
     def backup_entity_ass(self):
@@ -384,6 +370,7 @@ class BackupFilterRuleCtrl(object):
     :param category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param boolean truth: Indicates whether the rule is set to true ("is/does") or false ("is not/does not")
 
     This class is not to be instantiated directly but serves as an abstract
     superclass to
@@ -397,6 +384,7 @@ class BackupFilterRuleCtrl(object):
     _category = None  # enum (self.category_size, ...
     _file_folder = None  # enum (file/file_folder/folder)
     _include_subfolders = None
+    _truth = None  # is/is not / does/does not
 
     # enums
     #: ..
@@ -434,23 +422,15 @@ class BackupFilterRuleCtrl(object):
     #: ..
     mode_path_matches = "mode_path_matches"
     #: ..
-    timestamp_type_cdate = "timestamp_type_cdate"
-    #: ..
     timestamp_type_ctime = "timestamp_type_ctime"
     #: ..
-    timestamp_type_mdate = "timestamp_type_mdate"
-    #: ..
     timestamp_type_mtime = "timestamp_type_mtime"
-    #: ..
-    timestamp_type_adate = "timestamp_type_adate"
     #: ..
     timestamp_type_atime = "timestamp_type_atime"
     #: ..
     position_before = "position_before"
     #: ..
     position_on = "position_on"
-    #: ..
-    position_exactly = "position_exactly"
     #: ..
     position_after = "position_after"
     #: ..
@@ -476,13 +456,14 @@ class BackupFilterRuleCtrl(object):
     #: ..
     attribute_system = "attribute_system"
 
-    def __init__(self, key_id, category, file_folder, include_subfolders):
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth):
         super(BackupFilterRuleCtrl, self).__init__()
 
         self._id = key_id
         self._category = category
         self._file_folder = file_folder
         self._include_subfolders = include_subfolders
+        self._truth = truth
 
     def __repr__(self):
         """ *
@@ -652,15 +633,37 @@ class BackupFilterRuleCtrl(object):
     def include_subfolders(self):
         return self._include_subfolders
 
+    @property
+    def truth(self):
+        """ ..
+
+        :rtype: `boolean`
+
+        Holds the truth value about this rule, as in "does/does not" and \
+        "is/is not" respectively.
+        """
+        return self._truth
+
 
 class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum attribute: An *attribute* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true ("is set") \
+    or false ("is not set")
+
+    :param enum attribute: An *attribute* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
     This class represent a *file-attribute filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
@@ -669,12 +672,13 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """
     _attribute = None  # owner, group, backup flag, hidden flag/file prefix
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
                  attribute):
         super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
                                                              category,
                                                              file_folder,
-                                                             include_subfolders)
+                                                             include_subfolders,
+                                                             truth)
 
         self._attribute = attribute
 
@@ -702,17 +706,24 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
     :param enum include_subfolders: An *include_subfolders* enum on \
     :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
+    :param boolean truth: Indicates whether the rule is set to true \
+    ("is set") or false ("is not set")
+
     :param enum timestamp_type: A *typestamp_type* enum on \
     :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
     :param enum position: A *position* enum on \
     :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
-    :param enum reference_date: A *reference_date* enum on \
+    :param enum reference_date_time_type: A *reference_date* enum on \
     :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
-    :param enum offset: An *offset* enum on \
-    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param int reference_date_time_timestamp: The unix timestamp of \
+    the offset for a fixed reference date/time.
+
+    :param list reference_date_time_offsets: A list of offsets in the \
+    following format: \
+    ``[<int negative/positive>, <int years>, <int months>, <int weeks>, <int days>, <int hours>, <int minutes>, <int seconds>]``
 
     This class represent a *date filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
@@ -721,29 +732,24 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
     """
     _timestamp_type = None  # cdate, ctime, mdate, mtime, ...
     _position = None  # before, on, after, exactly
-    _reference_date = None  # current date, file, folder, volume backup, fixed date, ...
-    _offset = None  # [years, months, weeks, days, hours, minutes, seconds]
+    _reference_date_time_type = None  # current date, file, folder, volume backup, fixed date, ...
+    _reference_date_time_timestamp = None  # the timestamp for a fixed date.
+    _reference_date_time_offsets = None  # time offset in milliseconds
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
-                 timestamp_type, position, reference_date, offset):
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
+                 timestamp_type, position, reference_date_time_type,
+                 reference_date_time_timestamp, reference_date_time_offsets):
         super(BackupFilterRuleDateCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
-                                                       include_subfolders)
+                                                       include_subfolders,
+                                                       truth)
 
         self._timestamp_type = timestamp_type
         self._position = position
-        self._reference_date = reference_date
-        self._offset = offset
-
-    @property
-    def timestamp_type(self):
-        """
-        :type: *enum*
-
-        The timestamp-type value set on this object.
-        """
-        return self._timestamp_type
+        self._reference_date_time_type = reference_date_time_type
+        self._reference_date_time_timestamp = reference_date_time_timestamp
+        self._reference_date_time_offsets = reference_date_time_offsets
 
     @property
     def position(self):
@@ -755,33 +761,64 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         return self._position
 
     @property
-    def reference_date(self):
-        """
-        :type: *enum*
-
-        The reference-date value set on this object.
-        """
-        return self._reference_date
-
-    @property
-    def offset(self):
+    def reference_date_time_offsets(self):
         """
         :type: *enum*
 
         The time-offset value set on this object.
         """
-        return self._offset
+        return self._reference_date_time_offsets
+
+    @property
+    def reference_date_time_timestamp(self):
+        """
+        :type: *enum*
+
+        The timestamp for a fixed reference-time set on this object.
+        """
+        return self._reference_date_time_timestamp
+
+    @property
+    def reference_date_time_type(self):
+        """
+        :type: *enum*
+
+        The reference-date value set on this object.
+        """
+        return self._reference_date_time_type
+
+    @property
+    def timestamp_type(self):
+        """
+        :type: *enum*
+
+        The timestamp-type value set on this object.
+        """
+        return self._timestamp_type
 
 
 class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_path: A *mode-path* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true ("is set") \
+    or false ("is not set")
+
+    :param enum mode_path: A *mode-path* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
     :param bool match_case: If `True`, filter will be evaluated case-sensitively.
+
     :param str path_pattern: The (file-/directory path-)pattern that is to be \
     matched.
 
@@ -794,12 +831,13 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     _match_case = None  # bool
     _path_pattern = None  # pattern, path, regex, ...
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
                  mode_path, match_case, path_pattern):
         super(BackupFilterRulePathCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
-                                                       include_subfolders)
+                                                       include_subfolders,
+                                                       truth)
 
         self._mode_path = mode_path
         self._match_case = match_case
@@ -837,10 +875,22 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_size: A *mode_size* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true ("is set") \
+    or false ("is not set")
+
+    :param enum mode_size: A *mode_size* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
     :param int size: The *data-size* in bytes to be compared against.
 
     This class represent a *file-/directory-size filter* that is set for a
@@ -851,12 +901,13 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
     _mode_size = None  # >, >=, =, <=, <
     _size = None  # int bytes
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
                  mode_size, size):
         super(BackupFilterRuleSizeCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
-                                                       include_subfolders)
+                                                       include_subfolders,
+                                                       truth)
 
         self._mode_size = mode_size
         self._size = size
