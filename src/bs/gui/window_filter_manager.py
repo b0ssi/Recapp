@@ -6,6 +6,7 @@
 The window GUI that hosts the *Filter-Manager* and all its widgets.
 """
 
+import re
 import time
 
 import bs.ctrl.session
@@ -321,6 +322,9 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
 
     This is the edit-view for the attributes-rule.
     """
+    _attribute_type_c_box = None
+    _attribute_value = None
+
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
@@ -332,28 +336,140 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                        QtGui.QSizePolicy.Preferred)
         # "File"
-        self._layout.addWidget(QtGui.QLabel("File", self), 0, 1, 1, 1)
+        widget = QtGui.QLabel("File", self)
+        widget.setSizePolicy(size_policy)
+        self._layout.addWidget(widget, 0, 1, 1, 1)
         # attribute type
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["owner", "group", "backup flag", "hidden flag/file prefix"])
-        self._layout.addWidget(c_box, 0, 2, 1, 1)
+        self._attribute_type_c_box = QtGui.QComboBox(self)
+        self._attribute_type_c_box.setSizePolicy(size_policy)
+        self._attribute_type_c_box.addItems(["owner",
+                                             "group",
+                                             "hidden flag/file . prefix",
+                                             "UNIX: permissions value",
+                                             "WIN: backup flag",
+                                             "WIN: encrypted flag",
+                                             "WIN: offline flag",
+                                             "WIN: read-only flag",
+                                             "WIN: system flag"])
+        self._attribute_type_c_box.currentIndexChanged.connect(self._on_attribute_type_changed)
+        self._layout.addWidget(self._attribute_type_c_box, 0, 2, 1, 1)
         # is/is not set
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["is", "is not"])
+        truth_c_box = QtGui.QComboBox(self)
+        truth_c_box.setSizePolicy(size_policy)
+        truth_c_box.addItems(["is", "is not"])
+        # spacer
+        self._layout.addWidget(QtGui.QWidget(self), 0, 5, 1, 1)
+        # ======================================================================
+        # set-up
+        # ======================================================================
+        # attribute_type
+        if self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden:
+            self._attribute_type_c_box.setCurrentIndex(2)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_group:
+            self._attribute_type_c_box.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner:
+            self._attribute_type_c_box.setCurrentIndex(1)
+            self._attribute_type_c_box.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_archive:
+            self._attribute_type_c_box.setCurrentIndex(4)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_encrypted:
+            self._attribute_type_c_box.setCurrentIndex(5)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_offline:
+            self._attribute_type_c_box.setCurrentIndex(6)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_unix_permissions:
+            self._attribute_type_c_box.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_read_only:
+            self._attribute_type_c_box.setCurrentIndex(7)
+        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_system:
+            self._attribute_type_c_box.setCurrentIndex(8)
+        # truth
         if not self._backup_filter_rule_ctrl.truth:
-            c_box.setCurrentIndex(1)
-        self._layout.addWidget(c_box, 0, 3, 1, 1)
-        # ======================================================================
-        # case 1
-        # ======================================================================
-        # line edit
-        self._layout.addWidget(QtGui.QLineEdit(self), 0, 4, 1, 1)
-        # ======================================================================
-        # case 2
-        # ======================================================================
-#         # "set"
-#         self._layout.addWidget(QtGui.QLabel("set.", self), 0, 4, 1, 1)
+            truth_c_box.setCurrentIndex(1)
+        self._layout.addWidget(truth_c_box, 0, 3, 1, 1)
+
+    def _on_attribute_type_changed(self, index):
+        """ ..
+
+        Fires when the attribute type combo box changes and context \
+        sensitively changes the corresponding widgets.
+        """
+#         # attribute value
+#         if self._backup_filter_rule_ctrl.attribute in [bs.ctrl.session.BackupFilterRuleCtrl.attribute_group,
+#                                                        bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner]:
+#             self._attribute_value.setValue(self._backup_filter_rule_ctrl.attribute_value[0])
+        # read value & delete existing widget
+        try:
+            self._attribute_value.deleteLater()
+        except:
+            pass
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
+                                        QtGui.QSizePolicy.Preferred)
+        # create new widget depending on context
+        if index in [0, 1]:  # owner, group
+            self._attribute_value = QtGui.QLineEdit(self)
+            self._layout.addWidget(self._attribute_value, 0, 4, 1, 1)
+
+            # set value
+            if (len(self._backup_filter_rule_ctrl.attribute_value) == 1 and
+                    isinstance(self._backup_filter_rule_ctrl.attribute_value, str)):
+                self._attribute_value.setText(self._backup_filter_rule_ctrl.attribute_value[0])
+        elif index in [3]:  # unix permissions
+            self._attribute_value = QtGui.QWidget(self)
+            self._attribute_value.setSizePolicy(size_policy)
+            self._attribute_value._layout = QtGui.QHBoxLayout(self._attribute_value)
+            self._attribute_value._layout.setContentsMargins(0, 0, 0, 0)
+            # read
+            self._attribute_value._layout.addWidget(QtGui.QLabel("user", self._attribute_value))
+            user_c_box = QtGui.QComboBox(self._attribute_value)
+            user_c_box.addItems(["pass any",
+                            "0: none",
+                            "1: execute only",
+                            "2: write only",
+                            "3: write & execute",
+                            "4: read only",
+                            "5: read & execute",
+                            "6: read & write",
+                            "7: read, write & execute"])
+            self._attribute_value._layout.addWidget(user_c_box)
+            # write
+            self._attribute_value._layout.addWidget(QtGui.QLabel("group", self._attribute_value))
+            group_c_box = QtGui.QComboBox(self._attribute_value)
+            group_c_box.addItems(["pass any",
+                            "0: none",
+                            "1: execute only",
+                            "2: write only",
+                            "3: write & execute",
+                            "4: read only",
+                            "5: read & execute",
+                            "6: read & write",
+                            "7: read, write & execute"])
+            self._attribute_value._layout.addWidget(group_c_box)
+            # execute
+            self._attribute_value._layout.addWidget(QtGui.QLabel("others", self._attribute_value))
+            others_c_box = QtGui.QComboBox(self._attribute_value)
+            others_c_box.addItems(["pass any",
+                            "0: none",
+                            "1: execute only",
+                            "2: write only",
+                            "3: write & execute",
+                            "4: read only",
+                            "5: read & execute",
+                            "6: read & write",
+                            "7: read, write & execute"])
+            self._attribute_value._layout.addWidget(others_c_box)
+
+            self._layout.addWidget(self._attribute_value, 0, 4, 1, 1)
+
+            if len(self._backup_filter_rule_ctrl.attribute_value) == 3:
+                user_c_box.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0] + 1)
+                group_c_box.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1] + 1)
+                others_c_box.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2] + 1)
+        else:  # binary flags
+            self._attribute_value = QtGui.QLabel("set.", self)
+            self._layout.addWidget(self._attribute_value, 0, 4, 1, 1)
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -448,7 +564,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # reference_date_time_type
         self._reference_date_time_type_c_box = QtGui.QComboBox(self)
         self._reference_date_time_type_c_box.setSizePolicy(size_policy)
-        self._reference_date_time_type_c_box.addItems(["current file", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
+        self._reference_date_time_type_c_box.addItems(["current", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
         self._reference_date_time_type_c_box.currentIndexChanged.connect(self._on_date_time_reference_changed)
         layout.addWidget(self._reference_date_time_type_c_box)
         # "date"

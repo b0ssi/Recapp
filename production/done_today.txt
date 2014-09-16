@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-16
+- Binds filter-edit-rule: attributes to their controller including their context-sensitive dependencies; extends the filter-rule-attributes controller to accommodate for necessary attribute data.
+
 2014-09-14
 - Binds the following filter-edit-rule views to their respective controller-data on init: size, path, date. Also implements full conditional widget-switching (e.g. time widget hides when "and time" tickbox is unticked). 
 

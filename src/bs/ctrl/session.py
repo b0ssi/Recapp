@@ -148,13 +148,15 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    reference_date_time_timestamp,
                                                    reference_date_time_offsets)
                 if category == BackupFilterRuleCtrl.category_attributes:
-                    attribute = data_sets[key_id]["attribute"]
+                    attribute_type = data_sets[key_id]["attribute_type"]
+                    attribute_value = data_sets[key_id]["attribute_value"]
                     obj = BackupFilterRuleAttributesCtrl(key_id,
                                                          category,
                                                          file_folder,
                                                          include_subfolders,
                                                          truth,
-                                                         attribute)
+                                                         attribute_type,
+                                                         attribute_value)
                 self._backup_filter_rules.append(obj)
             self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
         return self._backup_filter_rules
@@ -444,17 +446,23 @@ class BackupFilterRuleCtrl(object):
     #: ..
     reference_date_fixed = "reference_date_fixed"
     #: ..
-    attribute_archive = "attribute_archive"
-    #: ..
-    attribute_encrypted = "attribute_encrypted"
-    #: ..
     attribute_hidden = "attribute_hidden"
     #: ..
-    attribute_offline = "attribute_offline"
+    attribute_group = "attribute_group"
     #: ..
-    attribute_read_only = "attribute_read_only"
+    attribute_owner = "attribute_owner"
     #: ..
-    attribute_system = "attribute_system"
+    attribute_win_archive = "attribute_win_archive"
+    #: ..
+    attribute_win_encrypted = "attribute_win_encrypted"
+    #: ..
+    attribute_win_offline = "attribute_win_offline"
+    #: ..
+    attribute_unix_permissions = "attribute_unix_permissions"
+    #: ..
+    attribute_win_read_only = "attribute_win_read_only"
+    #: ..
+    attribute_win_system = "attribute_win_system"
 
     def __init__(self, key_id, category, file_folder, include_subfolders, truth):
         super(BackupFilterRuleCtrl, self).__init__()
@@ -670,26 +678,38 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _attribute = None  # owner, group, backup flag, hidden flag/file prefix
+    _attribute_type = None  # owner, group, backup flag, hidden flag/file prefix
+    _attribute_value = None  # list: [<username> | <group>] | [<x>, <w>, <r>]
 
     def __init__(self, key_id, category, file_folder, include_subfolders, truth,
-                 attribute):
+                 attribute_type, attribute_value):
         super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
                                                              category,
                                                              file_folder,
                                                              include_subfolders,
                                                              truth)
 
-        self._attribute = attribute
+        self._attribute_type = attribute_type
+        self._attribute_value = attribute_value
 
     @property
-    def attribute(self):
+    def attribute_type(self):
         """
+        :type: *enum*
+
+        The attribute type set on this object.
+        """
+        return self._attribute_type
+
+    @property
+    def attribute_value(self):
+        """ ..
+
         :type: *enum*
 
         The attribute value set on this object.
         """
-        return self._attribute
+        return self._attribute_value
 
 
 class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
