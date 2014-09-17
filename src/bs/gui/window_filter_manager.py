@@ -6,7 +6,6 @@
 The window GUI that hosts the *Filter-Manager* and all its widgets.
 """
 
-import re
 import time
 
 import bs.ctrl.session
@@ -121,8 +120,6 @@ class FilterEditInterface(QtGui.QWidget):
 
         # layout
         self._layout = QtGui.QGridLayout(self)
-        # geometry
-        self.setMinimumWidth(200)
 
 
 class FilterEditView(FilterEditInterface):
@@ -304,7 +301,10 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         super(FilterEditRuleInterface, self).__init__(parent)
 
-        self._row_layouts = {}
+        self._row_layouts = {}  # holds the horizontal row layouts
+        self._registered_widgets = {}  # holds all widgets to be watched for modification
+        self._update_signal = bs.utils.Signal()
+        self._update_signal.connect(self._update_event)
 
         self._backup_filter_rule_ctrl = backup_filter_rule_ctrl
         # layout
@@ -321,6 +321,32 @@ class FilterEditRuleInterface(QtGui.QFrame):
         self.setSizePolicy(QtGui.QSizePolicy.Preferred,
                            QtGui.QSizePolicy.Fixed)
 
+    @property
+    def is_modified(self):
+        """ ..
+
+        :rtype: `boolean`
+
+        Returns whether or not this rule is dirty.
+        """
+        modified = False
+        for key in self._registered_widgets.keys():
+            if self._registered_widgets[key]:
+                modified = True
+                break
+        return modified
+
+    @property
+    def update_signal(self):
+        """ ..
+
+        :type: :class:`bs.ctrl.utils.Signal`
+
+        This signal emits when registered sub-widget is updated/changed, by \
+        the user or programmatically.
+        """
+        return self._update_signal
+
     def get_row_layout(self, row):
         """ ..
 
@@ -332,14 +358,28 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         if row not in self._row_layouts.keys():
             # row 0
-            widget = QtGui.QFrame(self)
+            widget = QtGui.QWidget(self)
+            widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
+                                 QtGui.QSizePolicy.Preferred)
+            widget.setMinimumHeight(32)
             self._row_layouts[row] = QtGui.QHBoxLayout(widget)
             self._row_layouts[row].setContentsMargins(0, 0, 0, 0)
-            self._row_layouts[row].setSizeConstraint(QtGui.QLayout.SetFixedSize)
+            # SetFixedSize
+            self._row_layouts[row].setSizeConstraint(QtGui.QLayout.SetDefaultConstraint)
             self._layout.addWidget(widget, row, 1, 1, 1)
             # spacer
             self._layout.addWidget(QtGui.QWidget(self), row, 2, 1, 1)
         return self._row_layouts[row]
+
+    def _update_event(self):
+        """ ..
+
+        Fires when a registered widget is updated.
+        """
+        if self.is_modified:
+            self.setStyleSheet(".%s {background: orange}" % self.__class__.__name__)
+        else:
+            self.setStyleSheet("")
 
 
 class FilterEditRuleAttributesView(FilterEditRuleInterface):
@@ -397,6 +437,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         self.get_row_layout(0).addWidget(truth_c_box)
         # user/group value
         self._attribute_value_widget = QtGui.QLineEdit(self)
+        self._attribute_value_widget.setMinimumWidth(500)
         self.get_row_layout(0).addWidget(self._attribute_value_widget)
         # "set"
         self._set_widget = QtGui.QLabel("set.", self)
@@ -495,8 +536,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._attribute_value.deleteLater()
         except:
             pass
-        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                        QtGui.QSizePolicy.Preferred)
         # create new widget depending on context
         if index in [0, 1]:  # owner, group
             self._attribute_value_widget.show()
@@ -660,37 +699,37 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         self._time_offset_direction_c_box = QtGui.QComboBox(self)
         self._time_offset_direction_c_box.addItems(["positive", "negative"])
         self.get_row_layout(1).addWidget(self._time_offset_direction_c_box)
-        # [lineEdit]
+        # years
         self._time_offset_years = QtGui.QSpinBox(self)
         self._time_offset_years.setMaximum(99)
         self._time_offset_years.setSuffix(" years")
         self.get_row_layout(1).addWidget(self._time_offset_years)
-        # [lineEdit]
+        # months
         self._time_offset_months = QtGui.QSpinBox(self)
         self._time_offset_months.setMaximum(11)
         self._time_offset_months.setSuffix(" months")
         self.get_row_layout(1).addWidget(self._time_offset_months)
-        # [lineEdit]
+        # weeks
         self._time_offset_weeks = QtGui.QSpinBox(self)
         self._time_offset_weeks.setMaximum(51)
         self._time_offset_weeks.setSuffix(" weeks")
         self.get_row_layout(1).addWidget(self._time_offset_weeks)
-        # [lineEdit]
+        # days
         self._time_offset_days = QtGui.QSpinBox(self)
         self._time_offset_days.setMaximum(365)
         self._time_offset_days.setSuffix(" days")
         self.get_row_layout(1).addWidget(self._time_offset_days)
-        # [lineEdit]
+        # hours
         self._time_offset_hours = QtGui.QSpinBox(self)
         self._time_offset_hours.setMaximum(23)
         self._time_offset_hours.setSuffix(" hours")
         self.get_row_layout(1).addWidget(self._time_offset_hours)
-        # [lineEdit]
+        # minutes
         self._time_offset_minutes = QtGui.QSpinBox(self)
         self._time_offset_minutes.setMaximum(59)
         self._time_offset_minutes.setSuffix(" minutes")
         self.get_row_layout(1).addWidget(self._time_offset_minutes)
-        # [lineEdit]
+        # seconds
         self._time_offset_seconds = QtGui.QSpinBox(self)
         self._time_offset_seconds.setMaximum(59)
         self._time_offset_seconds.setSuffix(" seconds")
@@ -860,8 +899,6 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         self.get_row_layout(0).addWidget(self._mode_widget)
         # pattern
         self._pattern_widget = QtGui.QLineEdit(self)
-        self._pattern_widget.setSizePolicy(QtGui.QSizePolicy.Preferred,
-                                           QtGui.QSizePolicy.Preferred)
         self._pattern_widget.setMinimumWidth(500)
         self.get_row_layout(0).addWidget(self._pattern_widget)
         # match case
@@ -914,6 +951,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         """
         super(FilterEditRuleSizeView, self).__init__(parent,
                                                      backup_filter_rule_ctrl)
+
         self._init_ui()
 
     def _init_ui(self):
@@ -925,28 +963,15 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         # File/Folder/Either
         self._file_folder_widget = QtGui.QComboBox(self)
         self._file_folder_widget.addItems(["File/Folder", "File", "Folder"])
-        self._file_folder_widget.currentIndexChanged.connect(self._on_file_folder_changed)
         self.get_row_layout(0).addWidget(self._file_folder_widget)
-        # is/is not
-        widget = QtGui.QComboBox(self)
-        widget.addItems(["is", "is not"])
-        if not self._backup_filter_rule_ctrl.truth:
-            widget.setCurrentIndex(1)
-        self.get_row_layout(0).addWidget(widget)
-        # less, less/equal, equal, equal/larger, larger
-        widget = QtGui.QComboBox(self)
-        widget.addItems(["less than", "less or equal to", "equal to", "equal or larger than", "larger than"])
-        if self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller:
-            widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal:
-            widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal:
-            widget.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger_equal:
-            widget.setCurrentIndex(3)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger:
-            widget.setCurrentIndex(4)
-        self.get_row_layout(0).addWidget(widget)
+        # truth
+        self._truth_widget = QtGui.QComboBox(self)
+        self._truth_widget.addItems(["is", "is not"])
+        self.get_row_layout(0).addWidget(self._truth_widget)
+        # mode size
+        self._mode_size_widget = QtGui.QComboBox(self)
+        self._mode_size_widget.addItems(["less than", "less or equal to", "equal to", "equal or larger than", "larger than"])
+        self.get_row_layout(0).addWidget(self._mode_size_widget)
         # quantity
         self._size_int_widget = QtGui.QSpinBox(self)
         self._size_int_widget.setMaximum(1023)
@@ -959,12 +984,36 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         # unit
         self._unit_widget = QtGui.QComboBox(self)
         self._unit_widget.addItems(["byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB"])
-        self._unit_widget.currentIndexChanged.connect(self._on_unit_changed)
         self.get_row_layout(0).addWidget(self._unit_widget)
         # sub-folders
         self._incl_subfolders_widget = QtGui.QCheckBox("including subfolders",
                                                        self)
         self.get_row_layout(0).addWidget(self._incl_subfolders_widget)
+        # ======================================================================
+        # register
+        #
+        # To register and watch a widget for modification to update the rule
+        # view, register widget here and connect to an update method that in
+        # return updates the registered state.
+        # ======================================================================
+        self._registered_widgets[self._file_folder_widget] = False
+        self._file_folder_widget.currentIndexChanged.connect(self._file_folder_update_event)
+
+        self._registered_widgets[self._truth_widget] = False
+        self._truth_widget.currentIndexChanged.connect(self._truth_update_event)
+
+        self._registered_widgets[self._mode_size_widget] = False
+        self._mode_size_widget.currentIndexChanged.connect(self._mode_size_update_event)
+
+        self._registered_widgets[self._size_int_widget] = False
+        self._size_int_widget.valueChanged.connect(self._size_unit_update_event)
+
+        self._registered_widgets[self._size_float_widget] = False
+        self._size_float_widget.valueChanged.connect(self._size_unit_update_event)
+
+        self._registered_widgets[self._unit_widget] = False
+        self._unit_widget.currentIndexChanged.connect(self._unit_update_event)
+        self._unit_widget.currentIndexChanged.connect(self._size_unit_update_event)
         # ======================================================================
         # set-up
         # ======================================================================
@@ -975,6 +1024,30 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
             self._file_folder_widget.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
             self._file_folder_widget.setCurrentIndex(2)
+        # truth
+        if not self._backup_filter_rule_ctrl.truth:
+            self._truth_widget.setCurrentIndex(1)
+        # mode size
+        if self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller:
+            self._mode_size_widget.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal:
+            self._mode_size_widget.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal:
+            self._mode_size_widget.setCurrentIndex(2)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger_equal:
+            self._mode_size_widget.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger:
+            self._mode_size_widget.setCurrentIndex(4)
+        # size
+        size = float(self._backup_filter_rule_ctrl.size)
+        while size > 1023:
+            size = size / 1024
+        self._size_int_widget.setValue(size)
+        self._size_float_widget.setValue(size)
+        if self._backup_filter_rule_ctrl.size <= 1023:
+            self._size_float_widget.hide()
+        else:
+            self._size_int_widget.hide()
         # unit
         unit_index = 0
         size = float(self._backup_filter_rule_ctrl.size)
@@ -991,38 +1064,91 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         else:
             self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
 
-    def _on_file_folder_changed(self, index):
+    def _file_folder_update_event(self, index):
         """ ..
 
         Event that triggers when file/folder selector is changed.
-        Enables/disables the "incl. subfolders" check box.
+        Enables/disables the "incl. subfolders" check box. Updates modified
+        state.
         """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file,
+                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder
+                   ]
+        if self._backup_filter_rule_ctrl.file_folder == options[self._file_folder_widget.currentIndex()]:
+            self._registered_widgets[self._file_folder_widget] = False
+        else:
+            self._registered_widgets[self._file_folder_widget] = True
+        self.update_signal.emit()
+        # update ui
         if index == 1:
             self._incl_subfolders_widget.hide()
         else:
             self._incl_subfolders_widget.show()
 
-    def _on_unit_changed(self, index):
+    def _mode_size_update_event(self, index):
+        """ ..
+
+        Event that triggers when mode selector is changed. Updates modified
+        state.
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger_equal,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger
+                   ]
+        if self._backup_filter_rule_ctrl.mode_size == options[self._mode_size_widget.currentIndex()]:
+            self._registered_widgets[self._mode_size_widget] = False
+        else:
+            self._registered_widgets[self._mode_size_widget] = True
+        self.update_signal.emit()
+
+    def _size_unit_update_event(self, value_index):
+        """ ..
+
+        Event that triggers when size (int/float) and unit selectors are \
+        changed. Updates modified state.
+        """
+        self._registered_widgets[self._size_int_widget] = True
+        if self._size_int_widget.isVisible():
+            value = self._size_int_widget.value()
+        else:
+            value = self._size_float_widget.value()
+
+        if int(value * pow(1024, self._unit_widget.currentIndex())) == self._backup_filter_rule_ctrl.size:
+            self._registered_widgets[self._size_int_widget] = False
+        self.update_signal.emit()
+
+    def _truth_update_event(self, index):
+        """ ..
+
+        Event that triggers when truth selector is changed. Updates modified
+        state.
+        """
+        options = [True, False]
+        if self._backup_filter_rule_ctrl.truth == options[self._truth_widget.currentIndex()]:
+            self._registered_widgets[self._truth_widget] = False
+        else:
+            self._registered_widgets[self._truth_widget] = True
+        self.update_signal.emit()
+
+    def _unit_update_event(self, index):
         """ ..
 
         Event that gets called when index of unit-selector is changed. \
         Switches between an integer or float combo box, depending on selected \
         unit.
         """
-        size = float(self._backup_filter_rule_ctrl.size)
-        while True:
-            if size > 1023:
-                size = size / 1024
-            else:
-                break
-        if index == 0:  # "byte(s)" is chosen
+        if index == 0 and self._size_float_widget.isVisible():  # "byte(s)" is chosen
             self._size_int_widget.show()
             self._size_float_widget.hide()
-            self._size_int_widget.setValue(size)
-        else:  # any larger unit is chosen
+            self._size_int_widget.setValue(self._size_float_widget.value())
+        elif index > 0 and self._size_int_widget.isVisible():  # any larger unit is chosen
             self._size_int_widget.hide()
             self._size_float_widget.show()
-            self._size_float_widget.setValue(size)
+            self._size_float_widget.setValue(self._size_int_widget.value())
 
 
 class FilterListView(QtGui.QListWidget):

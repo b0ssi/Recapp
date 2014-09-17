@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-18
+- Installs modification tracking on filter-view: size that compares currently set values against saved values on controller, updates the modified state and emits a signal accordingly. Fixes minor issue in filter-rule-view layout where layout would jump if widgets were conditionally shown/hidden.
+
 2014-09-17
 - Binds filter-view mode selector to controller. Adds column to db to hold value, enums to filter controller.
 

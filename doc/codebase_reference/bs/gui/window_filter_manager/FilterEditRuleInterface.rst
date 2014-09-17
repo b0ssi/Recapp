@@ -8,10 +8,15 @@ Synopsis
 
 Instance-Variables
 ==================
+   | :attr:`is_modified`
 
 Methods
 =======
    | :meth:`get_row_layout`
+
+Signals
+=======
+   | :attr:`update_signal`
 
 Events
 ======
