@@ -40,7 +40,7 @@ class WindowFilterManager(QtGui.QMainWindow):
         # connect sessions activity signal to refresh of UI
         self._sessions_ctrl.session_activity_signal.connect(self.refresh)
         # geometry
-        self.setMinimumWidth(1150)
+        self.setMinimumWidth(1200)
         self.setMinimumHeight(350)
         # title
         self.setWindowTitle("Filter Manager")
@@ -155,7 +155,7 @@ class FilterEditView(FilterEditInterface):
         size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
                                         QtGui.QSizePolicy.Preferred)
         # geometry
-        self.setMinimumWidth(950)
+        self.setMinimumWidth(1000)
         # ======================================================================
         # Row 1/2
         # ======================================================================
@@ -261,7 +261,7 @@ class FilterEditEmptyView(FilterEditInterface):
         """ ..
         """
         # geometry
-        self.setMinimumWidth(950)
+        self.setMinimumWidth(1000)
         # buffer
         self._layout.addWidget(QtGui.QWidget(self), 0, 0, 1, 1)
         # info text
@@ -292,21 +292,42 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         super(FilterEditRuleInterface, self).__init__(parent)
 
-        self._backup_filter_rule_ctrl = backup_filter_rule_ctrl
-        self._layout = QtGui.QGridLayout(self)
+        self._row_layouts = {}
 
+        self._backup_filter_rule_ctrl = backup_filter_rule_ctrl
+        # layout
+        self._layout = QtGui.QGridLayout(self)
         # style
         self.setFrameStyle(self.Panel | self.Raised)
-        # geometry
-        self.setSizePolicy(QtGui.QSizePolicy.Preferred,
-                           QtGui.QSizePolicy.Fixed)
-
         # del button
         icon = QtGui.QIcon("img/icons_forget.png")
         widget = QtGui.QPushButton(icon, None)
         widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
                              QtGui.QSizePolicy.Fixed)
-        self._layout.addWidget(widget)
+        self._layout.addWidget(widget, 0, 0, 1, 1)
+        # geometry
+        self.setSizePolicy(QtGui.QSizePolicy.Preferred,
+                           QtGui.QSizePolicy.Fixed)
+
+    def get_row_layout(self, row):
+        """ ..
+
+        :param int row: The row which layout is to be returned.
+
+        :rtype: :class:`QtGui.QHBoxLayout`
+
+        Returns the :class:`QtGui.QHBoxLayout` of the row ``row``.
+        """
+        if row not in self._row_layouts.keys():
+            # row 0
+            widget = QtGui.QFrame(self)
+            self._row_layouts[row] = QtGui.QHBoxLayout(widget)
+            self._row_layouts[row].setContentsMargins(0, 0, 0, 0)
+            self._row_layouts[row].setSizeConstraint(QtGui.QLayout.SetFixedSize)
+            self._layout.addWidget(widget, row, 1, 1, 1)
+            # spacer
+            self._layout.addWidget(QtGui.QWidget(self), row, 2, 1, 1)
+        return self._row_layouts[row]
 
 
 class FilterEditRuleAttributesView(FilterEditRuleInterface):
@@ -323,7 +344,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     This is the edit-view for the attributes-rule.
     """
     _attribute_type_c_box = None
-    _attribute_value = None
+    _file_folder_widget = None
+    _incl_subfolders_widget = None
 
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
@@ -336,15 +358,16 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
-        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                        QtGui.QSizePolicy.Preferred)
-        # "File"
-        widget = QtGui.QLabel("File", self)
-        widget.setSizePolicy(size_policy)
-        self._layout.addWidget(widget, 0, 1, 1, 1)
+        # ======================================================================
+        # Row 0
+        # ======================================================================
+        # File/Folder/Either
+        self._file_folder_widget = QtGui.QComboBox(self)
+        self._file_folder_widget.addItems(["File/Folder", "File", "Folder"])
+        self._file_folder_widget.currentIndexChanged.connect(self._on_file_folder_changed)
+        self.get_row_layout(0).addWidget(self._file_folder_widget)
         # attribute type
         self._attribute_type_c_box = QtGui.QComboBox(self)
-        self._attribute_type_c_box.setSizePolicy(size_policy)
         self._attribute_type_c_box.addItems(["owner",
                                              "group",
                                              "hidden flag/file . prefix",
@@ -355,16 +378,76 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
                                              "WIN: read-only flag",
                                              "WIN: system flag"])
         self._attribute_type_c_box.currentIndexChanged.connect(self._on_attribute_type_changed)
-        self._layout.addWidget(self._attribute_type_c_box, 0, 2, 1, 1)
+        self.get_row_layout(0).addWidget(self._attribute_type_c_box)
         # is/is not set
         truth_c_box = QtGui.QComboBox(self)
-        truth_c_box.setSizePolicy(size_policy)
         truth_c_box.addItems(["is", "is not"])
-        # spacer
-        self._layout.addWidget(QtGui.QWidget(self), 0, 5, 1, 1)
+        self.get_row_layout(0).addWidget(truth_c_box)
+        # user/group value
+        self._attribute_value_widget = QtGui.QLineEdit(self)
+        self.get_row_layout(0).addWidget(self._attribute_value_widget)
+        # "set"
+        self._set_widget = QtGui.QLabel("set.", self)
+        self.get_row_layout(0).addWidget(self._set_widget)
+        # ======================================================================
+        # Row 1
+        # ======================================================================
+        # user
+        self._permissions_user_label_widget = QtGui.QLabel("user", self)
+        self.get_row_layout(1).addWidget(self._permissions_user_label_widget)
+        self._permissions_user_widget = QtGui.QComboBox(self)
+        self._permissions_user_widget.addItems(["pass any",
+                                                "0: none",
+                                                "1: execute only",
+                                                "2: write only",
+                                                "3: write & execute",
+                                                "4: read only",
+                                                "5: read & execute",
+                                                "6: read & write",
+                                                "7: read, write & execute"])
+        self.get_row_layout(1).addWidget(self._permissions_user_widget)
+        # group
+        self._permissions_group_label_widget = QtGui.QLabel("group", self)
+        self.get_row_layout(1).addWidget(self._permissions_group_label_widget)
+        self._permissions_group_widget = QtGui.QComboBox(self)
+        self._permissions_group_widget.addItems(["pass any",
+                                                 "0: none",
+                                                 "1: execute only",
+                                                 "2: write only",
+                                                 "3: write & execute",
+                                                 "4: read only",
+                                                 "5: read & execute",
+                                                 "6: read & write",
+                                                 "7: read, write & execute"])
+        self.get_row_layout(1).addWidget(self._permissions_group_widget)
+        # others
+        self._permissions_others_label_widget = QtGui.QLabel("others", self)
+        self.get_row_layout(1).addWidget(self._permissions_others_label_widget)
+        self._permissions_others_widget = QtGui.QComboBox(self)
+        self._permissions_others_widget.addItems(["pass any",
+                                                  "0: none",
+                                                  "1: execute only",
+                                                  "2: write only",
+                                                  "3: write & execute",
+                                                  "4: read only",
+                                                  "5: read & execute",
+                                                  "6: read & write",
+                                                  "7: read, write & execute"])
+        self.get_row_layout(1).addWidget(self._permissions_others_widget)
+        # sub-folders
+        self._incl_subfolders_widget = QtGui.QCheckBox("including subfolders",
+                                                       self)
+        self.get_row_layout(1).addWidget(self._incl_subfolders_widget)
         # ======================================================================
         # set-up
         # ======================================================================
+        # file/folder
+        if self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder:
+            self._file_folder_widget.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file:
+            self._file_folder_widget.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
+            self._file_folder_widget.setCurrentIndex(2)
         # attribute_type
         if self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden:
             self._attribute_type_c_box.setCurrentIndex(2)
@@ -388,7 +471,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         # truth
         if not self._backup_filter_rule_ctrl.truth:
             truth_c_box.setCurrentIndex(1)
-        self._layout.addWidget(truth_c_box, 0, 3, 1, 1)
 
     def _on_attribute_type_changed(self, index):
         """ ..
@@ -396,10 +478,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         Fires when the attribute type combo box changes and context \
         sensitively changes the corresponding widgets.
         """
-#         # attribute value
-#         if self._backup_filter_rule_ctrl.attribute in [bs.ctrl.session.BackupFilterRuleCtrl.attribute_group,
-#                                                        bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner]:
-#             self._attribute_value.setValue(self._backup_filter_rule_ctrl.attribute_value[0])
         # read value & delete existing widget
         try:
             self._attribute_value.deleteLater()
@@ -409,67 +487,51 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
                                         QtGui.QSizePolicy.Preferred)
         # create new widget depending on context
         if index in [0, 1]:  # owner, group
-            self._attribute_value = QtGui.QLineEdit(self)
-            self._layout.addWidget(self._attribute_value, 0, 4, 1, 1)
-
+            self._attribute_value_widget.show()
             # set value
             if (len(self._backup_filter_rule_ctrl.attribute_value) == 1 and
                     isinstance(self._backup_filter_rule_ctrl.attribute_value, str)):
-                self._attribute_value.setText(self._backup_filter_rule_ctrl.attribute_value[0])
-        elif index in [3]:  # unix permissions
-            self._attribute_value = QtGui.QWidget(self)
-            self._attribute_value.setSizePolicy(size_policy)
-            self._attribute_value._layout = QtGui.QHBoxLayout(self._attribute_value)
-            self._attribute_value._layout.setContentsMargins(0, 0, 0, 0)
-            # read
-            self._attribute_value._layout.addWidget(QtGui.QLabel("user", self._attribute_value))
-            user_c_box = QtGui.QComboBox(self._attribute_value)
-            user_c_box.addItems(["pass any",
-                            "0: none",
-                            "1: execute only",
-                            "2: write only",
-                            "3: write & execute",
-                            "4: read only",
-                            "5: read & execute",
-                            "6: read & write",
-                            "7: read, write & execute"])
-            self._attribute_value._layout.addWidget(user_c_box)
-            # write
-            self._attribute_value._layout.addWidget(QtGui.QLabel("group", self._attribute_value))
-            group_c_box = QtGui.QComboBox(self._attribute_value)
-            group_c_box.addItems(["pass any",
-                            "0: none",
-                            "1: execute only",
-                            "2: write only",
-                            "3: write & execute",
-                            "4: read only",
-                            "5: read & execute",
-                            "6: read & write",
-                            "7: read, write & execute"])
-            self._attribute_value._layout.addWidget(group_c_box)
-            # execute
-            self._attribute_value._layout.addWidget(QtGui.QLabel("others", self._attribute_value))
-            others_c_box = QtGui.QComboBox(self._attribute_value)
-            others_c_box.addItems(["pass any",
-                            "0: none",
-                            "1: execute only",
-                            "2: write only",
-                            "3: write & execute",
-                            "4: read only",
-                            "5: read & execute",
-                            "6: read & write",
-                            "7: read, write & execute"])
-            self._attribute_value._layout.addWidget(others_c_box)
+                self._attribute_value_widget.setText(self._backup_filter_rule_ctrl.attribute_value[0])
+        else:
+            self._attribute_value_widget.hide()
 
-            self._layout.addWidget(self._attribute_value, 0, 4, 1, 1)
-
+        # unix permissions
+        if index in [3]:
+            self._permissions_user_widget.show()
+            self._permissions_user_label_widget.show()
+            self._permissions_group_widget.show()
+            self._permissions_group_label_widget.show()
+            self._permissions_others_widget.show()
+            self._permissions_others_label_widget.show()
+            # set value
             if len(self._backup_filter_rule_ctrl.attribute_value) == 3:
-                user_c_box.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0] + 1)
-                group_c_box.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1] + 1)
-                others_c_box.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2] + 1)
-        else:  # binary flags
-            self._attribute_value = QtGui.QLabel("set.", self)
-            self._layout.addWidget(self._attribute_value, 0, 4, 1, 1)
+                self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0] + 1)
+                self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1] + 1)
+                self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2] + 1)
+        else:
+            self._permissions_user_widget.hide()
+            self._permissions_user_label_widget.hide()
+            self._permissions_group_widget.hide()
+            self._permissions_group_label_widget.hide()
+            self._permissions_others_widget.hide()
+            self._permissions_others_label_widget.hide()
+
+        # binary flags
+        if index in [2] or index >= 4:
+            self._set_widget.show()
+        else:
+            self._set_widget.hide()
+
+    def _on_file_folder_changed(self, index):
+        """ ..
+
+        Event that triggers when file/folder selector is changed.
+        Enables/disables the "incl. subfolders" check box.
+        """
+        if index == 1:
+            self._incl_subfolders_widget.hide()
+        else:
+            self._incl_subfolders_widget.show()
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -489,6 +551,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     _time_edit = None
     _time_edit_check_box = None
     _offset_check_box = None
+    _file_folder_widget = None
+    _incl_subfolders_widget = None
     # the spin box widgets for the time units
     _time_offset_years = None
     _time_offset_months = None
@@ -511,22 +575,16 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
-        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                        QtGui.QSizePolicy.Preferred)
         # ======================================================================
-        # Row 1
+        # Row 0
         # ======================================================================
-        widget = QtGui.QWidget(self)
-        widget.setMinimumHeight(50)
-        self._layout.addWidget(widget, 0, 1, 1, 1)
-        layout = QtGui.QHBoxLayout(widget)
-        # "File"
-        widget = QtGui.QLabel("File", self)
-        widget.setSizePolicy(size_policy)
-        layout.addWidget(widget)
+        # File/Folder/Either
+        self._file_folder_widget = QtGui.QComboBox(self)
+        self._file_folder_widget.addItems(["File/Folder", "File", "Folder"])
+        self._file_folder_widget.currentIndexChanged.connect(self._on_file_folder_changed)
+        self.get_row_layout(0).addWidget(self._file_folder_widget)
         # timestamp_type (creation|modification|access)
         c_box = QtGui.QComboBox(self)
-        c_box.setSizePolicy(size_policy)
         c_box.addItems(["creation", "modification", "access"])
         if self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_ctime:
             c_box.setCurrentIndex(0)
@@ -534,25 +592,21 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             c_box.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime:
             c_box.setCurrentIndex(2)
-        layout.addWidget(c_box)
+        self.get_row_layout(0).addWidget(c_box)
         # "time"
         widget = QtGui.QLabel("time", self)
-        widget.setSizePolicy(size_policy)
-        layout.addWidget(widget)
+        self.get_row_layout(0).addWidget(widget)
         # truth
         c_box = QtGui.QComboBox(self)
-        c_box.setSizePolicy(size_policy)
         c_box.addItems(["does", "does not"])
         if not self._backup_filter_rule_ctrl.truth:
             c_box.setCurrentIndex(1)
-        layout.addWidget(c_box)
+        self.get_row_layout(0).addWidget(c_box)
         # "lie"
         widget = QtGui.QLabel("lie", self)
-        widget.setSizePolicy(size_policy)
-        layout.addWidget(widget)
+        self.get_row_layout(0).addWidget(widget)
         # position
         c_box = QtGui.QComboBox(self)
-        c_box.setSizePolicy(size_policy)
         c_box.addItems(["before", "on", "after"])
         if self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_before:
             c_box.setCurrentIndex(0)
@@ -560,89 +614,92 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             c_box.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_after:
             c_box.setCurrentIndex(2)
-        layout.addWidget(c_box)
+        self.get_row_layout(0).addWidget(c_box)
         # reference_date_time_type
         self._reference_date_time_type_c_box = QtGui.QComboBox(self)
-        self._reference_date_time_type_c_box.setSizePolicy(size_policy)
         self._reference_date_time_type_c_box.addItems(["current", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
         self._reference_date_time_type_c_box.currentIndexChanged.connect(self._on_date_time_reference_changed)
-        layout.addWidget(self._reference_date_time_type_c_box)
+        self.get_row_layout(0).addWidget(self._reference_date_time_type_c_box)
         # "date"
         widget = QtGui.QLabel("date", self)
-        widget.setSizePolicy(size_policy)
-        layout.addWidget(widget)
+        self.get_row_layout(0).addWidget(widget)
         # [date-selector]
         self._date_edit = QtGui.QDateEdit(self)
-        self._date_edit.setSizePolicy(size_policy)
         self._date_edit.setDisplayFormat("yyyy-MM-dd")
         self._date_edit.setCalendarPopup(True)
         self._date_edit.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
-        layout.addWidget(self._date_edit)
+        self.get_row_layout(0).addWidget(self._date_edit)
         # checkBox: "and time"
         self._time_edit_check_box = QtGui.QCheckBox("and time", self)
-        self._time_edit_check_box.setSizePolicy(size_policy)
         self._time_edit_check_box.toggled.connect(self._on_time_edit_check_box_toggled)
-        layout.addWidget(self._time_edit_check_box)
+        self.get_row_layout(0).addWidget(self._time_edit_check_box)
         # [timeSelector]
         self._time_edit = QtGui.QTimeEdit(self)
-        self._time_edit.setSizePolicy(size_policy)
         self._time_edit.setDisplayFormat("hh:mm:ss")
-        layout.addWidget(self._time_edit)
-        # buffer
-        layout.addWidget(QtGui.QWidget())
+        self.get_row_layout(0).addWidget(self._time_edit)
         # ======================================================================
-        # Row 2
+        # Row 1
         # ======================================================================
-        widget = QtGui.QWidget(self)
-        widget.setMinimumHeight(50)
-        self._layout.addWidget(widget, 2, 1, 1, 1)
-        layout = QtGui.QHBoxLayout(widget)
         # checkbox: offset_timestamp
         self._offset_check_box = QtGui.QCheckBox("with an offset of", self)
         self._offset_check_box.toggled.connect(self._on_offset_check_box_toggled)
-        layout.addWidget(self._offset_check_box)
+        self.get_row_layout(1).addWidget(self._offset_check_box)
         # combo box: positive/negative
         self._time_offset_direction_c_box = QtGui.QComboBox(self)
         self._time_offset_direction_c_box.addItems(["positive", "negative"])
-        layout.addWidget(self._time_offset_direction_c_box)
+        self.get_row_layout(1).addWidget(self._time_offset_direction_c_box)
         # [lineEdit]
         self._time_offset_years = QtGui.QSpinBox(self)
         self._time_offset_years.setMaximum(99)
         self._time_offset_years.setSuffix(" years")
-        layout.addWidget(self._time_offset_years)
+        self.get_row_layout(1).addWidget(self._time_offset_years)
         # [lineEdit]
         self._time_offset_months = QtGui.QSpinBox(self)
         self._time_offset_months.setMaximum(11)
         self._time_offset_months.setSuffix(" months")
-        layout.addWidget(self._time_offset_months)
+        self.get_row_layout(1).addWidget(self._time_offset_months)
         # [lineEdit]
         self._time_offset_weeks = QtGui.QSpinBox(self)
         self._time_offset_weeks.setMaximum(51)
         self._time_offset_weeks.setSuffix(" weeks")
-        layout.addWidget(self._time_offset_weeks)
+        self.get_row_layout(1).addWidget(self._time_offset_weeks)
         # [lineEdit]
         self._time_offset_days = QtGui.QSpinBox(self)
         self._time_offset_days.setMaximum(365)
         self._time_offset_days.setSuffix(" days")
-        layout.addWidget(self._time_offset_days)
+        self.get_row_layout(1).addWidget(self._time_offset_days)
         # [lineEdit]
         self._time_offset_hours = QtGui.QSpinBox(self)
         self._time_offset_hours.setMaximum(23)
         self._time_offset_hours.setSuffix(" hours")
-        layout.addWidget(self._time_offset_hours)
+        self.get_row_layout(1).addWidget(self._time_offset_hours)
         # [lineEdit]
         self._time_offset_minutes = QtGui.QSpinBox(self)
         self._time_offset_minutes.setMaximum(59)
         self._time_offset_minutes.setSuffix(" minutes")
-        layout.addWidget(self._time_offset_minutes)
+        self.get_row_layout(1).addWidget(self._time_offset_minutes)
         # [lineEdit]
         self._time_offset_seconds = QtGui.QSpinBox(self)
         self._time_offset_seconds.setMaximum(59)
         self._time_offset_seconds.setSuffix(" seconds")
-        layout.addWidget(self._time_offset_seconds)
+        self.get_row_layout(1).addWidget(self._time_offset_seconds)
+        # ======================================================================
+        # Row 2
+        # ======================================================================
+        # sub-folders
+        self._incl_subfolders_widget = QtGui.QCheckBox("including subfolders",
+                                                       self)
+        self.get_row_layout(2).addWidget(self._incl_subfolders_widget)
         # ======================================================================
         # set-up
         # ======================================================================
+        # file/folder
+        if self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder:
+            self._file_folder_widget.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file:
+            self._file_folder_widget.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
+            self._file_folder_widget.setCurrentIndex(2)
         # reference_date_time_type
         if self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date:
             self._reference_date_time_type_c_box.setCurrentIndex(0)
@@ -684,6 +741,11 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._time_offset_seconds.setValue(offset[7])
         else:
             self._offset_check_box.setCheckState(QtCore.Qt.Unchecked)
+        # incl sub-folders
+        if self._backup_filter_rule_ctrl.include_subfolders:
+            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Checked)
+        else:
+            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
 
     def _on_date_time_reference_changed(self, index):
         """ ..
@@ -698,6 +760,17 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         else:  # anything else is chosen. Deactivate date/time widgets
             self._date_edit.hide()
             self._time_edit.hide()
+
+    def _on_file_folder_changed(self, index):
+        """ ..
+
+        Event that triggers when file/folder selector is changed.
+        Enables/disables the "incl. subfolders" check box.
+        """
+        if index == 1:
+            self._incl_subfolders_widget.hide()
+        else:
+            self._incl_subfolders_widget.show()
 
     def _on_time_edit_check_box_toggled(self, checked):
         """ ..
@@ -761,35 +834,49 @@ class FilterEditRulePathView(FilterEditRuleInterface):
     def _init_ui(self):
         """ ..
         """
-        self._layout.addWidget(QtGui.QLabel("Path", self), 0, 1, 1, 1)
+        # ======================================================================
+        # Row 0
+        # ======================================================================
+        self.get_row_layout(0).addWidget(QtGui.QLabel("Path", self))
         # does/does not
-        widget = QtGui.QComboBox(self)
-        widget.addItems(["does", "does not"])
-        if not self._backup_filter_rule_ctrl.truth:
-            widget.setCurrentIndex(1)
-        self._layout.addWidget(widget, 0, 2, 1, 1)
+        self._truth_widget = QtGui.QComboBox(self)
+        self._truth_widget.addItems(["does", "does not"])
+        self.get_row_layout(0).addWidget(self._truth_widget)
         # mode
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["start with", "contain", "end with", "match pattern", "match regex"])
-        if self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with:
-            c_box.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_contains:
-            c_box.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with:
-            c_box.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_matches:
-            c_box.setCurrentIndex(3)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern:
-            c_box.setCurrentIndex(4)
-        self._layout.addWidget(c_box, 0, 3, 1, 1)
+        self._mode_widget = QtGui.QComboBox(self)
+        self._mode_widget.addItems(["start with", "contain", "end with", "match pattern", "match regex"])
+        self.get_row_layout(0).addWidget(self._mode_widget)
         # pattern
-        self._layout.addWidget(QtGui.QLineEdit(self._backup_filter_rule_ctrl.path_pattern, self),
-                               0, 4, 1, 1)
+        self._pattern_widget = QtGui.QLineEdit(self)
+        self._pattern_widget.setSizePolicy(QtGui.QSizePolicy.Preferred,
+                                           QtGui.QSizePolicy.Preferred)
+        self._pattern_widget.setMinimumWidth(500)
+        self.get_row_layout(0).addWidget(self._pattern_widget)
         # match case
-        check_box = QtGui.QCheckBox("matching case", self)
+        self._match_case_widget = QtGui.QCheckBox("matching case", self)
+        self.get_row_layout(0).addWidget(self._match_case_widget)
+        # ======================================================================
+        # set-up
+        # ======================================================================
+        # truth
+        if not self._backup_filter_rule_ctrl.truth:
+            self._truth_widget.setCurrentIndex(1)
+        # mode
+        if self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with:
+            self._mode_widget.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_contains:
+            self._mode_widget.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with:
+            self._mode_widget.setCurrentIndex(2)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_matches:
+            self._mode_widget.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern:
+            self._mode_widget.setCurrentIndex(4)
+        # pattern
+        self._pattern_widget.setText(self._backup_filter_rule_ctrl.path_pattern)
+        # match case
         if self._backup_filter_rule_ctrl.match_case:
-            check_box.setCheckState(QtCore.Qt.Checked)
-        self._layout.addWidget(check_box, 0, 5, 1, 1)
+            self._match_case_widget.setCheckState(QtCore.Qt.Checked)
 
 
 class FilterEditRuleSizeView(FilterEditRuleInterface):
@@ -805,37 +892,37 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
 
     This is the edit-view for the size-rule.
     """
-    _size_widget = None
-    _size_policy = None
+    _file_folder_widget = None
+    _incl_subfolders_widget = None
+    _size_int_widget = None
+    _size_float_widget = None
 
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleSizeView, self).__init__(parent,
                                                      backup_filter_rule_ctrl)
-
-        self._size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                              QtGui.QSizePolicy.Preferred)
-
         self._init_ui()
 
     def _init_ui(self):
         """ ..
         """
-        # "File size"
-        widget = QtGui.QLabel("File size")
-        widget.setSizePolicy(self._size_policy)
-        self._layout.addWidget(widget, 0, 1, 1, 1)
+        # ======================================================================
+        # Row 0
+        # ======================================================================
+        # File/Folder/Either
+        self._file_folder_widget = QtGui.QComboBox(self)
+        self._file_folder_widget.addItems(["File/Folder", "File", "Folder"])
+        self._file_folder_widget.currentIndexChanged.connect(self._on_file_folder_changed)
+        self.get_row_layout(0).addWidget(self._file_folder_widget)
         # is/is not
         widget = QtGui.QComboBox(self)
-        widget.setSizePolicy(self._size_policy)
         widget.addItems(["is", "is not"])
         if not self._backup_filter_rule_ctrl.truth:
             widget.setCurrentIndex(1)
-        self._layout.addWidget(widget, 0, 2, 1, 1)
+        self.get_row_layout(0).addWidget(widget)
         # less, less/equal, equal, equal/larger, larger
         widget = QtGui.QComboBox(self)
-        widget.setSizePolicy(self._size_policy)
         widget.addItems(["less than", "less or equal to", "equal to", "equal or larger than", "larger than"])
         if self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller:
             widget.setCurrentIndex(0)
@@ -847,8 +934,36 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
             widget.setCurrentIndex(3)
         elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger:
             widget.setCurrentIndex(4)
-        self._layout.addWidget(widget, 0, 3, 1, 1)
+        self.get_row_layout(0).addWidget(widget)
         # quantity
+        self._size_int_widget = QtGui.QSpinBox(self)
+        self._size_int_widget.setMaximum(1023)
+        self.get_row_layout(0).addWidget(self._size_int_widget)
+
+        self._size_float_widget = QtGui.QDoubleSpinBox(self)
+        self._size_float_widget.setMaximum(1024.0)
+        self._size_float_widget.setDecimals(2)
+        self.get_row_layout(0).addWidget(self._size_float_widget)
+        # unit
+        self._unit_widget = QtGui.QComboBox(self)
+        self._unit_widget.addItems(["byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB"])
+        self._unit_widget.currentIndexChanged.connect(self._on_unit_changed)
+        self.get_row_layout(0).addWidget(self._unit_widget)
+        # sub-folders
+        self._incl_subfolders_widget = QtGui.QCheckBox("including subfolders",
+                                                       self)
+        self.get_row_layout(0).addWidget(self._incl_subfolders_widget)
+        # ======================================================================
+        # set-up
+        # ======================================================================
+        # file/folder
+        if self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder:
+            self._file_folder_widget.setCurrentIndex(0)
+        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file:
+            self._file_folder_widget.setCurrentIndex(1)
+        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
+            self._file_folder_widget.setCurrentIndex(2)
+        # unit
         unit_index = 0
         size = float(self._backup_filter_rule_ctrl.size)
         while True:
@@ -857,17 +972,23 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
                 unit_index += 1
             else:
                 break
-        self._size_widget = QtGui.QSpinBox(self)
-        self._layout.addWidget(self._size_widget, 0, 4, 1, 1)
-        # unit
-        widget = QtGui.QComboBox(self)
-        widget.setSizePolicy(self._size_policy)
-        widget.addItems(["byte(s)", "KiB", "MiB", "GiB", "TiB", "PiB"])
-        widget.currentIndexChanged.connect(self._on_unit_changed)
-        widget.setCurrentIndex(unit_index)
-        self._layout.addWidget(widget, 0, 5, 1, 1)
-        # spacer
-        self._layout.addWidget(QtGui.QWidget(self), 0, 6, 1, 1)
+        self._unit_widget.setCurrentIndex(unit_index)
+        # incl sub-folders
+        if self._backup_filter_rule_ctrl.include_subfolders:
+            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Checked)
+        else:
+            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
+
+    def _on_file_folder_changed(self, index):
+        """ ..
+
+        Event that triggers when file/folder selector is changed.
+        Enables/disables the "incl. subfolders" check box.
+        """
+        if index == 1:
+            self._incl_subfolders_widget.hide()
+        else:
+            self._incl_subfolders_widget.show()
 
     def _on_unit_changed(self, index):
         """ ..
@@ -883,20 +1004,13 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
             else:
                 break
         if index == 0:  # "byte(s)" is chosen
-            self._size_widget.deleteLater()
-            self._size_widget = QtGui.QSpinBox(self)
-            self._size_widget.setSizePolicy(self._size_policy)
-            self._size_widget.setMaximum(1023)
-            self._size_widget.setValue(size)
-            self._layout.addWidget(self._size_widget, 0, 4, 1, 1)
+            self._size_int_widget.show()
+            self._size_float_widget.hide()
+            self._size_int_widget.setValue(size)
         else:  # any larger unit is chosen
-            self._size_widget.deleteLater()
-            self._size_widget = QtGui.QDoubleSpinBox(self)
-            self._size_widget.setSizePolicy(self._size_policy)
-            self._size_widget.setMaximum(1024.0)
-            self._size_widget.setDecimals(2)
-            self._size_widget.setValue(size)
-            self._layout.addWidget(self._size_widget, 0, 4, 1, 1)
+            self._size_int_widget.hide()
+            self._size_float_widget.show()
+            self._size_float_widget.setValue(size)
 
 
 class FilterListView(QtGui.QListWidget):

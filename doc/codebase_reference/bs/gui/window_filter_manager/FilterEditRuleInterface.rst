@@ -11,6 +11,7 @@ Instance-Variables
 
 Methods
 =======
+   | :meth:`get_row_layout`
 
 Events
 ======

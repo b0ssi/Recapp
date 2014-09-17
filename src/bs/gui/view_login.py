@@ -7,6 +7,7 @@
 
 from PySide import QtGui
 import bs.config
+import os
 import re
 
 
@@ -239,5 +240,5 @@ class ViewLoginEmblem(QtGui.QLabel):
         self._init_ui()
 
     def _init_ui(self):
-        pm = QtGui.QPixmap("img\\recapp_emblem.png")
+        pm = QtGui.QPixmap(os.path.realpath("img/recapp_emblem.png"))
         self.setPixmap(pm)
