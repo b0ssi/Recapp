@@ -47,6 +47,14 @@ class BackupFilterCtrl(bs.model.models.Filters):
 
     _backup_entity_ass = None
     _backup_filter_rules = None
+    _backup_filter_rules_mode = None
+
+    #: ..
+    backup_filter_rules_mode_and = "backup_filter_rules_mode_and"
+    #: ..
+    backup_filter_rules_mode_or = "backup_filter_rules_mode_or"
+    #: ..
+    backup_filter_rules_mode_xor = "backup_filter_rules_mode_xor"
 
     def __init__(self, session, backup_filter_id):
         self._session = session
@@ -72,6 +80,22 @@ class BackupFilterCtrl(bs.model.models.Filters):
         The filter's *ID*.
         """
         return self._backup_filter_id
+
+    @property
+    def backup_filter_rules_mode(self):
+        """ ..
+
+        :type: `enum`
+
+        The mode this filter's rules are to interpreted in. This is an enum on \
+        :class:`bs.ctrl.session.BackupFilterCtrl`.
+        """
+        if not self._backup_filter_rules_mode:
+            self._backup_filter_rules_mode = self._get("filter_rules_mode",
+                                                       (("user_id", "=", self._session.user.id, ),
+                                                        ("id", "=", self._backup_filter_id),
+                                                        ))[0][0]
+        return self._backup_filter_rules_mode
 
     @property
     def backup_filter_name(self):
@@ -390,11 +414,29 @@ class BackupFilterRuleCtrl(object):
 
     # enums
     #: ..
-    category_size = "category_size"
+    attribute_hidden = "attribute_hidden"
+    #: ..
+    attribute_group = "attribute_group"
+    #: ..
+    attribute_owner = "attribute_owner"
+    #: ..
+    attribute_win_archive = "attribute_win_archive"
+    #: ..
+    attribute_win_encrypted = "attribute_win_encrypted"
+    #: ..
+    attribute_win_offline = "attribute_win_offline"
+    #: ..
+    attribute_unix_permissions = "attribute_unix_permissions"
+    #: ..
+    attribute_win_read_only = "attribute_win_read_only"
+    #: ..
+    attribute_win_system = "attribute_win_system"
+    #: ..
+    category_date = "category_date"
     #: ..
     category_path = "category_path"
     #: ..
-    category_date = "category_date"
+    category_size = "category_size"
     #: ..
     category_attributes = "category_attributes"
     #: ..
@@ -424,12 +466,6 @@ class BackupFilterRuleCtrl(object):
     #: ..
     mode_path_matches = "mode_path_matches"
     #: ..
-    timestamp_type_ctime = "timestamp_type_ctime"
-    #: ..
-    timestamp_type_mtime = "timestamp_type_mtime"
-    #: ..
-    timestamp_type_atime = "timestamp_type_atime"
-    #: ..
     position_before = "position_before"
     #: ..
     position_on = "position_on"
@@ -446,23 +482,11 @@ class BackupFilterRuleCtrl(object):
     #: ..
     reference_date_fixed = "reference_date_fixed"
     #: ..
-    attribute_hidden = "attribute_hidden"
+    timestamp_type_ctime = "timestamp_type_ctime"
     #: ..
-    attribute_group = "attribute_group"
+    timestamp_type_mtime = "timestamp_type_mtime"
     #: ..
-    attribute_owner = "attribute_owner"
-    #: ..
-    attribute_win_archive = "attribute_win_archive"
-    #: ..
-    attribute_win_encrypted = "attribute_win_encrypted"
-    #: ..
-    attribute_win_offline = "attribute_win_offline"
-    #: ..
-    attribute_unix_permissions = "attribute_unix_permissions"
-    #: ..
-    attribute_win_read_only = "attribute_win_read_only"
-    #: ..
-    attribute_win_system = "attribute_win_system"
+    timestamp_type_atime = "timestamp_type_atime"
 
     def __init__(self, key_id, category, file_folder, include_subfolders, truth):
         super(BackupFilterRuleCtrl, self).__init__()

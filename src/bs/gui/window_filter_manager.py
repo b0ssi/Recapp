@@ -128,8 +128,8 @@ class FilterEditInterface(QtGui.QWidget):
 class FilterEditView(FilterEditInterface):
     """ ..
 
-    :param QtGui.QWidget parent: \
-    The :class:`QtGui.QWidget` that is to act as the widget's parent.
+    :param QtGui.QWidget parent: The :class:`QtGui.QWidget` that is to act as \
+    the widget's parent.
 
     :param bs.ctrl.session.BackupFilterCtrl backup_filter: The \
     :class:`bs.ctrl.session.BackupFilterCtrl` managed by this edit view.
@@ -139,6 +139,7 @@ class FilterEditView(FilterEditInterface):
     """
     _backup_filter = None
     _filter_rules_container = None
+    _filter_rules_mode_widget = None
 
     def __init__(self, parent, backup_filter):
         """ ..
@@ -167,10 +168,10 @@ class FilterEditView(FilterEditInterface):
         line_edit = QtGui.QLineEdit(self._backup_filter.backup_filter_name, self)
         self._layout.addWidget(line_edit, 0, 1, 1, 4)
         # logical mode selector
-        mode_cbox = QtGui.QComboBox(self)
-        mode_cbox.setSizePolicy(size_policy)
-        mode_cbox.addItems(["All filters (AND)", "Any filter (OR)", "Only one filter (XOR)"])
-        self._layout.addWidget(mode_cbox, 1, 1, 1, 1)
+        self._filter_rules_mode_widget = QtGui.QComboBox(self)
+        self._filter_rules_mode_widget.setSizePolicy(size_policy)
+        self._filter_rules_mode_widget.addItems(["All filters (AND)", "Any filter (OR)", "Only one filter (XOR)"])
+        self._layout.addWidget(self._filter_rules_mode_widget, 1, 1, 1, 1)
 
         widget = QtGui.QLabel("must meet specified criteria.", self)
         widget.setSizePolicy(size_policy)
@@ -224,6 +225,17 @@ class FilterEditView(FilterEditInterface):
         # buffer widget at bottom
         widget = QtGui.QWidget(self)
         self._filter_rules_container._layout.addWidget(widget)
+        # ======================================================================
+        # set-up
+        # ======================================================================
+        # logical mode selector
+        index = self._backup_filter.backup_filter_rules_mode
+        if index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_and:
+            self._filter_rules_mode_widget.setCurrentIndex(0)
+        elif index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_or:
+            self._filter_rules_mode_widget.setCurrentIndex(1)
+        elif index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_xor:
+            self._filter_rules_mode_widget.setCurrentIndex(2)
 
     def refresh(self):
         """ ..

@@ -6,6 +6,12 @@ BackupFilterCtrl
 Synopsis
 ********
 
+Enums
+=====
+   | :attr:`backup_filter_rules_mode_and`
+   | :attr:`backup_filter_rules_mode_or`
+   | :attr:`backup_filter_rules_mode_xor`
+
 Instance-Variables
 ==================
    | :attr:`backup_entity_ass`

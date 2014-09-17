@@ -3,7 +3,10 @@
 ################################
 
 2014-09-17
-- Adds "include subfolders" to all filter-rule-views except for "path". Also adds a "File/Folder / File / Folder" drop down box to each filter view, except for "path". All these properties are also fully bound to their controllers.
+- Binds filter-view mode selector to controller. Adds column to db to hold value, enums to filter controller.
+
+2014-09-17
+- Adds "include subfolders" to all filter-rule-views except for "path". Also adds a "File/Folder / File / Folder" drop down box to each filter view, except for "path". All these properties are also fully bound to their controllers. Cleans up the layout system, moving existing layouts into row layouts and moving these shared row layouts onto the interface.
 
 2014-09-16
 - Binds filter-edit-rule: attributes to their controller including their context-sensitive dependencies; extends the filter-rule-attributes controller to accommodate for necessary attribute data.
