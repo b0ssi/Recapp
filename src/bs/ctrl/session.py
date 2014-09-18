@@ -456,15 +456,15 @@ class BackupFilterRuleCtrl(object):
     #: ..
     mode_size_larger = "mode_size_larger"
     #: ..
-    mode_path_match_pattern = "mode_path_match_pattern"
-    #: ..
-    mode_path_starts_with = "mode_path_starts_with"
+    mode_path_contains = "mode_path_contains"
     #: ..
     mode_path_ends_with = "mode_path_ends_with"
     #: ..
-    mode_path_contains = "mode_path_contains"
+    mode_path_match_pattern = "mode_path_match_pattern"
     #: ..
-    mode_path_matches = "mode_path_matches"
+    mode_path_match_regex = "mode_path_match_regex"
+    #: ..
+    mode_path_starts_with = "mode_path_starts_with"
     #: ..
     position_before = "position_before"
     #: ..

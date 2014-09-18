@@ -371,6 +371,19 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._layout.addWidget(QtGui.QWidget(self), row, 2, 1, 1)
         return self._row_layouts[row]
 
+    def _truth_update_event(self, index):
+        """ ..
+
+        Event that triggers when truth selector is changed. Updates modified
+        state.
+        """
+        options = [True, False]
+        if self._backup_filter_rule_ctrl.truth == options[self._truth_widget.currentIndex()]:
+            self._registered_widgets[self._truth_widget] = False
+        else:
+            self._registered_widgets[self._truth_widget] = True
+        self.update_signal.emit()
+
     def _update_event(self):
         """ ..
 
@@ -905,6 +918,24 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         self._match_case_widget = QtGui.QCheckBox("matching case", self)
         self.get_row_layout(0).addWidget(self._match_case_widget)
         # ======================================================================
+        # register
+        #
+        # To register and watch a widget for modification to update the rule
+        # view, register widget here and connect to an update method that in
+        # return updates the registered state.
+        # ======================================================================
+        self._registered_widgets[self._truth_widget] = False
+        self._truth_widget.currentIndexChanged.connect(self._truth_update_event)
+
+        self._registered_widgets[self._mode_widget] = False
+        self._mode_widget.currentIndexChanged.connect(self._mode_update_event)
+
+        self._registered_widgets[self._pattern_widget] = False
+        self._pattern_widget.textChanged.connect(self._pattern_update_event)
+
+        self._registered_widgets[self._match_case_widget] = False
+        self._match_case_widget.stateChanged.connect(self._match_case_update_event)
+        # ======================================================================
         # set-up
         # ======================================================================
         # truth
@@ -917,15 +948,64 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._mode_widget.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with:
             self._mode_widget.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_matches:
-            self._mode_widget.setCurrentIndex(3)
         elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern:
+            self._mode_widget.setCurrentIndex(3)
+        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_regex:
             self._mode_widget.setCurrentIndex(4)
         # pattern
         self._pattern_widget.setText(self._backup_filter_rule_ctrl.path_pattern)
         # match case
         if self._backup_filter_rule_ctrl.match_case:
             self._match_case_widget.setCheckState(QtCore.Qt.Checked)
+
+    def _mode_update_event(self, index):
+        """ ..
+
+        Event that triggers when mode selector is changed. Updates modified
+        state.
+        """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_contains,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_regex
+                   ]
+        if self._backup_filter_rule_ctrl.mode_path == options[self._mode_widget.currentIndex()]:
+            self._registered_widgets[self._mode_widget] = False
+        else:
+            self._registered_widgets[self._mode_widget] = True
+        self.update_signal.emit()
+
+    def _pattern_update_event(self, text):
+        """ ..
+
+        :param str text:
+
+        Event that triggers when pattern selector is changed. Updates modified
+        state.
+        """
+        # update modified state
+        if self._backup_filter_rule_ctrl.path_pattern == text:
+            self._registered_widgets[self._pattern_widget] = False
+        else:
+            self._registered_widgets[self._pattern_widget] = True
+        self.update_signal.emit()
+
+    def _match_case_update_event(self, code):
+        """ ..
+
+        :param int code:
+
+        Event that triggers when match-case selector is changed. Updates \
+        modified state.
+        """
+        # update modified state
+        if self._backup_filter_rule_ctrl.match_case == self._match_case_widget.isChecked():
+            self._registered_widgets[self._match_case_widget] = False
+        else:
+            self._registered_widgets[self._match_case_widget] = True
+        self.update_signal.emit()
 
 
 class FilterEditRuleSizeView(FilterEditRuleInterface):
@@ -1119,19 +1199,6 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
 
         if int(value * pow(1024, self._unit_widget.currentIndex())) == self._backup_filter_rule_ctrl.size:
             self._registered_widgets[self._size_int_widget] = False
-        self.update_signal.emit()
-
-    def _truth_update_event(self, index):
-        """ ..
-
-        Event that triggers when truth selector is changed. Updates modified
-        state.
-        """
-        options = [True, False]
-        if self._backup_filter_rule_ctrl.truth == options[self._truth_widget.currentIndex()]:
-            self._registered_widgets[self._truth_widget] = False
-        else:
-            self._registered_widgets[self._truth_widget] = True
         self.update_signal.emit()
 
     def _unit_update_event(self, index):
