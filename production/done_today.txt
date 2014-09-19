@@ -3,6 +3,9 @@
 ################################
 
 2014-09-19
+- Installs modification tracking on filter-view: attributes.
+
+2014-09-19
 - Adds transparency to the main logo in the log-in view.
 
 2014-09-18

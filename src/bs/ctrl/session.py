@@ -729,7 +729,7 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     def attribute_value(self):
         """ ..
 
-        :type: *enum*
+        :type: *list*: [<str username> | <str group>] | [<int x>, <int w>, <int r>]
 
         The attribute value set on this object.
         """

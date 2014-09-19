@@ -371,12 +371,36 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._layout.addWidget(QtGui.QWidget(self), row, 2, 1, 1)
         return self._row_layouts[row]
 
+    def _file_folder_update_event(self, index):
+        """ ..
+
+        Event that triggers when file/folder selector is changed.
+        Enables/disables the "incl. subfolders" check box. Updates modified
+        state.
+        """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file,
+                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder
+                   ]
+        if self._backup_filter_rule_ctrl.file_folder == options[self._file_folder_widget.currentIndex()]:
+            self._registered_widgets[self._file_folder_widget] = False
+        else:
+            self._registered_widgets[self._file_folder_widget] = True
+        self.update_signal.emit()
+        # update ui
+        if index == 1:
+            self._incl_subfolders_widget.hide()
+        else:
+            self._incl_subfolders_widget.show()
+
     def _truth_update_event(self, index):
         """ ..
 
         Event that triggers when truth selector is changed. Updates modified
         state.
         """
+        # update modified state
         options = [True, False]
         if self._backup_filter_rule_ctrl.truth == options[self._truth_widget.currentIndex()]:
             self._registered_widgets[self._truth_widget] = False
@@ -389,6 +413,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
 
         Fires when a registered widget is updated.
         """
+        # update modified state
         if self.is_modified:
             self.setStyleSheet(".%s {background: orange}" % self.__class__.__name__)
         else:
@@ -408,9 +433,10 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
 
     This is the edit-view for the attributes-rule.
     """
-    _attribute_type_c_box = None
+    _attribute_type_widget = None
     _file_folder_widget = None
     _incl_subfolders_widget = None
+    _truth_widget = None
 
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
@@ -429,25 +455,23 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         # File/Folder/Either
         self._file_folder_widget = QtGui.QComboBox(self)
         self._file_folder_widget.addItems(["File/Folder", "File", "Folder"])
-        self._file_folder_widget.currentIndexChanged.connect(self._on_file_folder_changed)
         self.get_row_layout(0).addWidget(self._file_folder_widget)
         # attribute type
-        self._attribute_type_c_box = QtGui.QComboBox(self)
-        self._attribute_type_c_box.addItems(["owner",
-                                             "group",
-                                             "hidden flag/file . prefix",
-                                             "UNIX: permissions value",
-                                             "WIN: backup flag",
-                                             "WIN: encrypted flag",
-                                             "WIN: offline flag",
-                                             "WIN: read-only flag",
-                                             "WIN: system flag"])
-        self._attribute_type_c_box.currentIndexChanged.connect(self._on_attribute_type_changed)
-        self.get_row_layout(0).addWidget(self._attribute_type_c_box)
+        self._attribute_type_widget = QtGui.QComboBox(self)
+        self._attribute_type_widget.addItems(["owner",
+                                              "group",
+                                              "hidden flag/file . prefix",
+                                              "UNIX: permissions value",
+                                              "WIN: archive",
+                                              "WIN: encrypted flag",
+                                              "WIN: offline flag",
+                                              "WIN: read-only flag",
+                                              "WIN: system flag"])
+        self.get_row_layout(0).addWidget(self._attribute_type_widget)
         # is/is not set
-        truth_c_box = QtGui.QComboBox(self)
-        truth_c_box.addItems(["is", "is not"])
-        self.get_row_layout(0).addWidget(truth_c_box)
+        self._truth_widget = QtGui.QComboBox(self)
+        self._truth_widget.addItems(["is", "is not"])
+        self.get_row_layout(0).addWidget(self._truth_widget)
         # user/group value
         self._attribute_value_widget = QtGui.QLineEdit(self)
         self._attribute_value_widget.setMinimumWidth(500)
@@ -505,6 +529,33 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
                                                        self)
         self.get_row_layout(1).addWidget(self._incl_subfolders_widget)
         # ======================================================================
+        # register
+        #
+        # To register and watch a widget for modification to update the rule
+        # view, register widget here and connect to an update method that in
+        # return updates the registered state.
+        # ======================================================================
+        self._registered_widgets[self._file_folder_widget] = False
+        self._file_folder_widget.currentIndexChanged.connect(self._file_folder_update_event)
+
+        self._registered_widgets[self._attribute_type_widget] = False
+        self._attribute_type_widget.currentIndexChanged.connect(self._attribute_type_update_event)
+
+        self._registered_widgets[self._truth_widget] = False
+        self._truth_widget.currentIndexChanged.connect(self._truth_update_event)
+
+        self._registered_widgets[self._permissions_user_widget] = False
+        self._permissions_user_widget.currentIndexChanged.connect(self._permissions_user_update_event)
+
+        self._registered_widgets[self._permissions_group_widget] = False
+        self._permissions_group_widget.currentIndexChanged.connect(self._permissions_group_update_event)
+
+        self._registered_widgets[self._permissions_others_widget] = False
+        self._permissions_others_widget.currentIndexChanged.connect(self._permissions_others_update_event)
+
+        self._registered_widgets[self._attribute_value_widget] = False
+        self._attribute_value_widget.textChanged.connect(self._attribute_value_widget_update_event)
+        # ======================================================================
         # set-up
         # ======================================================================
         # file/folder
@@ -516,39 +567,51 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._file_folder_widget.setCurrentIndex(2)
         # attribute_type
         if self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden:
-            self._attribute_type_c_box.setCurrentIndex(2)
+            self._attribute_type_widget.setCurrentIndex(2)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_group:
-            self._attribute_type_c_box.setCurrentIndex(1)
+            self._attribute_type_widget.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner:
-            self._attribute_type_c_box.setCurrentIndex(1)
-            self._attribute_type_c_box.setCurrentIndex(0)
+            self._attribute_type_widget.setCurrentIndex(1)
+            self._attribute_type_widget.setCurrentIndex(0)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_archive:
-            self._attribute_type_c_box.setCurrentIndex(4)
+            self._attribute_type_widget.setCurrentIndex(4)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_encrypted:
-            self._attribute_type_c_box.setCurrentIndex(5)
+            self._attribute_type_widget.setCurrentIndex(4)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_offline:
-            self._attribute_type_c_box.setCurrentIndex(6)
+            self._attribute_type_widget.setCurrentIndex(5)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_unix_permissions:
-            self._attribute_type_c_box.setCurrentIndex(3)
+            self._attribute_type_widget.setCurrentIndex(3)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_read_only:
-            self._attribute_type_c_box.setCurrentIndex(7)
+            self._attribute_type_widget.setCurrentIndex(6)
         elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_system:
-            self._attribute_type_c_box.setCurrentIndex(8)
+            self._attribute_type_widget.setCurrentIndex(7)
         # truth
         if not self._backup_filter_rule_ctrl.truth:
-            truth_c_box.setCurrentIndex(1)
+            self._truth_widget.setCurrentIndex(1)
 
-    def _on_attribute_type_changed(self, index):
+    def _attribute_type_update_event(self, index):
         """ ..
 
-        Fires when the attribute type combo box changes and context \
-        sensitively changes the corresponding widgets.
+        Event that triggers when attribute type selector is changed. Updates \
+        modified state as well as this rule-view, depending on the chosen index.
         """
-        # read value & delete existing widget
-        try:
-            self._attribute_value.deleteLater()
-        except:
-            pass
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_group,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_unix_permissions,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_encrypted,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_offline,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_read_only,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_system
+                   ]
+        if self._backup_filter_rule_ctrl.attribute_type == options[self._attribute_type_widget.currentIndex()]:
+            self._registered_widgets[self._attribute_type_widget] = False
+        else:
+            self._registered_widgets[self._attribute_type_widget] = True
+        self.update_signal.emit()
+
+        # update ui
         # create new widget depending on context
         if index in [0, 1]:  # owner, group
             self._attribute_value_widget.show()
@@ -569,9 +632,9 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._permissions_others_label_widget.show()
             # set value
             if len(self._backup_filter_rule_ctrl.attribute_value) == 3:
-                self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0] + 1)
-                self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1] + 1)
-                self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2] + 1)
+                self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0])
+                self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1])
+                self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2])
         else:
             self._permissions_user_widget.hide()
             self._permissions_user_label_widget.hide()
@@ -586,16 +649,61 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         else:
             self._set_widget.hide()
 
-    def _on_file_folder_changed(self, index):
+    def _attribute_value_widget_update_event(self, text):
         """ ..
 
-        Event that triggers when file/folder selector is changed.
-        Enables/disables the "incl. subfolders" check box.
+        Event that triggers when attribute value selector (owner/group) is \
+        changed. Updates modified state as well as this rule-view, depending \
+        on the chosen index.
         """
-        if index == 1:
-            self._incl_subfolders_widget.hide()
+        # update modified state
+        if self._backup_filter_rule_ctrl.attribute_value[0] == text:
+            self._registered_widgets[self._attribute_value_widget] = False
         else:
-            self._incl_subfolders_widget.show()
+            self._registered_widgets[self._attribute_value_widget] = True
+        self.update_signal.emit()
+
+    def _permissions_group_update_event(self, index):
+        """ ..
+
+        Event that triggers when attribute value selector (unix group \
+        permissions) is changed. Updates modified state as well as this \
+        rule-view, depending on the chosen index.
+        """
+        # update modified state
+        if self._backup_filter_rule_ctrl.attribute_value[1] == self._permissions_group_widget.currentIndex():
+            self._registered_widgets[self._permissions_group_widget] = False
+        else:
+            self._registered_widgets[self._permissions_group_widget] = True
+        self.update_signal.emit()
+
+    def _permissions_others_update_event(self, index):
+        """ ..
+
+        Event that triggers when attribute value selector (unix others \
+        permissions) is changed. Updates modified state as well as this \
+        rule-view, depending on the chosen index.
+        """
+        # update modified state
+        if self._backup_filter_rule_ctrl.attribute_value[2] == self._permissions_others_widget.currentIndex():
+            self._registered_widgets[self._permissions_others_widget] = False
+        else:
+            self._registered_widgets[self._permissions_others_widget] = True
+        self.update_signal.emit()
+
+    def _permissions_user_update_event(self, index):
+        """ ..
+
+        Event that triggers when attribute value selector (unix user \
+        permissions) is changed. Updates modified state as well as this \
+        rule-view, depending on the chosen index.
+        """
+        # update modified state
+        if self._backup_filter_rule_ctrl.attribute_value[0] == self._permissions_user_widget.currentIndex():
+            self._registered_widgets[self._permissions_user_widget] = False
+        else:
+            self._registered_widgets[self._permissions_user_widget] = True
+        self.update_signal.emit()
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -1144,35 +1252,13 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         else:
             self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
 
-    def _file_folder_update_event(self, index):
-        """ ..
-
-        Event that triggers when file/folder selector is changed.
-        Enables/disables the "incl. subfolders" check box. Updates modified
-        state.
-        """
-        # update modified state
-        options = [bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
-                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file,
-                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder
-                   ]
-        if self._backup_filter_rule_ctrl.file_folder == options[self._file_folder_widget.currentIndex()]:
-            self._registered_widgets[self._file_folder_widget] = False
-        else:
-            self._registered_widgets[self._file_folder_widget] = True
-        self.update_signal.emit()
-        # update ui
-        if index == 1:
-            self._incl_subfolders_widget.hide()
-        else:
-            self._incl_subfolders_widget.show()
-
     def _mode_size_update_event(self, index):
         """ ..
 
         Event that triggers when mode selector is changed. Updates modified
         state.
         """
+        # update modified state
         options = [bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller,
                    bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal,
                    bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal,
@@ -1191,6 +1277,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         Event that triggers when size (int/float) and unit selectors are \
         changed. Updates modified state.
         """
+        # update modified state
         self._registered_widgets[self._size_int_widget] = True
         if self._size_int_widget.isVisible():
             value = self._size_int_widget.value()
@@ -1208,6 +1295,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         Switches between an integer or float combo box, depending on selected \
         unit.
         """
+        # update modified state
         if index == 0 and self._size_float_widget.isVisible():  # "byte(s)" is chosen
             self._size_int_widget.show()
             self._size_float_widget.hide()
