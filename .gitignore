@@ -6,7 +6,6 @@
 *.dia~
 *.graphml
 *.ods
-*.png
 *.prefs
 *.project
 *.psd
@@ -14,6 +13,7 @@
 *.pydevproject
 *.sqlite
 *.swp
+*.xcf
 *.zargo
 *.zargo~
 /build
@@ -28,4 +28,3 @@
 /modeling/
 !/modeling/recapp.asta
 /src/bs/config.json
-/src/img/
