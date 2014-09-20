@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-20
+- Amends and completes modification tracking on filter-view: date/time.
+
+2014-09-20
+- Installs modification tracking on filter-view: date/time.
+
 2014-09-19
 - Installs modification tracking on filter-view: attributes.
 

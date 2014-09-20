@@ -331,7 +331,8 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         modified = False
         for key in self._registered_widgets.keys():
-            if self._registered_widgets[key]:
+            if (self._registered_widgets[key] and
+                    key.isVisible()):
                 modified = True
                 break
         return modified
@@ -609,7 +610,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._attribute_type_widget] = False
         else:
             self._registered_widgets[self._attribute_type_widget] = True
-        self.update_signal.emit()
 
         # update ui
         # create new widget depending on context
@@ -631,7 +631,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._permissions_others_widget.show()
             self._permissions_others_label_widget.show()
             # set value
-            if len(self._backup_filter_rule_ctrl.attribute_value) == 3:
+            if isinstance(self._backup_filter_rule_ctrl.attribute_value[0], int):
                 self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0])
                 self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1])
                 self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2])
@@ -648,6 +648,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._set_widget.show()
         else:
             self._set_widget.hide()
+
+        self.update_signal.emit()
 
     def _attribute_value_widget_update_event(self, text):
         """ ..
@@ -719,9 +721,9 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
 
     This is the edit-view for the date-rule.
     """
-    _date_edit = None
-    _time_edit = None
-    _time_edit_check_box = None
+    _date_widget = None
+    _time_widget = None
+    _time_check_box_widget = None
     _offset_check_box = None
     _file_folder_widget = None
     _incl_subfolders_widget = None
@@ -733,14 +735,18 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     _time_offset_hours = None
     _time_offset_minutes = None
     _time_offset_seconds = None
-    _reference_date_time_type_c_box = None
     _time_offset_direction_c_box = None
+    _timestamp_type_widget = None
+    _position_widget = None
 
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleDateView, self).__init__(parent,
                                                      backup_filter_rule_ctrl)
+
+        self._date_display_pattern = "yyyy-MM-dd"
+        self._time_display_pattern = "hh:mm:ss"
 
         self._init_ui()
 
@@ -753,68 +759,65 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # File/Folder/Either
         self._file_folder_widget = QtGui.QComboBox(self)
         self._file_folder_widget.addItems(["File/Folder", "File", "Folder"])
-        self._file_folder_widget.currentIndexChanged.connect(self._on_file_folder_changed)
         self.get_row_layout(0).addWidget(self._file_folder_widget)
         # timestamp_type (creation|modification|access)
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["creation", "modification", "access"])
+        self._timestamp_type_widget = QtGui.QComboBox(self)
+        self._timestamp_type_widget.addItems(["creation", "modification", "access"])
         if self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_ctime:
-            c_box.setCurrentIndex(0)
+            self._timestamp_type_widget.setCurrentIndex(0)
         elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_mtime:
-            c_box.setCurrentIndex(1)
+            self._timestamp_type_widget.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime:
-            c_box.setCurrentIndex(2)
-        self.get_row_layout(0).addWidget(c_box)
+            self._timestamp_type_widget.setCurrentIndex(2)
+        self.get_row_layout(0).addWidget(self._timestamp_type_widget)
         # "time"
         widget = QtGui.QLabel("time", self)
         self.get_row_layout(0).addWidget(widget)
         # truth
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["does", "does not"])
+        self._truth_widget = QtGui.QComboBox(self)
+        self._truth_widget.addItems(["does", "does not"])
         if not self._backup_filter_rule_ctrl.truth:
-            c_box.setCurrentIndex(1)
-        self.get_row_layout(0).addWidget(c_box)
+            self._truth_widget.setCurrentIndex(1)
+        self.get_row_layout(0).addWidget(self._truth_widget)
         # "lie"
         widget = QtGui.QLabel("lie", self)
         self.get_row_layout(0).addWidget(widget)
         # position
-        c_box = QtGui.QComboBox(self)
-        c_box.addItems(["before", "on", "after"])
+        self._position_widget = QtGui.QComboBox(self)
+        self._position_widget.addItems(["before", "on", "after"])
         if self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_before:
-            c_box.setCurrentIndex(0)
+            self._position_widget.setCurrentIndex(0)
         elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_on:
-            c_box.setCurrentIndex(1)
+            self._position_widget.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_after:
-            c_box.setCurrentIndex(2)
-        self.get_row_layout(0).addWidget(c_box)
+            self._position_widget.setCurrentIndex(2)
+        self.get_row_layout(0).addWidget(self._position_widget)
         # reference_date_time_type
-        self._reference_date_time_type_c_box = QtGui.QComboBox(self)
-        self._reference_date_time_type_c_box.addItems(["current", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
-        self._reference_date_time_type_c_box.currentIndexChanged.connect(self._on_date_time_reference_changed)
-        self.get_row_layout(0).addWidget(self._reference_date_time_type_c_box)
+        self._reference_date_time_type_widget = QtGui.QComboBox(self)
+        self._reference_date_time_type_widget.addItems(["current", "latest file backup", "latest folder backup", "latest volume backup", "fixed"])
+        self.get_row_layout(0).addWidget(self._reference_date_time_type_widget)
         # "date"
         widget = QtGui.QLabel("date", self)
         self.get_row_layout(0).addWidget(widget)
         # [date-selector]
-        self._date_edit = QtGui.QDateEdit(self)
-        self._date_edit.setDisplayFormat("yyyy-MM-dd")
-        self._date_edit.setCalendarPopup(True)
-        self._date_edit.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
-        self.get_row_layout(0).addWidget(self._date_edit)
+        self._date_widget = QtGui.QDateEdit(self)
+        self._date_widget.setDisplayFormat(self._date_display_pattern)
+        self._date_widget.setCalendarPopup(True)
+        self._date_widget.calendarWidget().setVerticalHeaderFormat(QtGui.QCalendarWidget.ISOWeekNumbers)
+        self.get_row_layout(0).addWidget(self._date_widget)
         # checkBox: "and time"
-        self._time_edit_check_box = QtGui.QCheckBox("and time", self)
-        self._time_edit_check_box.toggled.connect(self._on_time_edit_check_box_toggled)
-        self.get_row_layout(0).addWidget(self._time_edit_check_box)
+        self._time_check_box_widget = QtGui.QCheckBox("and time", self)
+        self.get_row_layout(0).addWidget(self._time_check_box_widget)
         # [timeSelector]
-        self._time_edit = QtGui.QTimeEdit(self)
-        self._time_edit.setDisplayFormat("hh:mm:ss")
-        self.get_row_layout(0).addWidget(self._time_edit)
+        self._time_widget = QtGui.QTimeEdit(self)
+        self._time_widget.setDisplayFormat(self._time_display_pattern)
+        self.get_row_layout(0).addWidget(self._time_widget)
         # ======================================================================
         # Row 1
         # ======================================================================
         # checkbox: offset_timestamp
         self._offset_check_box = QtGui.QCheckBox("with an offset of", self)
-        self._offset_check_box.toggled.connect(self._on_offset_check_box_toggled)
+        self._offset_check_box.toggled.connect(self._offset_check_box_update_event)
         self.get_row_layout(1).addWidget(self._offset_check_box)
         # combo box: positive/negative
         self._time_offset_direction_c_box = QtGui.QComboBox(self)
@@ -863,6 +866,36 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
                                                        self)
         self.get_row_layout(2).addWidget(self._incl_subfolders_widget)
         # ======================================================================
+        # register
+        #
+        # To register and watch a widget for modification to update the rule
+        # view, register widget here and connect to an update method that in
+        # return updates the registered state.
+        # ======================================================================
+        self._registered_widgets[self._file_folder_widget] = False
+        self._file_folder_widget.currentIndexChanged.connect(self._file_folder_update_event)
+
+        self._registered_widgets[self._timestamp_type_widget] = False
+        self._timestamp_type_widget.currentIndexChanged.connect(self._timestamp_type_update_event)
+
+        self._registered_widgets[self._truth_widget] = False
+        self._truth_widget.currentIndexChanged.connect(self._truth_update_event)
+
+        self._registered_widgets[self._position_widget] = False
+        self._position_widget.currentIndexChanged.connect(self._position_update_event)
+
+        self._registered_widgets[self._reference_date_time_type_widget] = False
+        self._reference_date_time_type_widget.currentIndexChanged.connect(self._reference_date_time_type_update_event)
+
+        self._registered_widgets[self._date_widget] = False
+        self._date_widget.dateChanged.connect(self._date_update_event)
+
+        self._registered_widgets[self._time_check_box_widget] = False
+        self._time_check_box_widget.stateChanged.connect(self._time_check_box_update_event)
+        self._time_check_box_widget.stateChanged.connect(self._time_update_event)
+
+        self._time_widget.timeChanged.connect(self._time_update_event)
+        # ======================================================================
         # set-up
         # ======================================================================
         # file/folder
@@ -874,31 +907,32 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._file_folder_widget.setCurrentIndex(2)
         # reference_date_time_type
         if self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date:
-            self._reference_date_time_type_c_box.setCurrentIndex(0)
+            self._reference_date_time_type_widget.setCurrentIndex(0)
         elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_file_backup:
-            self._reference_date_time_type_c_box.setCurrentIndex(1)
+            self._reference_date_time_type_widget.setCurrentIndex(1)
         elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_folder_backup:
-            self._reference_date_time_type_c_box.setCurrentIndex(2)
+            self._reference_date_time_type_widget.setCurrentIndex(2)
         elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_volume_backup:
-            self._reference_date_time_type_c_box.setCurrentIndex(3)
+            self._reference_date_time_type_widget.setCurrentIndex(3)
         elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_fixed:
-            self._reference_date_time_type_c_box.setCurrentIndex(4)
+            self._reference_date_time_type_widget.setCurrentIndex(4)
         # set timestamp
         if self._backup_filter_rule_ctrl.reference_date_time_timestamp:  # date
             struct_time = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
-            self._date_edit.setDate(QtCore.QDate(struct_time.tm_year,
-                                                 struct_time.tm_mon,
-                                                 struct_time.tm_mday))
+            self._date_widget.setDate(QtCore.QDate(struct_time.tm_year,
+                                                   struct_time.tm_mon,
+                                                   struct_time.tm_mday))
             # time
             if (struct_time.tm_hour != 0 or
                     struct_time.tm_min != 0 or
                     struct_time.tm_sec != 0):
-                self._time_edit_check_box.setCheckState(QtCore.Qt.Checked)
-                self._time_edit.setTime(QtCore.QTime(struct_time.tm_hour,
-                                                     struct_time.tm_min,
-                                                     struct_time.tm_sec))
+                self._time_check_box_widget.setCheckState(QtCore.Qt.Checked)
+                self._time_widget.setTime(QtCore.QTime(struct_time.tm_hour,
+                                                       struct_time.tm_min,
+                                                       struct_time.tm_sec))
             else:
-                self._time_edit_check_box.setCheckState(QtCore.Qt.Unchecked)
+                self._time_check_box_widget.setCheckState(QtCore.Qt.Checked)
+                self._time_check_box_widget.setCheckState(QtCore.Qt.Unchecked)
         # offset: timestamp
         offset = self._backup_filter_rule_ctrl.reference_date_time_offsets
         self._offset_check_box.setCheckState(QtCore.Qt.Checked)
@@ -919,49 +953,31 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         else:
             self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
 
-    def _on_date_time_reference_changed(self, index):
+    def _date_update_event(self, text):
         """ ..
 
-        Event that fires when the value of the date-time-reference (current \
-        file, latest backup, etc.) selection is changed.
+        Event that triggers when date selector is changed. Updates modified \
+        state.
         """
-        if index == 4:  # "fixed" is chosen, activate date/time widgets
-            self._date_edit.show()
-            if self._time_edit_check_box.isChecked():
-                self._time_edit.show()
-        else:  # anything else is chosen. Deactivate date/time widgets
-            self._date_edit.hide()
-            self._time_edit.hide()
-
-    def _on_file_folder_changed(self, index):
-        """ ..
-
-        Event that triggers when file/folder selector is changed.
-        Enables/disables the "incl. subfolders" check box.
-        """
-        if index == 1:
-            self._incl_subfolders_widget.hide()
+        # update modified state
+        saved_timestamp_time_struct = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
+        form_date_time_struct = time.strptime(self._date_widget.text(),
+                                              self._date_display_pattern.replace("yyyy", "%Y").replace("MM", "%m").replace("dd", "%d"))
+        if (saved_timestamp_time_struct.tm_year == form_date_time_struct.tm_year and
+                saved_timestamp_time_struct.tm_mon == form_date_time_struct.tm_mon and
+                saved_timestamp_time_struct.tm_mday == form_date_time_struct.tm_mday):
+            self._registered_widgets[self._date_widget] = False
         else:
-            self._incl_subfolders_widget.show()
+            self._registered_widgets[self._date_widget] = True
+        self.update_signal.emit()
 
-    def _on_time_edit_check_box_toggled(self, checked):
+    def _offset_check_box_update_event(self, checked):
         """ ..
-
-        Event that fires when the "and time" checkbox is clicked. \
-        Shows/hides time chooser widget.
-        """
-        if self._reference_date_time_type_c_box.currentIndex() == 4:
-            if checked:
-                self._time_edit.show()
-            else:
-                self._time_edit.hide()
-
-    def _on_offset_check_box_toggled(self, checked):
-        """ ..
-
+ 
         Event that fires when the "with an offset of" checkbox is clicked. \
         Shows/hides widgets used to specify the time-offset.
         """
+        # update ui
         if checked:
             self._time_offset_direction_c_box.show()
             self._time_offset_years.show()
@@ -980,6 +996,104 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._time_offset_hours.hide()
             self._time_offset_minutes.hide()
             self._time_offset_seconds.hide()
+
+    def _position_update_event(self, index):
+        """ ..
+
+        Event that triggers when position selector is changed. Updates \
+        modified state.
+        """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.position_before,
+                   bs.ctrl.session.BackupFilterRuleCtrl.position_on,
+                   bs.ctrl.session.BackupFilterRuleCtrl.position_after
+                   ]
+        if self._backup_filter_rule_ctrl.position == options[self._position_widget.currentIndex()]:
+            self._registered_widgets[self._position_widget] = False
+        else:
+            self._registered_widgets[self._position_widget] = True
+        self.update_signal.emit()
+
+    def _reference_date_time_type_update_event(self, index):
+        """ ..
+
+        Event that triggers when timestamp-type selector is changed. Updates \
+        modified state and UI elements context-sensitively.
+        """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_file_backup,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_folder_backup,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_volume_backup,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_fixed
+                   ]
+        if self._backup_filter_rule_ctrl.reference_date_time_type == options[self._reference_date_time_type_widget.currentIndex()]:
+            self._registered_widgets[self._reference_date_time_type_widget] = False
+        else:
+            self._registered_widgets[self._reference_date_time_type_widget] = True
+
+        # update ui
+        if index == 4:  # "fixed" is chosen, activate date/time widgets
+            self._date_widget.show()
+            if self._time_check_box_widget.isChecked():
+                self._time_widget.show()
+        else:  # anything else is chosen. Deactivate date/time widgets
+            self._date_widget.hide()
+            self._time_widget.hide()
+        self.update_signal.emit()
+
+    def _time_check_box_update_event(self, state):
+        """ ..
+
+        Event that triggers when timestamp-type selector is changed. Updates \
+        UI elements context-sensitively.
+        """
+        # update modified state
+        # update ui
+        if self._reference_date_time_type_widget.currentIndex() == 4:
+            if state:
+                self._time_widget.show()
+            else:
+                self._time_widget.hide()
+
+    def _time_update_event(self, text_state):
+        """ ..
+
+        Event that triggers when time selector is changed. Updates modified \
+        state.
+        """
+        # update modified state
+        saved_timestamp_time_struct = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
+        # virtually set form time to 0 if box unchecked
+        if self._time_check_box_widget.checkState() == QtCore.Qt.Checked:
+            form_time_time_struct = time.strptime(self._time_widget.text(),
+                                                  self._time_display_pattern.replace("hh", "%H").replace("mm", "%M").replace("ss", "%S"))
+        else:
+            form_time_time_struct = time.gmtime(0)
+        if (saved_timestamp_time_struct.tm_hour == form_time_time_struct.tm_hour and
+                saved_timestamp_time_struct.tm_min == form_time_time_struct.tm_min and
+                saved_timestamp_time_struct.tm_sec == form_time_time_struct.tm_sec):
+            self._registered_widgets[self._time_check_box_widget] = False
+        else:
+            self._registered_widgets[self._time_check_box_widget] = True
+        self.update_signal.emit()
+
+    def _timestamp_type_update_event(self, index):
+        """ ..
+
+        Event that triggers when timestamp-type selector is changed. Updates \
+        modified state.
+        """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_ctime,
+                   bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_mtime,
+                   bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime
+                   ]
+        if self._backup_filter_rule_ctrl.timestamp_type == options[self._timestamp_type_widget.currentIndex()]:
+            self._registered_widgets[self._timestamp_type_widget] = False
+        else:
+            self._registered_widgets[self._timestamp_type_widget] = True
+        self.update_signal.emit()
 
 
 class FilterEditRulePathView(FilterEditRuleInterface):
