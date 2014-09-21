@@ -27,7 +27,7 @@ Enums
    | :attr:`mode_path_contains`
    | :attr:`mode_path_ends_with`
    | :attr:`mode_path_match_pattern`
-   | :attr:`mode_path_matches`
+   | :attr:`mode_path_match_regex`
    | :attr:`mode_path_starts_with`
    | :attr:`mode_size_equal`
    | :attr:`mode_size_larger`
@@ -48,6 +48,10 @@ Enums
 
 Instance-Variables
 ==================
+   | :attr:`category`
+   | :attr:`file_folder`
+   | :attr:`id`
+   | :attr:`include_subfolders`
    | :attr:`truth`
 
 Methods

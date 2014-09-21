@@ -651,19 +651,60 @@ class BackupFilterRuleCtrl(object):
 
     @property
     def id(self):
+        """ ..
+
+        :type: `int`
+
+        Holds the id of the backup-filter.
+        """
         return self._id
+
+    @id.setter
+    def id(self, id):
+        self._id = id
 
     @property
     def category(self):
+        """ ..
+
+        :type: `string`
+
+        Holds a ``enum`` of :class:`bs.ctrl.session.BackupFilterRuleCtrl`.
+        """
         return self._category
+
+    @category.setter
+    def category(self, category):
+        self._category = category
 
     @property
     def file_folder(self):
+        """ ..
+
+        :type: `enum`
+
+        Holds an ``enum`` of :class:`bs.ctrl.session.BackupFilterRuleCtrl`.
+        """
         return self._file_folder
+
+    @file_folder.setter
+    def file_folder(self, file_folder):
+        self._file_folder = file_folder
 
     @property
     def include_subfolders(self):
+        """ ..
+
+        :type: `boolean`
+
+        Holds ``boolean`` that expresses whether or not subfolders are to be \
+        included.
+        """
         return self._include_subfolders
+
+    @include_subfolders.setter
+    def include_subfolders(self, include_subfolders):
+        self._include_subfolders = include_subfolders
 
     @property
     def truth(self):
@@ -675,6 +716,10 @@ class BackupFilterRuleCtrl(object):
         "is/is not" respectively.
         """
         return self._truth
+
+    @truth.setter
+    def truth(self, truth):
+        self._truth = truth
 
 
 class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
@@ -725,6 +770,10 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
         """
         return self._attribute_type
 
+    @attribute_type.setter
+    def attribute_type(self, attribute_type):
+        self._attribute_type = attribute_type
+
     @property
     def attribute_value(self):
         """ ..
@@ -734,6 +783,10 @@ class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
         The attribute value set on this object.
         """
         return self._attribute_value
+
+    @attribute_value.setter
+    def attribute_value(self, attribute_value):
+        self._attribute_value = attribute_value
 
 
 class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
@@ -804,6 +857,10 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         """
         return self._position
 
+    @position.setter
+    def position(self, position):
+        self._position = position
+
     @property
     def reference_date_time_offsets(self):
         """
@@ -812,6 +869,10 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         The time-offset value set on this object.
         """
         return self._reference_date_time_offsets
+
+    @reference_date_time_offsets.setter
+    def reference_date_time_offsets(self, reference_date_time_offsets):
+        self._reference_date_time_offsets = reference_date_time_offsets
 
     @property
     def reference_date_time_timestamp(self):
@@ -822,6 +883,10 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         """
         return self._reference_date_time_timestamp
 
+    @reference_date_time_timestamp.setter
+    def reference_date_time_timestamp(self, reference_date_time_timestamp):
+        self._reference_date_time_timestamp = reference_date_time_timestamp
+
     @property
     def reference_date_time_type(self):
         """
@@ -831,6 +896,10 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         """
         return self._reference_date_time_type
 
+    @reference_date_time_type.setter
+    def reference_date_time_type(self, reference_date_time_type):
+        self._reference_date_time_type = reference_date_time_type
+
     @property
     def timestamp_type(self):
         """
@@ -839,6 +908,10 @@ class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
         The timestamp-type value set on this object.
         """
         return self._timestamp_type
+
+    @timestamp_type.setter
+    def timestamp_type(self, timestamp_type):
+        self._timestamp_type = timestamp_type
 
 
 class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):

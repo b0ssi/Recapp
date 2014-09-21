@@ -137,6 +137,8 @@ class FilterEditView(FilterEditInterface):
     _backup_filter = None
     _filter_rules_container = None
     _filter_rules_mode_widget = None
+    _save_widget = None
+    _discard_widget = None
 
     def __init__(self, parent, backup_filter):
         """ ..
@@ -155,7 +157,7 @@ class FilterEditView(FilterEditInterface):
         # geometry
         self.setMinimumWidth(1000)
         # ======================================================================
-        # Row 1/2
+        # Row 0/1
         # ======================================================================
         # title
         widget = QtGui.QLabel("Name", self)
@@ -193,7 +195,7 @@ class FilterEditView(FilterEditInterface):
         add_btn.setMenu(add_btn_menu)
         self._layout.addWidget(add_btn, 1, 4, 1, 1)
         # ======================================================================
-        # Row 3
+        # Row 2
         # ======================================================================
         # filter rule container, embedded in a scroll-area
         scroll_area = QtGui.QScrollArea(self)
@@ -218,10 +220,21 @@ class FilterEditView(FilterEditInterface):
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleSizeCtrl):
                 widget = FilterEditRuleSizeView(self._filter_rules_container, backup_filter_rule)
             if widget:
+                widget.update_signal.connect(self._update_event)
                 self._filter_rules_container._layout.addWidget(widget)
         # buffer widget at bottom
         widget = QtGui.QWidget(self)
         self._filter_rules_container._layout.addWidget(widget)
+        # ======================================================================
+        # Row 3
+        # ======================================================================
+        self._save_widget = QtGui.QPushButton("Save", self)
+        self._layout.addWidget(self._save_widget, 3, 3, 1, 1)
+        self._save_widget.clicked.connect(self.save)
+
+        self._discard_widget = QtGui.QPushButton("Reset", self)
+        self._layout.addWidget(self._discard_widget, 3, 4, 1, 1)
+        self._discard_widget.clicked.connect(self.refresh)
         # ======================================================================
         # set-up
         # ======================================================================
@@ -233,6 +246,9 @@ class FilterEditView(FilterEditInterface):
             self._filter_rules_mode_widget.setCurrentIndex(1)
         elif index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_xor:
             self._filter_rules_mode_widget.setCurrentIndex(2)
+        # save/discard buttons
+        self._save_widget.setDisabled(True)
+        self._discard_widget.setDisabled(True)
 
     def refresh(self):
         """ ..
@@ -246,6 +262,31 @@ class FilterEditView(FilterEditInterface):
             self.setDisabled(True)
         else:
             self.setEnabled(True)
+
+    def save(self):
+        """ ..
+
+        :rtype: `void`
+
+        Saves the backup-filter.
+        """
+        # commit data from GUI to CTRL
+        for i in range(self._filter_rules_container._layout.count()-1):
+            widget = self._filter_rules_container._layout.itemAt(i).widget()
+            widget.push_data()
+        # save data on CTRL
+
+    def _update_event(self, widget, modified):
+        """ ..
+
+        Is called when a registered rule-widget is updated.
+        """
+        if modified:
+            self._save_widget.setEnabled(True)
+            self._discard_widget.setEnabled(True)
+        else:
+            self._save_widget.setDisabled(True)
+            self._discard_widget.setDisabled(True)
 
 
 class FilterEditEmptyView(FilterEditInterface):
@@ -348,6 +389,55 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         return self._update_signal
 
+    def _pull_file_folder(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file,
+                   bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder
+                   ]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.file_folder = options[self._file_folder_widget.currentIndex()]
+        elif direction == "pull":
+            self._file_folder_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.file_folder))
+
+    def _pull_include_subfolders(self, direction="pull"):
+        """ ..
+        """
+        options = {QtCore.Qt.Checked: True,
+                   QtCore.Qt.Unchecked: False}
+        if direction == "push":
+            self._backup_filter_rule_ctrl.include_subfolders = options[self._incl_subfolders_widget.checkState()]
+        elif direction == "pull":
+            if self._backup_filter_rule_ctrl.include_subfolders:
+                self._incl_subfolders_widget.setCheckState(QtCore.Qt.Checked)
+            else:
+                self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
+
+    def _pull_truth(self, direction="pull"):
+        """ ..
+        """
+        options = [True, False]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.truth = options[self._truth_widget.currentIndex()]
+        elif direction == "pull":
+            self._truth_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.truth))
+
+    def _push_file_folder(self):
+        """ ..
+        """
+        self._pull_file_folder("push")
+
+    def _push_include_subfolders(self):
+        """ ..
+        """
+        self._pull_include_subfolders("push")
+
+    def _push_truth(self):
+        """ ..
+        """
+        self._pull_truth("push")
+
     def get_row_layout(self, row):
         """ ..
 
@@ -388,12 +478,29 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._registered_widgets[self._file_folder_widget] = False
         else:
             self._registered_widgets[self._file_folder_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._file_folder_widget])
         # update ui
         if index == 1:
             self._incl_subfolders_widget.hide()
         else:
             self._incl_subfolders_widget.show()
+
+    def _include_subfolders_update_event(self, state):
+        """ ..
+
+        Event that triggers when the include-subfolders selector is changed. \
+        Updates modified state.
+        """
+        options = {QtCore.Qt.Unchecked: False,
+                   QtCore.Qt.Checked: True
+                   }
+        if self._backup_filter_rule_ctrl.include_subfolders == options[state]:
+            self._registered_widgets[self._incl_subfolders_widget] = False
+        else:
+            self._registered_widgets[self._incl_subfolders_widget] = True
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._incl_subfolders_widget])
 
     def _truth_update_event(self, index):
         """ ..
@@ -407,9 +514,10 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._registered_widgets[self._truth_widget] = False
         else:
             self._registered_widgets[self._truth_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._truth_widget])
 
-    def _update_event(self):
+    def _update_event(self, widget, modified):
         """ ..
 
         Fires when a registered widget is updated.
@@ -556,39 +664,87 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
 
         self._registered_widgets[self._attribute_value_widget] = False
         self._attribute_value_widget.textChanged.connect(self._attribute_value_widget_update_event)
+
+        self._registered_widgets[self._incl_subfolders_widget] = False
+        self._incl_subfolders_widget.stateChanged.connect(self._include_subfolders_update_event)
         # ======================================================================
         # set-up
         # ======================================================================
-        # file/folder
-        if self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder:
-            self._file_folder_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file:
-            self._file_folder_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
-            self._file_folder_widget.setCurrentIndex(2)
-        # attribute_type
-        if self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden:
-            self._attribute_type_widget.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_group:
-            self._attribute_type_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner:
-            self._attribute_type_widget.setCurrentIndex(1)
-            self._attribute_type_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_archive:
-            self._attribute_type_widget.setCurrentIndex(4)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_encrypted:
-            self._attribute_type_widget.setCurrentIndex(4)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_offline:
-            self._attribute_type_widget.setCurrentIndex(5)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_unix_permissions:
-            self._attribute_type_widget.setCurrentIndex(3)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_read_only:
-            self._attribute_type_widget.setCurrentIndex(6)
-        elif self._backup_filter_rule_ctrl.attribute_type == bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_system:
-            self._attribute_type_widget.setCurrentIndex(7)
-        # truth
-        if not self._backup_filter_rule_ctrl.truth:
-            self._truth_widget.setCurrentIndex(1)
+        self._pull_file_folder()
+        self._pull_attribute_type()
+        self._pull_truth()
+        self._pull_attribute_value()
+        self._pull_include_subfolders()
+
+    def _pull_attribute_type(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_group,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_unix_permissions,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_archive,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_encrypted,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_offline,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_read_only,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_system]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.attribute_type = options[self._attribute_type_widget.currentIndex()]
+        elif direction == "pull":
+            index = options.index(self._backup_filter_rule_ctrl.attribute_type)
+            if index == 0:
+                self._attribute_type_widget.setCurrentIndex(1)
+            self._attribute_type_widget.setCurrentIndex(index)
+
+    def _pull_attribute_value(self, direction="pull"):
+        """ ..
+        """
+        options = [True, False]
+        if direction == "push":
+            if self._attribute_value_widget.isVisible():
+                self._backup_filter_rule_ctrl.attribute_value = [self._attribute_value_widget.text(), None, None]
+            elif self._permissions_user_widget.isVisible():
+                self._backup_filter_rule_ctrl.attribute_value = [self._permissions_user_widget.currentIndex(),
+                                                                 self._permissions_group_widget.currentIndex(),
+                                                                 self._permissions_others_widget.currentIndex()
+                                                                 ]
+        elif direction == "pull":
+            if isinstance(self._backup_filter_rule_ctrl.attribute_value[0], str):
+                self._attribute_value_widget.setText(self._backup_filter_rule_ctrl.attribute_value[0])
+            elif isinstance(self._backup_filter_rule_ctrl.attribute_value[0], int):
+                if isinstance(self._backup_filter_rule_ctrl.attribute_value[0], int):
+                    self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0])
+                    self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1])
+                    self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2])
+
+    def _push_attribute_type(self):
+        """ ..
+        """
+        self._pull_attribute_type("push")
+
+    def _push_attribute_value(self):
+        """ ..
+        """
+        self._pull_attribute_value("push")
+
+    def push_data(self):
+        """ ..
+
+        :rtype: `dictionary`
+
+        Collects and serializes the rule(-widget)'s data and returns it in a \
+        dictionary. This can be used to save it back to the database.
+        """
+        self._push_file_folder()
+        self._push_attribute_type()
+        self._push_truth()
+        self._push_attribute_value()
+        self._push_include_subfolders()
+        # reset modification counters
+        for item in self._registered_widgets.keys():
+            self._registered_widgets[item] = False
+        # send update signal
+        self.update_signal.emit(self, False)
 
     def _attribute_type_update_event(self, index):
         """ ..
@@ -601,6 +757,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
                    bs.ctrl.session.BackupFilterRuleCtrl.attribute_group,
                    bs.ctrl.session.BackupFilterRuleCtrl.attribute_hidden,
                    bs.ctrl.session.BackupFilterRuleCtrl.attribute_unix_permissions,
+                   bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_archive,
                    bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_encrypted,
                    bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_offline,
                    bs.ctrl.session.BackupFilterRuleCtrl.attribute_win_read_only,
@@ -612,13 +769,9 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._attribute_type_widget] = True
 
         # update ui
-        # create new widget depending on context
+        # show/hide widgets depending on context
         if index in [0, 1]:  # owner, group
             self._attribute_value_widget.show()
-            # set value
-            if (len(self._backup_filter_rule_ctrl.attribute_value) == 1 and
-                    isinstance(self._backup_filter_rule_ctrl.attribute_value, str)):
-                self._attribute_value_widget.setText(self._backup_filter_rule_ctrl.attribute_value[0])
         else:
             self._attribute_value_widget.hide()
 
@@ -630,11 +783,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._permissions_group_label_widget.show()
             self._permissions_others_widget.show()
             self._permissions_others_label_widget.show()
-            # set value
-            if isinstance(self._backup_filter_rule_ctrl.attribute_value[0], int):
-                self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0])
-                self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1])
-                self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2])
         else:
             self._permissions_user_widget.hide()
             self._permissions_user_label_widget.hide()
@@ -649,7 +797,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         else:
             self._set_widget.hide()
 
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._attribute_type_widget])
 
     def _attribute_value_widget_update_event(self, text):
         """ ..
@@ -663,7 +812,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._attribute_value_widget] = False
         else:
             self._registered_widgets[self._attribute_value_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._attribute_value_widget])
 
     def _permissions_group_update_event(self, index):
         """ ..
@@ -677,7 +827,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._permissions_group_widget] = False
         else:
             self._registered_widgets[self._permissions_group_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._permissions_group_widget])
 
     def _permissions_others_update_event(self, index):
         """ ..
@@ -691,7 +842,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._permissions_others_widget] = False
         else:
             self._registered_widgets[self._permissions_others_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._permissions_others_widget])
 
     def _permissions_user_update_event(self, index):
         """ ..
@@ -705,7 +857,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._permissions_user_widget] = False
         else:
             self._registered_widgets[self._permissions_user_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._permissions_user_widget])
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -763,12 +916,6 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # timestamp_type (creation|modification|access)
         self._timestamp_type_widget = QtGui.QComboBox(self)
         self._timestamp_type_widget.addItems(["creation", "modification", "access"])
-        if self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_ctime:
-            self._timestamp_type_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_mtime:
-            self._timestamp_type_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.timestamp_type == bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime:
-            self._timestamp_type_widget.setCurrentIndex(2)
         self.get_row_layout(0).addWidget(self._timestamp_type_widget)
         # "time"
         widget = QtGui.QLabel("time", self)
@@ -776,8 +923,6 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # truth
         self._truth_widget = QtGui.QComboBox(self)
         self._truth_widget.addItems(["does", "does not"])
-        if not self._backup_filter_rule_ctrl.truth:
-            self._truth_widget.setCurrentIndex(1)
         self.get_row_layout(0).addWidget(self._truth_widget)
         # "lie"
         widget = QtGui.QLabel("lie", self)
@@ -898,60 +1043,118 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        # file/folder
-        if self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder:
-            self._file_folder_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file:
-            self._file_folder_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
-            self._file_folder_widget.setCurrentIndex(2)
-        # reference_date_time_type
-        if self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date:
-            self._reference_date_time_type_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_file_backup:
-            self._reference_date_time_type_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_folder_backup:
-            self._reference_date_time_type_widget.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_volume_backup:
-            self._reference_date_time_type_widget.setCurrentIndex(3)
-        elif self._backup_filter_rule_ctrl.reference_date_time_type == bs.ctrl.session.BackupFilterRuleCtrl.reference_date_fixed:
-            self._reference_date_time_type_widget.setCurrentIndex(4)
-        # set timestamp
-        if self._backup_filter_rule_ctrl.reference_date_time_timestamp:  # date
-            struct_time = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
-            self._date_widget.setDate(QtCore.QDate(struct_time.tm_year,
-                                                   struct_time.tm_mon,
-                                                   struct_time.tm_mday))
-            # time
-            if (struct_time.tm_hour != 0 or
-                    struct_time.tm_min != 0 or
-                    struct_time.tm_sec != 0):
-                self._time_check_box_widget.setCheckState(QtCore.Qt.Checked)
-                self._time_widget.setTime(QtCore.QTime(struct_time.tm_hour,
-                                                       struct_time.tm_min,
-                                                       struct_time.tm_sec))
+        self._pull_file_folder()
+        self._pull_timestamp_type()
+        self._pull_truth()
+
+        self._pull_reference_date_time_type()
+        self._pull_reference_date_time_timestamp()
+        self._pull_reference_date_time_offsets()
+        self._pull_include_subfolders()
+
+    def _pull_reference_date_time_offsets(self, direction="pull"):
+        """ ..
+        """
+        if direction == "push":
+            # TODO:
+            pass
+        elif direction == "pull":
+            offset = self._backup_filter_rule_ctrl.reference_date_time_offsets
+            self._offset_check_box.setCheckState(QtCore.Qt.Checked)
+            if offset:
+                self._time_offset_direction_c_box.setCurrentIndex(1 - offset[0])
+                self._time_offset_years.setValue(offset[1])
+                self._time_offset_months.setValue(offset[2])
+                self._time_offset_weeks.setValue(offset[3])
+                self._time_offset_days.setValue(offset[4])
+                self._time_offset_hours.setValue(offset[5])
+                self._time_offset_minutes.setValue(offset[6])
+                self._time_offset_seconds.setValue(offset[7])
             else:
-                self._time_check_box_widget.setCheckState(QtCore.Qt.Checked)
-                self._time_check_box_widget.setCheckState(QtCore.Qt.Unchecked)
-        # offset: timestamp
-        offset = self._backup_filter_rule_ctrl.reference_date_time_offsets
-        self._offset_check_box.setCheckState(QtCore.Qt.Checked)
-        if offset:
-            self._time_offset_direction_c_box.setCurrentIndex(1 - offset[0])
-            self._time_offset_years.setValue(offset[1])
-            self._time_offset_months.setValue(offset[2])
-            self._time_offset_weeks.setValue(offset[3])
-            self._time_offset_days.setValue(offset[4])
-            self._time_offset_hours.setValue(offset[5])
-            self._time_offset_minutes.setValue(offset[6])
-            self._time_offset_seconds.setValue(offset[7])
-        else:
-            self._offset_check_box.setCheckState(QtCore.Qt.Unchecked)
-        # incl sub-folders
-        if self._backup_filter_rule_ctrl.include_subfolders:
-            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Checked)
-        else:
-            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
+                self._offset_check_box.setCheckState(QtCore.Qt.Unchecked)
+
+    def _pull_reference_date_time_timestamp(self, direction="pull"):
+        """ ..
+        """
+        if direction == "push":
+            # TODO:
+            pass
+        elif direction == "pull":
+            if self._backup_filter_rule_ctrl.reference_date_time_timestamp:  # date
+                struct_time = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
+                self._date_widget.setDate(QtCore.QDate(struct_time.tm_year,
+                                                       struct_time.tm_mon,
+                                                       struct_time.tm_mday))
+                # time
+                if (struct_time.tm_hour != 0 or
+                        struct_time.tm_min != 0 or
+                        struct_time.tm_sec != 0):
+                    self._time_check_box_widget.setCheckState(QtCore.Qt.Checked)
+                    self._time_widget.setTime(QtCore.QTime(struct_time.tm_hour,
+                                                           struct_time.tm_min,
+                                                           struct_time.tm_sec))
+                else:
+                    self._time_check_box_widget.setCheckState(QtCore.Qt.Checked)
+                    self._time_check_box_widget.setCheckState(QtCore.Qt.Unchecked)
+
+    def _pull_reference_date_time_type(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_file_backup,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_folder_backup,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_volume_backup,
+                   bs.ctrl.session.BackupFilterRuleCtrl.reference_date_fixed
+                   ]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.reference_date_time_type = options[self._reference_date_time_type_widget.currentIndex()]
+        elif direction == "pull":
+            self._reference_date_time_type_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.reference_date_time_type))
+
+    def _pull_timestamp_type(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_ctime,
+                   bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_mtime,
+                   bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime
+                   ]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.timestamp_type = options[self._timestamp_type_widget.currentIndex()]
+        elif direction == "pull":
+            self._timestamp_type_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.timestamp_type))
+
+    def _push_reference_date_time_offsets(self):
+        self._pull_reference_date_time_offsets("push")
+
+    def _push_reference_date_time_timestamp(self):
+        self._pull_reference_date_time_timestamp("push")
+
+    def _push_reference_date_time_type(self):
+        self._pull_reference_date_time_type("push")
+
+    def _push_timestamp_type(self):
+        self._pull_timestamp_type("push")
+
+    def push_data(self):
+        """ ..
+
+        :rtype: `dictionary`
+
+        Collects and serializes the rule(-widget)'s data and returns it in a \
+        dictionary. This can be used to save it back to the database.
+        """
+        self._push_file_folder()
+        self._push_timestamp_type()
+        self._push_truth()
+
+        self._push_reference_date_time_offsets()
+        self._push_reference_date_time_timestamp()
+        self._push_reference_date_time_type()
+        # reset modification counters
+        for item in self._registered_widgets.keys():
+            self._registered_widgets[item] = False
+        # send update signal
+        self.update_signal.emit(self, False)
 
     def _date_update_event(self, text):
         """ ..
@@ -969,7 +1172,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._date_widget] = False
         else:
             self._registered_widgets[self._date_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._date_widget])
 
     def _offset_check_box_update_event(self, checked):
         """ ..
@@ -1012,7 +1216,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._position_widget] = False
         else:
             self._registered_widgets[self._position_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._position_widget])
 
     def _reference_date_time_type_update_event(self, index):
         """ ..
@@ -1040,7 +1245,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         else:  # anything else is chosen. Deactivate date/time widgets
             self._date_widget.hide()
             self._time_widget.hide()
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._reference_date_time_type_widget])
 
     def _time_check_box_update_event(self, state):
         """ ..
@@ -1076,7 +1282,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._time_check_box_widget] = False
         else:
             self._registered_widgets[self._time_check_box_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._time_check_box_widget])
 
     def _timestamp_type_update_event(self, index):
         """ ..
@@ -1093,7 +1300,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._timestamp_type_widget] = False
         else:
             self._registered_widgets[self._timestamp_type_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._timestamp_type_widget])
 
 
 class FilterEditRulePathView(FilterEditRuleInterface):
@@ -1180,6 +1388,15 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         if self._backup_filter_rule_ctrl.match_case:
             self._match_case_widget.setCheckState(QtCore.Qt.Checked)
 
+    def push_data(self):
+        """ ..
+
+        :rtype: `dictionary`
+
+        Collects and serializes the rule(-widget)'s data and returns it in a \
+        dictionary. This can be used to save it back to the database.
+        """
+
     def _mode_update_event(self, index):
         """ ..
 
@@ -1197,7 +1414,8 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._registered_widgets[self._mode_widget] = False
         else:
             self._registered_widgets[self._mode_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._mode_widget])
 
     def _pattern_update_event(self, text):
         """ ..
@@ -1212,7 +1430,8 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._registered_widgets[self._pattern_widget] = False
         else:
             self._registered_widgets[self._pattern_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._pattern_widget])
 
     def _match_case_update_event(self, code):
         """ ..
@@ -1227,7 +1446,8 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._registered_widgets[self._match_case_widget] = False
         else:
             self._registered_widgets[self._match_case_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._match_case_widget])
 
 
 class FilterEditRuleSizeView(FilterEditRuleInterface):
@@ -1316,6 +1536,9 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         self._registered_widgets[self._unit_widget] = False
         self._unit_widget.currentIndexChanged.connect(self._unit_update_event)
         self._unit_widget.currentIndexChanged.connect(self._size_unit_update_event)
+
+        self._registered_widgets[self._incl_subfolders_widget] = False
+        self._incl_subfolders_widget.stateChanged.connect(self._include_subfolders_update_event)
         # ======================================================================
         # set-up
         # ======================================================================
@@ -1366,6 +1589,15 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         else:
             self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
 
+    def push_data(self):
+        """ ..
+
+        :rtype: `dictionary`
+
+        Collects and serializes the rule(-widget)'s data and returns it in a \
+        dictionary. This can be used to save it back to the database.
+        """
+
     def _mode_size_update_event(self, index):
         """ ..
 
@@ -1383,7 +1615,8 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
             self._registered_widgets[self._mode_size_widget] = False
         else:
             self._registered_widgets[self._mode_size_widget] = True
-        self.update_signal.emit()
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._mode_size_widget])
 
     def _size_unit_update_event(self, value_index):
         """ ..
@@ -1393,14 +1626,16 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         """
         # update modified state
         self._registered_widgets[self._size_int_widget] = True
+        self._registered_widgets[self._size_float_widget] = True
         if self._size_int_widget.isVisible():
             value = self._size_int_widget.value()
         else:
             value = self._size_float_widget.value()
-
         if int(value * pow(1024, self._unit_widget.currentIndex())) == self._backup_filter_rule_ctrl.size:
             self._registered_widgets[self._size_int_widget] = False
-        self.update_signal.emit()
+            self._registered_widgets[self._size_float_widget] = False
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._size_float_widget])
 
     def _unit_update_event(self, index):
         """ ..
