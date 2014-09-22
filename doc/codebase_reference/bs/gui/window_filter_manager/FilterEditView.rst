@@ -12,6 +12,7 @@ Instance-Variables
 Methods
 =======
    | :meth:`refresh`
+   | :meth:`save`
 
 Events
 ======

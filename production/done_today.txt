@@ -2,8 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-22
+- Filter-view: date now fully pulls from and pushes to controller.
+
 2014-09-21
-- Filter-view: Attributes and a few items of date now push their data back to their respective controller. Also adds save and revert buttons that call the push for all edited rules.
+- Filter-view: attributes and a few items of date now push their data back to their respective controller. Also adds save and revert buttons that call the push for all edited rules.
 
 2014-09-20
 - Amends and completes modification tracking on filter-view: date/time.

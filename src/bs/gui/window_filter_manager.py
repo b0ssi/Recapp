@@ -930,12 +930,6 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # position
         self._position_widget = QtGui.QComboBox(self)
         self._position_widget.addItems(["before", "on", "after"])
-        if self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_before:
-            self._position_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_on:
-            self._position_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.position == bs.ctrl.session.BackupFilterRuleCtrl.position_after:
-            self._position_widget.setCurrentIndex(2)
         self.get_row_layout(0).addWidget(self._position_widget)
         # reference_date_time_type
         self._reference_date_time_type_widget = QtGui.QComboBox(self)
@@ -962,7 +956,6 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # ======================================================================
         # checkbox: offset_timestamp
         self._offset_check_box = QtGui.QCheckBox("with an offset of", self)
-        self._offset_check_box.toggled.connect(self._offset_check_box_update_event)
         self.get_row_layout(1).addWidget(self._offset_check_box)
         # combo box: positive/negative
         self._time_offset_direction_c_box = QtGui.QComboBox(self)
@@ -1040,28 +1033,66 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         self._time_check_box_widget.stateChanged.connect(self._time_update_event)
 
         self._time_widget.timeChanged.connect(self._time_update_event)
+
+        self._registered_widgets[self._offset_check_box] = False
+        self._offset_check_box.toggled.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_direction_c_box.currentIndexChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_years.valueChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_months.valueChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_weeks.valueChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_days.valueChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_hours.valueChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_minutes.valueChanged.connect(self._reference_date_time_offset_update_event)
+        self._time_offset_seconds.valueChanged.connect(self._reference_date_time_offset_update_event)
+
+        self._registered_widgets[self._incl_subfolders_widget] = False
+        self._incl_subfolders_widget.stateChanged.connect(self._include_subfolders_update_event)
         # ======================================================================
         # set-up
         # ======================================================================
         self._pull_file_folder()
         self._pull_timestamp_type()
         self._pull_truth()
-
+        self._pull_position()
         self._pull_reference_date_time_type()
         self._pull_reference_date_time_timestamp()
         self._pull_reference_date_time_offsets()
         self._pull_include_subfolders()
+        self._pull_include_subfolders()
+
+    def _pull_position(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.position_before,
+                   bs.ctrl.session.BackupFilterRuleCtrl.position_on,
+                   bs.ctrl.session.BackupFilterRuleCtrl.position_after
+                   ]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.position = options[self._position_widget.currentIndex()]
+        elif direction == "pull":
+            self._position_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.position))
 
     def _pull_reference_date_time_offsets(self, direction="pull"):
         """ ..
         """
         if direction == "push":
-            # TODO:
-            pass
+            if self._offset_check_box.isChecked():
+                offset = []
+                offset.append(1 - self._time_offset_direction_c_box.currentIndex())
+                offset.append(self._time_offset_years.value())
+                offset.append(self._time_offset_months.value())
+                offset.append(self._time_offset_weeks.value())
+                offset.append(self._time_offset_days.value())
+                offset.append(self._time_offset_hours.value())
+                offset.append(self._time_offset_minutes.value())
+                offset.append(self._time_offset_seconds.value())
+            else:
+                offset = [0, 0, 0, 0, 0, 0, 0, 0]
+            self._backup_filter_rule_ctrl.reference_date_time_offsets = offset
         elif direction == "pull":
             offset = self._backup_filter_rule_ctrl.reference_date_time_offsets
             self._offset_check_box.setCheckState(QtCore.Qt.Checked)
-            if offset:
+            if offset != [0, 0, 0, 0, 0, 0, 0, 0]:
                 self._time_offset_direction_c_box.setCurrentIndex(1 - offset[0])
                 self._time_offset_years.setValue(offset[1])
                 self._time_offset_months.setValue(offset[2])
@@ -1077,8 +1108,18 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         """ ..
         """
         if direction == "push":
-            # TODO:
-            pass
+            date_string = self._date_widget.text()
+            if self._time_check_box_widget.isChecked():
+                time_string = self._time_widget.text()
+            else:
+                time_string = "00:00:00"
+            time_struct = time.strptime("%s %s" % (date_string,
+                                                   time_string, ),
+                                        "%s %s" % (self._date_display_pattern.replace("yyyy", "%Y").replace("MM", "%m").replace("dd", "%d"),
+                                                   self._time_display_pattern.replace("hh", "%H").replace("mm", "%M").replace("ss", "%S"), )
+                                        )
+            timestamp = time.mktime(time_struct) - time.timezone
+            self._backup_filter_rule_ctrl.reference_date_time_timestamp = timestamp
         elif direction == "pull":
             if self._backup_filter_rule_ctrl.reference_date_time_timestamp:  # date
                 struct_time = time.gmtime(self._backup_filter_rule_ctrl.reference_date_time_timestamp)
@@ -1123,6 +1164,9 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         elif direction == "pull":
             self._timestamp_type_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.timestamp_type))
 
+    def _push_position(self):
+        self._pull_position("push")
+
     def _push_reference_date_time_offsets(self):
         self._pull_reference_date_time_offsets("push")
 
@@ -1146,10 +1190,11 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         self._push_file_folder()
         self._push_timestamp_type()
         self._push_truth()
-
+        self._push_position()
         self._push_reference_date_time_offsets()
         self._push_reference_date_time_timestamp()
         self._push_reference_date_time_type()
+        self._push_include_subfolders()
         # reset modification counters
         for item in self._registered_widgets.keys():
             self._registered_widgets[item] = False
@@ -1175,14 +1220,49 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         self.update_signal.emit(self,
                                 self._registered_widgets[self._date_widget])
 
-    def _offset_check_box_update_event(self, checked):
+    def _position_update_event(self, index):
+        """ ..
+
+        Event that triggers when position selector is changed. Updates \
+        modified state.
+        """
+        # update modified state
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.position_before,
+                   bs.ctrl.session.BackupFilterRuleCtrl.position_on,
+                   bs.ctrl.session.BackupFilterRuleCtrl.position_after
+                   ]
+        if self._backup_filter_rule_ctrl.position == options[self._position_widget.currentIndex()]:
+            self._registered_widgets[self._position_widget] = False
+        else:
+            self._registered_widgets[self._position_widget] = True
+        self.update_signal.emit(self,
+                                self._registered_widgets[self._position_widget])
+
+    def _reference_date_time_offset_update_event(self, checked_text):
         """ ..
  
         Event that fires when the "with an offset of" checkbox is clicked. \
         Shows/hides widgets used to specify the time-offset.
         """
+        # update modified state
+        if self._offset_check_box.isChecked():
+            offset = []
+            offset.append(0)
+            offset.append(self._time_offset_years.value())
+            offset.append(self._time_offset_months.value())
+            offset.append(self._time_offset_weeks.value())
+            offset.append(self._time_offset_days.value())
+            offset.append(self._time_offset_hours.value())
+            offset.append(self._time_offset_minutes.value())
+            offset.append(self._time_offset_seconds.value())
+        else:
+            offset = [0, 0, 0, 0, 0, 0, 0, 0]
+        if offset == self._backup_filter_rule_ctrl.reference_date_time_offsets:
+            self._registered_widgets[self._offset_check_box] = False
+        else:
+            self._registered_widgets[self._offset_check_box] = True
         # update ui
-        if checked:
+        if self._offset_check_box.isChecked():
             self._time_offset_direction_c_box.show()
             self._time_offset_years.show()
             self._time_offset_months.show()
@@ -1201,23 +1281,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._time_offset_minutes.hide()
             self._time_offset_seconds.hide()
 
-    def _position_update_event(self, index):
-        """ ..
-
-        Event that triggers when position selector is changed. Updates \
-        modified state.
-        """
-        # update modified state
-        options = [bs.ctrl.session.BackupFilterRuleCtrl.position_before,
-                   bs.ctrl.session.BackupFilterRuleCtrl.position_on,
-                   bs.ctrl.session.BackupFilterRuleCtrl.position_after
-                   ]
-        if self._backup_filter_rule_ctrl.position == options[self._position_widget.currentIndex()]:
-            self._registered_widgets[self._position_widget] = False
-        else:
-            self._registered_widgets[self._position_widget] = True
         self.update_signal.emit(self,
-                                self._registered_widgets[self._position_widget])
+                                self._registered_widgets[self._offset_check_box])
 
     def _reference_date_time_type_update_event(self, index):
         """ ..
