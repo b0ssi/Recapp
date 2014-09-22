@@ -1433,25 +1433,55 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        # truth
-        if not self._backup_filter_rule_ctrl.truth:
-            self._truth_widget.setCurrentIndex(1)
-        # mode
-        if self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with:
-            self._mode_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_contains:
-            self._mode_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with:
-            self._mode_widget.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern:
-            self._mode_widget.setCurrentIndex(3)
-        elif self._backup_filter_rule_ctrl.mode_path == bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_regex:
-            self._mode_widget.setCurrentIndex(4)
-        # pattern
-        self._pattern_widget.setText(self._backup_filter_rule_ctrl.path_pattern)
-        # match case
-        if self._backup_filter_rule_ctrl.match_case:
-            self._match_case_widget.setCheckState(QtCore.Qt.Checked)
+        self._pull_truth()
+        self._pull_mode_path()
+        self._pull_path_pattern()
+        self._pull_match_case()
+
+    def _pull_match_case(self, direction="pull"):
+        """ ..
+        """
+        options = {True: QtCore.Qt.Checked,
+                   False: QtCore.Qt.Unchecked
+                   }
+        if direction == "push":
+            if self._match_case_widget.checkState() == QtCore.Qt.Checked:
+                self._backup_filter_rule_ctrl.match_case = True
+            elif self._match_case_widget.checkState() == QtCore.Qt.Unchecked:
+                self._backup_filter_rule_ctrl.match_case = False
+        elif direction == "pull":
+            self._match_case_widget.setCheckState(options[self._backup_filter_rule_ctrl.match_case])
+
+    def _pull_mode_path(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_contains,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_ends_with,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_pattern,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_path_match_regex
+                   ]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.mode_path = options[self._mode_widget.currentIndex()]
+        elif direction == "pull":
+            self._mode_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.mode_path))
+
+    def _pull_path_pattern(self, direction="pull"):
+        """ ..
+        """
+        if direction == "push":
+            self._backup_filter_rule_ctrl.path_pattern = self._pattern_widget.text()
+        elif direction == "pull":
+            self._pattern_widget.setText(self._backup_filter_rule_ctrl.path_pattern)
+
+    def _push_match_case(self):
+        self._pull_match_case("push")
+
+    def _push_mode_path(self):
+        self._pull_mode_path("push")
+
+    def _push_path_pattern(self):
+        self._pull_path_pattern("push")
 
     def push_data(self):
         """ ..
@@ -1461,6 +1491,10 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         Collects and serializes the rule(-widget)'s data and returns it in a \
         dictionary. This can be used to save it back to the database.
         """
+        self._push_truth()
+        self._push_mode_path()
+        self._push_path_pattern()
+        self._push_match_case()
 
     def _mode_update_event(self, index):
         """ ..
@@ -1607,52 +1641,61 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        # file/folder
-        if self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder:
-            self._file_folder_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file:
-            self._file_folder_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.file_folder == bs.ctrl.session.BackupFilterRuleCtrl.file_folder_folder:
-            self._file_folder_widget.setCurrentIndex(2)
-        # truth
-        if not self._backup_filter_rule_ctrl.truth:
-            self._truth_widget.setCurrentIndex(1)
-        # mode size
-        if self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller:
-            self._mode_size_widget.setCurrentIndex(0)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal:
-            self._mode_size_widget.setCurrentIndex(1)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal:
-            self._mode_size_widget.setCurrentIndex(2)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger_equal:
-            self._mode_size_widget.setCurrentIndex(3)
-        elif self._backup_filter_rule_ctrl.mode_size == bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger:
-            self._mode_size_widget.setCurrentIndex(4)
-        # size
-        size = float(self._backup_filter_rule_ctrl.size)
-        while size > 1023:
-            size = size / 1024
-        self._size_int_widget.setValue(size)
-        self._size_float_widget.setValue(size)
-        if self._backup_filter_rule_ctrl.size <= 1023:
-            self._size_float_widget.hide()
-        else:
-            self._size_int_widget.hide()
-        # unit
-        unit_index = 0
-        size = float(self._backup_filter_rule_ctrl.size)
-        while True:
-            if size > 1023:
-                size = size / 1024
-                unit_index += 1
+        self._pull_file_folder()
+        self._pull_truth()
+        self._pull_mode_size()
+        self._pull_size()
+        self._pull_include_subfolders()
+
+    def _pull_mode_size(self, direction="pull"):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_equal,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger_equal,
+                   bs.ctrl.session.BackupFilterRuleCtrl.mode_size_larger
+                   ]
+        if direction == "push":
+            self._backup_filter_rule_ctrl.mode_size = options[self._mode_size_widget.currentIndex()]
+        elif direction == "pull":
+            self._mode_size_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.mode_size))
+
+    def _pull_size(self, direction="pull"):
+        """ ..
+        """
+        if direction == "push":
+            if self._size_int_widget.isVisible():
+                size = int(self._size_int_widget.text()) * pow(1024, self._unit_widget.currentIndex())
             else:
-                break
-        self._unit_widget.setCurrentIndex(unit_index)
-        # incl sub-folders
-        if self._backup_filter_rule_ctrl.include_subfolders:
-            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Checked)
-        else:
-            self._incl_subfolders_widget.setCheckState(QtCore.Qt.Unchecked)
+                size = float(self._size_float_widget.text()) * pow(1024, self._unit_widget.currentIndex())
+            self._backup_filter_rule_ctrl.size = size
+        elif direction == "pull":
+            size = float(self._backup_filter_rule_ctrl.size)
+            while size > 1023:
+                size = size / 1024
+            self._size_int_widget.setValue(size)
+            self._size_float_widget.setValue(size)
+            if self._backup_filter_rule_ctrl.size <= 1023:
+                self._size_float_widget.hide()
+            else:
+                self._size_int_widget.hide()
+            # unit
+            unit_index = 0
+            size = float(self._backup_filter_rule_ctrl.size)
+            while True:
+                if size > 1023:
+                    size = size / 1024
+                    unit_index += 1
+                else:
+                    break
+            self._unit_widget.setCurrentIndex(unit_index)
+
+    def _push_mode_size(self):
+        self._pull_mode_size("push")
+
+    def _push_size(self):
+        self._pull_size("push")
 
     def push_data(self):
         """ ..
@@ -1662,6 +1705,11 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         Collects and serializes the rule(-widget)'s data and returns it in a \
         dictionary. This can be used to save it back to the database.
         """
+        self._push_file_folder()
+        self._push_truth()
+        self._push_mode_size()
+        self._push_size()
+        self._push_include_subfolders()
 
     def _mode_size_update_event(self, index):
         """ ..

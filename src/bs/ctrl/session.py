@@ -969,6 +969,10 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
         """
         return self._mode_path
 
+    @mode_path.setter
+    def mode_path(self, mode_path):
+        self._mode_path = mode_path
+
     @property
     def match_case(self):
         """
@@ -978,6 +982,10 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
         """
         return self._match_case
 
+    @match_case.setter
+    def match_case(self, match_case):
+        self._match_case = match_case
+
     @property
     def path_pattern(self):
         """
@@ -986,6 +994,10 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
         The (file-/directory path-)pattern that is to be matched.
         """
         return self._path_pattern
+
+    @path_pattern.setter
+    def path_pattern(self, path_pattern):
+        self._path_pattern = path_pattern
 
 
 class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
@@ -1038,6 +1050,10 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
         """
         return self._mode_size
 
+    @mode_size.setter
+    def mode_size(self, mode_size):
+        self._mode_size = mode_size
+
     @property
     def size(self):
         """
@@ -1046,6 +1062,10 @@ class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
         The size to be used as reference, in bytes.
         """
         return self._size
+
+    @size.setter
+    def size(self, size):
+        self._size = size
 
 
 class BackupSetCtrl(bs.model.models.Sets):
