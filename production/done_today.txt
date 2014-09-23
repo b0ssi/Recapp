@@ -2,6 +2,12 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-24
+- Filter-views now safe automatically when new filter is loaded and/or window closed. Removes explicit save button (hidden for now); fully implements reset functionality.
+
+2014-09-23
+- Filter-view and all rule-views now fully notify and synchronize bi-directionally.
+
 2014-09-23
 - Filter-view: size and path now pull from and push to controller. This concludes all controller-view synchronization, bi-directionally.
 

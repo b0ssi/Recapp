@@ -8,7 +8,6 @@ window_filter_manager
 .. toctree::
    :titlesonly:
 
-   WindowFilterManager
    FilterEditView
    FilterEditEmptyView
    FilterEditRuleInterface
@@ -19,3 +18,4 @@ window_filter_manager
    FilterEditInterface
    FilterListView
    FilterListItemView
+   WindowFilterManager

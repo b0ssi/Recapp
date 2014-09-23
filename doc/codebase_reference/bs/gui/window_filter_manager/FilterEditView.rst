@@ -12,7 +12,8 @@ Instance-Variables
 
 Methods
 =======
-   | :meth:`refresh`
+   | :meth:`pull_data`
+   | :meth:`push_data`
    | :meth:`save`
 
 Events

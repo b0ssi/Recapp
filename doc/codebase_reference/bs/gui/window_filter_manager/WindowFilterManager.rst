@@ -8,6 +8,7 @@ Synopsis
 
 Instance-Variables
 ==================
+   | :attr:`current_filter_edit_view`
 
 Methods
 =======
@@ -17,6 +18,7 @@ Methods
 
 Events
 ======
+   | :meth:`closeEvent`
 
 Detailed Description
 ********************

@@ -33,6 +33,18 @@ class WindowFilterManager(QtGui.QMainWindow):
 
         self._init_ui()
 
+    @property
+    def current_filter_edit_view(self):
+        """ ..
+        """
+        widget_item = self._layout.itemAtPosition(0, 1)
+        if widget_item:
+            widget = widget_item.widget()
+            if isinstance(widget, FilterEditView):
+                return widget
+            else:
+                return None
+
     def _init_ui(self):
         """ ..
         """
@@ -41,6 +53,10 @@ class WindowFilterManager(QtGui.QMainWindow):
         # geometry
         self.setMinimumWidth(1200)
         self.setMinimumHeight(350)
+        available_geometry = QtGui.QApplication.desktop().availableGeometry(screen=0)
+        x = available_geometry.width() / 2 - self.width() / 2
+        y = available_geometry.height() / 2 - self.height() / 2
+        self.setGeometry(x, y, self.width(), self.height())
         # title
         self.setWindowTitle("Filter Manager")
 
@@ -65,6 +81,8 @@ class WindowFilterManager(QtGui.QMainWindow):
         # remove currently loaded widget
         current_edit_widget_item = self._layout.itemAtPosition(0, 1)
         if current_edit_widget_item:
+            if isinstance(current_edit_widget_item.widget(), FilterEditView):
+                current_edit_widget_item.widget().save()
             # remove widget; this also deletes the C++ object
             widget = current_edit_widget_item.widget()
             self._layout.removeWidget(widget)
@@ -102,6 +120,13 @@ class WindowFilterManager(QtGui.QMainWindow):
         """
         self.close()
         return True
+
+    def closeEvent(self, e):
+        """ ..
+
+        Override. Saves the current filter when window is closed.
+        """
+        self.current_filter_edit_view.save()
 
 
 class FilterEditInterface(QtGui.QWidget):
@@ -160,8 +185,14 @@ class FilterEditView(FilterEditInterface):
         Returns whether or not this filter is dirty.
         """
         modified = False
+        # check itself
         for key in self._registered_widgets.keys():
             if self._registered_widgets[key]:
+                modified = True
+                break
+        # check rule views
+        for rule_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count()-1)]:
+            if rule_view.is_modified:
                 modified = True
                 break
         return modified
@@ -256,11 +287,9 @@ class FilterEditView(FilterEditInterface):
         # ======================================================================
         self._save_widget = QtGui.QPushButton("Save", self)
         self._layout.addWidget(self._save_widget, 3, 3, 1, 1)
-        self._save_widget.clicked.connect(self.save)
 
         self._discard_widget = QtGui.QPushButton("Reset", self)
         self._layout.addWidget(self._discard_widget, 3, 4, 1, 1)
-        self._discard_widget.clicked.connect(self.refresh)
         # ======================================================================
         # register
         #
@@ -273,13 +302,16 @@ class FilterEditView(FilterEditInterface):
 
         self._registered_widgets[self._filter_rules_mode_widget] = False
         self._filter_rules_mode_widget.currentIndexChanged.connect(self._backup_filter_rules_update_event)
+
+        self._save_widget.clicked.connect(self.save)
+        self._discard_widget.clicked.connect(self.pull_data)
         # ======================================================================
         # set-up
         # ======================================================================
-        self._pull_backup_filter_name()
-        self._pull_backup_filter_rules_mode()
+        self.pull_data()
         # save/discard buttons
         self._save_widget.setDisabled(True)
+        self._save_widget.hide()
         self._discard_widget.setDisabled(True)
 
     def _pull_backup_filter_name(self, direction="pull"):
@@ -304,18 +336,34 @@ class FilterEditView(FilterEditInterface):
     def _push_backup_filter_rules_mode(self):
         self._pull_backup_filter_rules_mode("push")
 
-    def refresh(self):
+    def pull_data(self):
         """ ..
 
         :rtype: `void`
 
-        Disables the view if user logged out or user session locked.
+        Pulls the current data off the controller onto the view, resetting it.
         """
-        if (not self._backup_filter.session.is_logged_in or
-                not self._backup_filter.session.is_unlocked):
-            self.setDisabled(True)
-        else:
-            self.setEnabled(True)
+        self._pull_backup_filter_name()
+        self._pull_backup_filter_rules_mode()
+        for i in range(self._filter_rules_container._layout.count()-1):
+            widget = self._filter_rules_container._layout.itemAt(i).widget()
+            widget.pull_data()
+
+    def push_data(self):
+        """ ..
+
+        :rtype: `void`
+
+        Pushes all GUI data onto controllers.
+        """
+        for i in range(self._filter_rules_container._layout.count()-1):
+            widget = self._filter_rules_container._layout.itemAt(i).widget()
+            widget.push_data()
+        self._push_backup_filter_name()
+        self._push_backup_filter_rules_mode()
+        # reset modification states
+        for item in self._registered_widgets:
+            self._registered_widgets[item] = False
 
     def save(self):
         """ ..
@@ -325,12 +373,10 @@ class FilterEditView(FilterEditInterface):
         Saves the backup-filter.
         """
         # commit data from GUI to CTRL
-        for i in range(self._filter_rules_container._layout.count()-1):
-            widget = self._filter_rules_container._layout.itemAt(i).widget()
-            widget.push_data()
-        self._push_backup_filter_name()
-        self._push_backup_filter_rules_mode()
+        self.push_data()
         # save data on CTRL
+
+        self._update_event(self, False)
 
     def _backup_filter_name_update_event(self, text):
         if self._backup_filter_name_widget.text() == self._backup_filter.backup_filter_name:
@@ -425,7 +471,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
         super(FilterEditRuleInterface, self).__init__(parent)
 
         self._row_layouts = {}  # holds the horizontal row layouts
-        self._registered_widgets = registered_widgets  # holds all widgets to be watched for modification
+        self._registered_widgets = {}  # holds all widgets to be watched for modification
         self._update_signal = bs.utils.Signal()
         self._update_signal.connect(self._update_event)
 
@@ -756,11 +802,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        self._pull_file_folder()
-        self._pull_attribute_type()
-        self._pull_truth()
-        self._pull_attribute_value()
-        self._pull_include_subfolders()
+        self.pull_data()
 
     def _pull_attribute_type(self, direction="pull"):
         """ ..
@@ -813,6 +855,17 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         """
         self._pull_attribute_value("push")
 
+    def pull_data(self):
+        """ ..
+
+        Pulls the current data off the controller onto the view, resetting it.
+        """
+        self._pull_file_folder()
+        self._pull_attribute_type()
+        self._pull_truth()
+        self._pull_attribute_value()
+        self._pull_include_subfolders()
+
     def push_data(self):
         """ ..
 
@@ -821,16 +874,16 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         Collects and serializes the rule(-widget)'s data and returns it in a \
         dictionary. This can be used to save it back to the database.
         """
-        self._push_file_folder()
-        self._push_attribute_type()
-        self._push_truth()
-        self._push_attribute_value()
-        self._push_include_subfolders()
-        # reset modification counters
-        for item in self._registered_widgets.keys():
-            self._registered_widgets[item] = False
-        # send update signal
-        self.update_signal.emit(self, False)
+        if self.is_modified:
+            self._push_file_folder()
+            self._push_attribute_type()
+            self._push_truth()
+            self._push_attribute_value()
+            self._push_include_subfolders()
+            # reset modification states
+            for item in self._registered_widgets:
+                self._registered_widgets[item] = False
+            self.update_signal.emit(self, False)
 
     def _attribute_type_update_event(self, index):
         """ ..
@@ -1140,15 +1193,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        self._pull_file_folder()
-        self._pull_timestamp_type()
-        self._pull_truth()
-        self._pull_position()
-        self._pull_reference_date_time_type()
-        self._pull_reference_date_time_timestamp()
-        self._pull_reference_date_time_offsets()
-        self._pull_include_subfolders()
-        self._pull_include_subfolders()
+        self.pull_data()
 
     def _pull_position(self, direction="pull"):
         """ ..
@@ -1273,6 +1318,21 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     def _push_timestamp_type(self):
         self._pull_timestamp_type("push")
 
+    def pull_data(self):
+        """ ..
+
+        Pulls the current data off the controller onto the view, resetting it.
+        """
+        self._pull_file_folder()
+        self._pull_timestamp_type()
+        self._pull_truth()
+        self._pull_position()
+        self._pull_reference_date_time_type()
+        self._pull_reference_date_time_timestamp()
+        self._pull_reference_date_time_offsets()
+        self._pull_include_subfolders()
+        self._pull_include_subfolders()
+
     def push_data(self):
         """ ..
 
@@ -1281,19 +1341,19 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         Collects and serializes the rule(-widget)'s data and returns it in a \
         dictionary. This can be used to save it back to the database.
         """
-        self._push_file_folder()
-        self._push_timestamp_type()
-        self._push_truth()
-        self._push_position()
-        self._push_reference_date_time_offsets()
-        self._push_reference_date_time_timestamp()
-        self._push_reference_date_time_type()
-        self._push_include_subfolders()
-        # reset modification counters
-        for item in self._registered_widgets.keys():
-            self._registered_widgets[item] = False
-        # send update signal
-        self.update_signal.emit(self, False)
+        if self.is_modified:
+            self._push_file_folder()
+            self._push_timestamp_type()
+            self._push_truth()
+            self._push_position()
+            self._push_reference_date_time_offsets()
+            self._push_reference_date_time_timestamp()
+            self._push_reference_date_time_type()
+            self._push_include_subfolders()
+            # reset modification states
+            for item in self._registered_widgets:
+                self._registered_widgets[item] = False
+            self.update_signal.emit(self, False)
 
     def _date_update_event(self, text):
         """ ..
@@ -1535,10 +1595,7 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        self._pull_truth()
-        self._pull_mode_path()
-        self._pull_path_pattern()
-        self._pull_match_case()
+        self.pull_data()
 
     def _pull_match_case(self, direction="pull"):
         """ ..
@@ -1585,6 +1642,16 @@ class FilterEditRulePathView(FilterEditRuleInterface):
     def _push_path_pattern(self):
         self._pull_path_pattern("push")
 
+    def pull_data(self):
+        """ ..
+
+        Pulls the current data off the controller onto the view, resetting it.
+        """
+        self._pull_truth()
+        self._pull_mode_path()
+        self._pull_path_pattern()
+        self._pull_match_case()
+
     def push_data(self):
         """ ..
 
@@ -1593,10 +1660,15 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         Collects and serializes the rule(-widget)'s data and returns it in a \
         dictionary. This can be used to save it back to the database.
         """
-        self._push_truth()
-        self._push_mode_path()
-        self._push_path_pattern()
-        self._push_match_case()
+        if self.is_modified:
+            self._push_truth()
+            self._push_mode_path()
+            self._push_path_pattern()
+            self._push_match_case()
+            # reset modification states
+            for item in self._registered_widgets:
+                self._registered_widgets[item] = False
+            self.update_signal.emit(self, False)
 
     def _mode_update_event(self, index):
         """ ..
@@ -1747,11 +1819,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         # ======================================================================
         # set-up
         # ======================================================================
-        self._pull_file_folder()
-        self._pull_truth()
-        self._pull_mode_size()
-        self._pull_size()
-        self._pull_include_subfolders()
+        self.pull_data()
 
     def _pull_mode_size(self, direction="pull"):
         """ ..
@@ -1803,6 +1871,17 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
     def _push_size(self):
         self._pull_size("push")
 
+    def pull_data(self):
+        """ ..
+
+        Pulls the current data off the controller onto the view, resetting it.
+        """
+        self._pull_file_folder()
+        self._pull_truth()
+        self._pull_mode_size()
+        self._pull_size()
+        self._pull_include_subfolders()
+
     def push_data(self):
         """ ..
 
@@ -1811,11 +1890,16 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         Collects and serializes the rule(-widget)'s data and returns it in a \
         dictionary. This can be used to save it back to the database.
         """
-        self._push_file_folder()
-        self._push_truth()
-        self._push_mode_size()
-        self._push_size()
-        self._push_include_subfolders()
+        if self.is_modified:
+            self._push_file_folder()
+            self._push_truth()
+            self._push_mode_size()
+            self._push_size()
+            self._push_include_subfolders()
+            # reset modification states
+            for item in self._registered_widgets:
+                self._registered_widgets[item] = False
+            self.update_signal.emit(self, False)
 
     def _mode_size_update_event(self, index):
         """ ..
@@ -1914,7 +1998,7 @@ class FilterListView(QtGui.QListWidget):
     def _init_ui(self):
         """ ..
         """
-        self.itemSelectionChanged.connect(self.load_current_item)
+        self.currentItemChanged.connect(self.load_current_item)
         # (re)populate list
         self.refresh()
 
@@ -1941,16 +2025,18 @@ class FilterListView(QtGui.QListWidget):
             else:
                 item.set_enabled()
 
-    def load_current_item(self):
+    def load_current_item(self, current_item, previous_item):
         """ ..
+
+        :param PySide.QtGui.QListWidgetItem current_item: The item that is newly selected.
+
+        :param PySide.QtGui.QListWidgetItem previous_item: The item that was previously selected.
 
         Loads the currently selected item.
         """
-        item = None
-        if len(self.selectedItems()) > 0:
-            item = self.selectedItems()[0]
-        if item and item.is_enabled:
-            self._window_filter_manager.load_filter(item._backup_filter)
+        if previous_item:
+            if current_item.is_enabled:
+                self._window_filter_manager.load_filter(current_item._backup_filter)
 
 
 class FilterListItemView(QtGui.QListWidgetItem):

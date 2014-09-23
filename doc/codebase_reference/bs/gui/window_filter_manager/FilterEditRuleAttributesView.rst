@@ -11,6 +11,7 @@ Instance-Variables
 
 Methods
 =======
+   | :meth:`pull_data`
    | :meth:`push_data`
 
 Events
