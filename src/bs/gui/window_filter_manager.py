@@ -139,6 +139,7 @@ class FilterEditView(FilterEditInterface):
     _filter_rules_mode_widget = None
     _save_widget = None
     _discard_widget = None
+    _backup_filter_name_widget = None
 
     def __init__(self, parent, backup_filter):
         """ ..
@@ -146,8 +147,24 @@ class FilterEditView(FilterEditInterface):
         super(FilterEditView, self).__init__(parent)
 
         self._backup_filter = backup_filter
+        self._registered_widgets = {}  # holds all widgets to be watched for modification
 
         self._init_ui()
+
+    @property
+    def is_modified(self):
+        """ ..
+
+        :rtype: `boolean`
+
+        Returns whether or not this filter is dirty.
+        """
+        modified = False
+        for key in self._registered_widgets.keys():
+            if self._registered_widgets[key]:
+                modified = True
+                break
+        return modified
 
     def _init_ui(self):
         """ ..
@@ -164,8 +181,8 @@ class FilterEditView(FilterEditInterface):
         widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
                              QtGui.QSizePolicy.Preferred)
         self._layout.addWidget(widget, 0, 0, 1, 1)
-        line_edit = QtGui.QLineEdit(self._backup_filter.backup_filter_name, self)
-        self._layout.addWidget(line_edit, 0, 1, 1, 4)
+        self._backup_filter_name_widget = QtGui.QLineEdit(self)
+        self._layout.addWidget(self._backup_filter_name_widget, 0, 1, 1, 4)
         # logical mode selector
         self._filter_rules_mode_widget = QtGui.QComboBox(self)
         self._filter_rules_mode_widget.setSizePolicy(size_policy)
@@ -212,14 +229,23 @@ class FilterEditView(FilterEditInterface):
         for backup_filter_rule in self._backup_filter.backup_filter_rules:
             widget = None
             if isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleAttributesCtrl):
-                widget = FilterEditRuleAttributesView(self._filter_rules_container, backup_filter_rule)
+                widget = FilterEditRuleAttributesView(self._filter_rules_container,
+                                                      backup_filter_rule,
+                                                      self._registered_widgets)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleDateCtrl):
-                widget = FilterEditRuleDateView(self._filter_rules_container, backup_filter_rule)
+                widget = FilterEditRuleDateView(self._filter_rules_container,
+                                                backup_filter_rule,
+                                                self._registered_widgets)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRulePathCtrl):
-                widget = FilterEditRulePathView(self._filter_rules_container, backup_filter_rule)
+                widget = FilterEditRulePathView(self._filter_rules_container,
+                                                backup_filter_rule,
+                                                self._registered_widgets)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleSizeCtrl):
-                widget = FilterEditRuleSizeView(self._filter_rules_container, backup_filter_rule)
+                widget = FilterEditRuleSizeView(self._filter_rules_container,
+                                                backup_filter_rule,
+                                                self._registered_widgets)
             if widget:
+                self._registered_widgets[widget] = False
                 widget.update_signal.connect(self._update_event)
                 self._filter_rules_container._layout.addWidget(widget)
         # buffer widget at bottom
@@ -236,19 +262,47 @@ class FilterEditView(FilterEditInterface):
         self._layout.addWidget(self._discard_widget, 3, 4, 1, 1)
         self._discard_widget.clicked.connect(self.refresh)
         # ======================================================================
+        # register
+        #
+        # To register and watch a widget for modification to update the rule
+        # view, register widget here and connect to an update method that in
+        # return updates the registered state.
+        # ======================================================================
+        self._registered_widgets[self._backup_filter_name_widget] = False
+        self._backup_filter_name_widget.textChanged.connect(self._backup_filter_name_update_event)
+
+        self._registered_widgets[self._filter_rules_mode_widget] = False
+        self._filter_rules_mode_widget.currentIndexChanged.connect(self._backup_filter_rules_update_event)
+        # ======================================================================
         # set-up
         # ======================================================================
-        # logical mode selector
-        index = self._backup_filter.backup_filter_rules_mode
-        if index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_and:
-            self._filter_rules_mode_widget.setCurrentIndex(0)
-        elif index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_or:
-            self._filter_rules_mode_widget.setCurrentIndex(1)
-        elif index == bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_xor:
-            self._filter_rules_mode_widget.setCurrentIndex(2)
+        self._pull_backup_filter_name()
+        self._pull_backup_filter_rules_mode()
         # save/discard buttons
         self._save_widget.setDisabled(True)
         self._discard_widget.setDisabled(True)
+
+    def _pull_backup_filter_name(self, direction="pull"):
+        if direction == "pull":
+            self._backup_filter_name_widget.setText(self._backup_filter.backup_filter_name) 
+        elif direction == "push":
+            self._backup_filter.backup_filter_name = self._backup_filter_name_widget.text()
+
+    def _pull_backup_filter_rules_mode(self, direction="pull"):
+        options = [bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_and,
+                   bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_or,
+                   bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_xor
+                   ]
+        if direction == "pull":
+            self._filter_rules_mode_widget.setCurrentIndex(options.index(self._backup_filter.backup_filter_rules_mode))
+        elif direction == "push":
+            self._backup_filter.backup_filter_rules_mode = options[self._filter_rules_mode_widget.currentIndex()]
+
+    def _push_backup_filter_name(self):
+        self._pull_backup_filter_name("push")
+
+    def _push_backup_filter_rules_mode(self):
+        self._pull_backup_filter_rules_mode("push")
 
     def refresh(self):
         """ ..
@@ -274,14 +328,39 @@ class FilterEditView(FilterEditInterface):
         for i in range(self._filter_rules_container._layout.count()-1):
             widget = self._filter_rules_container._layout.itemAt(i).widget()
             widget.push_data()
+        self._push_backup_filter_name()
+        self._push_backup_filter_rules_mode()
         # save data on CTRL
+
+    def _backup_filter_name_update_event(self, text):
+        if self._backup_filter_name_widget.text() == self._backup_filter.backup_filter_name:
+            self._registered_widgets[self._backup_filter_name_widget] = False
+        else:
+            self._registered_widgets[self._backup_filter_name_widget] = True
+        self._update_event(self._backup_filter_name_widget,
+                           self._registered_widgets[self._backup_filter_name_widget])
+
+    def _backup_filter_rules_update_event(self, index):
+        """ ..
+        """
+        options = [bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_and,
+                   bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_or,
+                   bs.ctrl.session.BackupFilterCtrl.backup_filter_rules_mode_xor
+                   ]
+        # set modified state
+        if options[self._filter_rules_mode_widget.currentIndex()] == self._backup_filter.backup_filter_rules_mode:
+            self._registered_widgets[self._filter_rules_mode_widget] = False
+        else:
+            self._registered_widgets[self._filter_rules_mode_widget] = True
+        self._update_event(self._filter_rules_mode_widget,
+                           self._registered_widgets[self._filter_rules_mode_widget])
 
     def _update_event(self, widget, modified):
         """ ..
 
         Is called when a registered rule-widget is updated.
         """
-        if modified:
+        if self.is_modified:
             self._save_widget.setEnabled(True)
             self._discard_widget.setEnabled(True)
         else:
@@ -332,18 +411,21 @@ class FilterEditRuleInterface(QtGui.QFrame):
     backup-filter-rule managed by this GUI. NB: This has to be the corresponding \
     subclass to :class:`bs.ctrl.session.BackupFilterRuleCtrl`.
 
+    :param dictionary registered_widgets: The widget-registry-dictionary \
+    managing the modification-states of all registered widgets.
+
     This is the superclass for all filter-rule widgets.
     """
     _backup_filter_rule_ctrl = None
     _layout = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl):
+    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
         """ ..
         """
         super(FilterEditRuleInterface, self).__init__(parent)
 
         self._row_layouts = {}  # holds the horizontal row layouts
-        self._registered_widgets = {}  # holds all widgets to be watched for modification
+        self._registered_widgets = registered_widgets  # holds all widgets to be watched for modification
         self._update_signal = bs.utils.Signal()
         self._update_signal.connect(self._update_event)
 
@@ -537,6 +619,9 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRuleAttributesCtrl backup_filter_ctrl: \
     The backup-filter-rule managed by this GUI.
 
+    :param dictionary registered_widgets: The widget-registry-dictionary \
+    managing the modification-states of all registered widgets.
+
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
@@ -547,11 +632,12 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     _incl_subfolders_widget = None
     _truth_widget = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl):
+    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
         """ ..
         """
         super(FilterEditRuleAttributesView, self).__init__(parent,
-                                                           backup_filter_rule_ctrl)
+                                                           backup_filter_rule_ctrl,
+                                                           registered_widgets)
 
         self._init_ui()
 
@@ -869,6 +955,9 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRuleDateCtrl backup_filter_ctrl: The \
     backup-filter-rule managed by this GUI.
 
+    :param dictionary registered_widgets: The widget-registry-dictionary \
+    managing the modification-states of all registered widgets.
+
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
@@ -892,11 +981,12 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     _timestamp_type_widget = None
     _position_widget = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl):
+    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
         """ ..
         """
         super(FilterEditRuleDateView, self).__init__(parent,
-                                                     backup_filter_rule_ctrl)
+                                                     backup_filter_rule_ctrl,
+                                                     registered_widgets)
 
         self._date_display_pattern = "yyyy-MM-dd"
         self._time_display_pattern = "hh:mm:ss"
@@ -1077,30 +1167,34 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         """
         if direction == "push":
             if self._offset_check_box.isChecked():
-                offset = []
-                offset.append(1 - self._time_offset_direction_c_box.currentIndex())
-                offset.append(self._time_offset_years.value())
-                offset.append(self._time_offset_months.value())
-                offset.append(self._time_offset_weeks.value())
-                offset.append(self._time_offset_days.value())
-                offset.append(self._time_offset_hours.value())
-                offset.append(self._time_offset_minutes.value())
-                offset.append(self._time_offset_seconds.value())
+                offsets = []
+                offsets.append(0)
+                offsets.append(self._time_offset_years.value())
+                offsets.append(self._time_offset_months.value())
+                offsets.append(self._time_offset_weeks.value())
+                offsets.append(self._time_offset_days.value())
+                offsets.append(self._time_offset_hours.value())
+                offsets.append(self._time_offset_minutes.value())
+                offsets.append(self._time_offset_seconds.value())
+                for item in offsets[1:]:
+                    if item != 0:
+                        offsets[0] = 1 - self._time_offset_direction_c_box.currentIndex()
+                        break
             else:
-                offset = [0, 0, 0, 0, 0, 0, 0, 0]
-            self._backup_filter_rule_ctrl.reference_date_time_offsets = offset
+                offsets = [0, 0, 0, 0, 0, 0, 0, 0]
+            self._backup_filter_rule_ctrl.reference_date_time_offsets = offsets
         elif direction == "pull":
-            offset = self._backup_filter_rule_ctrl.reference_date_time_offsets
+            offsets = self._backup_filter_rule_ctrl.reference_date_time_offsets
             self._offset_check_box.setCheckState(QtCore.Qt.Checked)
-            if offset != [0, 0, 0, 0, 0, 0, 0, 0]:
-                self._time_offset_direction_c_box.setCurrentIndex(1 - offset[0])
-                self._time_offset_years.setValue(offset[1])
-                self._time_offset_months.setValue(offset[2])
-                self._time_offset_weeks.setValue(offset[3])
-                self._time_offset_days.setValue(offset[4])
-                self._time_offset_hours.setValue(offset[5])
-                self._time_offset_minutes.setValue(offset[6])
-                self._time_offset_seconds.setValue(offset[7])
+            if offsets != [0, 0, 0, 0, 0, 0, 0, 0]:
+                self._time_offset_direction_c_box.setCurrentIndex(1 - offsets[0])
+                self._time_offset_years.setValue(offsets[1])
+                self._time_offset_months.setValue(offsets[2])
+                self._time_offset_weeks.setValue(offsets[3])
+                self._time_offset_days.setValue(offsets[4])
+                self._time_offset_hours.setValue(offsets[5])
+                self._time_offset_minutes.setValue(offsets[6])
+                self._time_offset_seconds.setValue(offsets[7])
             else:
                 self._offset_check_box.setCheckState(QtCore.Qt.Unchecked)
 
@@ -1255,6 +1349,10 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             offset.append(self._time_offset_hours.value())
             offset.append(self._time_offset_minutes.value())
             offset.append(self._time_offset_seconds.value())
+            for item in offset[1:]:
+                if item != 0:
+                    offset[0] = 1 - self._time_offset_direction_c_box.currentIndex()
+                    break
         else:
             offset = [0, 0, 0, 0, 0, 0, 0, 0]
         if offset == self._backup_filter_rule_ctrl.reference_date_time_offsets:
@@ -1377,16 +1475,20 @@ class FilterEditRulePathView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRulePathCtrl backup_filter_ctrl: The \
     backup-filter-rule managed by this GUI.
 
+    :param dictionary registered_widgets: The widget-registry-dictionary \
+    managing the modification-states of all registered widgets.
+
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
     This is the edit-view for the path-rule.
     """
-    def __init__(self, parent, backup_filter_rule_ctrl):
+    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
         """ ..
         """
         super(FilterEditRulePathView, self).__init__(parent,
-                                                     backup_filter_rule_ctrl)
+                                                     backup_filter_rule_ctrl,
+                                                     registered_widgets)
 
         self._init_ui()
 
@@ -1557,6 +1659,9 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRuleSizeCtrl backup_filter_ctrl: The \
     backup-filter-rule managed by this GUI.
 
+    :param dictionary registered_widgets: The widget-registry-dictionary \
+    managing the modification-states of all registered widgets.
+
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
@@ -1567,11 +1672,12 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
     _size_int_widget = None
     _size_float_widget = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl):
+    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
         """ ..
         """
         super(FilterEditRuleSizeView, self).__init__(parent,
-                                                     backup_filter_rule_ctrl)
+                                                     backup_filter_rule_ctrl,
+                                                     registered_widgets)
 
         self._init_ui()
 

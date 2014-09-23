@@ -3,7 +3,7 @@
 ################################
 
 2014-09-23
-- Filter-view: size and path now pull from and push to controller. This concludes all controller-view synchronization, both ways.
+- Filter-view: size and path now pull from and push to controller. This concludes all controller-view synchronization, bi-directionally.
 
 2014-09-22
 - Filter-view: date now fully pulls from and pushes to controller.

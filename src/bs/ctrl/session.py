@@ -97,6 +97,10 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                         ))[0][0]
         return self._backup_filter_rules_mode
 
+    @backup_filter_rules_mode.setter
+    def backup_filter_rules_mode(self, backup_filter_rules_mode):
+        self._backup_filter_rules_mode = backup_filter_rules_mode
+
     @property
     def backup_filter_name(self):
         """ ..
@@ -108,6 +112,10 @@ class BackupFilterCtrl(bs.model.models.Filters):
         if not self._backup_filter_name:
             self._backup_filter_name = self._get("name", (("id", "=", self._backup_filter_id, ), ), )[0][0]
         return self._backup_filter_name
+
+    @backup_filter_name.setter
+    def backup_filter_name(self, backup_filter_name):
+        self._backup_filter_name = backup_filter_name
 
     @property
     def backup_filter_rules(self):

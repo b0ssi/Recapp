@@ -18,6 +18,7 @@ Instance-Variables
    | :attr:`backup_filter_id`
    | :attr:`backup_filter_name`
    | :attr:`backup_filter_rules`
+   | :attr:`backup_filter_rules_mode`
    | :attr:`session`
 
 Methods

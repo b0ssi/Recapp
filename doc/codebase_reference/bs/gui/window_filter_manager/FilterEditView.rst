@@ -8,6 +8,7 @@ Synopsis
 
 Instance-Variables
 ==================
+   | :attr:`is_modified`
 
 Methods
 =======
