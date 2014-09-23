@@ -189,8 +189,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                          truth,
                                                          attribute_type,
                                                          attribute_value)
-                self._backup_filter_rules.append(obj)
-            self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
+                self.add_backup_filter_rule(obj)
         return self._backup_filter_rules
 
     @property
@@ -246,6 +245,25 @@ class BackupFilterCtrl(bs.model.models.Filters):
         The corresponding :class:`bs.ctrl.session.SessionCtrl`.
         """
         return self._session
+
+    def add_backup_filter_rule(self, backup_filter_rule):
+        """ ..
+
+        :param bs.ctrl.session.BackupFilterRuleCtrl backup_filter_rule:
+
+        :rtype: `boolean`
+
+        Adds a filter-rule to the filter. Returns ``True`` on success, ``False`` if filter already exists.
+        """
+        # set default id
+        if not backup_filter_rule.id:
+            backup_filter_rule.id = str(len(self._backup_filter_rules))
+        if backup_filter_rule not in self._backup_filter_rules:
+            self._backup_filter_rules.append(backup_filter_rule)
+            self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
+            return True
+        else:
+            return False
 
     def associate(self, backp_set, backup_entity):
         """ ..
@@ -400,10 +418,10 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 class BackupFilterRuleCtrl(object):
     """ ..
 
-    :param id: The filter-rule-attribute's ID.
-    :param category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     :param boolean truth: Indicates whether the rule is set to true ("is/does") or false ("is not/does not")
 
     This class is not to be instantiated directly but serves as an abstract

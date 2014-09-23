@@ -3,6 +3,9 @@
 ################################
 
 2014-09-24
+- Adds ability to add filter-rules to filters; both on controller and in view.
+
+2014-09-24
 - Filter-views now safe automatically when new filter is loaded and/or window closed. Removes explicit save button (hidden for now); fully implements reset functionality.
 
 2014-09-23

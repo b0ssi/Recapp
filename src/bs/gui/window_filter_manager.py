@@ -197,6 +197,87 @@ class FilterEditView(FilterEditInterface):
                 break
         return modified
 
+    def _add_view(self, widget):
+        """ ..
+
+        Does the tasks common to all self._add_view_* methods.
+        """
+        # register
+        self._registered_widgets[widget] = False
+        widget.update_signal.connect(self._update_event)
+        index = self._filter_rules_container._layout.count()
+        if index > 0:
+            index = index - 1
+        self._filter_rules_container._layout.insertWidget(index, widget)
+
+    def _add_view_attributes(self, backup_filter_rule=None):
+        # create new controller if not provided
+        if not backup_filter_rule:
+            backup_filter_rule = bs.ctrl.session.BackupFilterRuleAttributesCtrl(key_id=None,
+                                                                                category=bs.ctrl.session.BackupFilterRuleCtrl.category_attributes,
+                                                                                file_folder=bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                                                                                include_subfolders=True,
+                                                                                truth=True,
+                                                                                attribute_type=bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner,
+                                                                                attribute_value=["", None, None])
+            self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+        # add gui
+        widget = FilterEditRuleAttributesView(self._filter_rules_container,
+                                              backup_filter_rule)
+        self._add_view(widget)
+
+    def _add_view_date(self, backup_filter_rule=None):
+        # create new controller if not provided
+        if not backup_filter_rule:
+            backup_filter_rule = bs.ctrl.session.BackupFilterRuleDateCtrl(key_id=None,
+                                                                          category=bs.ctrl.session.BackupFilterRuleCtrl.category_date,
+                                                                          file_folder=bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                                                                          include_subfolders=True,
+                                                                          truth=True,
+                                                                          timestamp_type=bs.ctrl.session.BackupFilterRuleCtrl.timestamp_type_atime,
+                                                                          position=bs.ctrl.session.BackupFilterRuleCtrl.position_before,
+                                                                          reference_date_time_type=bs.ctrl.session.BackupFilterRuleCtrl.reference_date_current_date,
+                                                                          reference_date_time_timestamp=0,
+                                                                          reference_date_time_offsets=[0, 0, 0, 0, 0, 0, 0, 0])
+            self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+        # add gui
+        widget = FilterEditRuleDateView(self._filter_rules_container,
+                                        backup_filter_rule)
+        self._add_view(widget)
+
+    def _add_view_path(self, backup_filter_rule=None):
+        # create new controller if not provided
+        if not backup_filter_rule:
+            backup_filter_rule = bs.ctrl.session.BackupFilterRulePathCtrl(key_id=None,
+                                                                          category=bs.ctrl.session.BackupFilterRuleCtrl.category_path,
+                                                                          file_folder=bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                                                                          include_subfolders=True,
+                                                                          truth=True,
+                                                                          mode_path=bs.ctrl.session.BackupFilterRuleCtrl.mode_path_starts_with,
+                                                                          match_case=False,
+                                                                          path_pattern="")
+            self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+        # add gui
+        widget = FilterEditRulePathView(self._filter_rules_container,
+                                        backup_filter_rule)
+        self._add_view(widget)
+
+    def _add_view_size(self, backup_filter_rule=None):
+        # create new controller if not provided
+        if not backup_filter_rule:
+            backup_filter_rule = bs.ctrl.session.BackupFilterRuleSizeCtrl(key_id=None,
+                                                                          category=bs.ctrl.session.BackupFilterRuleCtrl.category_size,
+                                                                          file_folder=bs.ctrl.session.BackupFilterRuleCtrl.file_folder_file_folder,
+                                                                          include_subfolders=True,
+                                                                          truth=True,
+                                                                          mode_size=bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal,
+                                                                          size=0)
+            self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+        # add gui
+        widget = FilterEditRuleSizeView(self._filter_rules_container,
+                                        backup_filter_rule)
+        self._add_view(widget)
+
     def _init_ui(self):
         """ ..
         """
@@ -232,12 +313,19 @@ class FilterEditView(FilterEditInterface):
         add_btn_menu = QtGui.QMenu(add_btn)
         # actions
         add_btn_menu_action_path = QtGui.QAction("Path", add_btn_menu)
+        add_btn_menu_action_path.activated.connect(self._add_view_path)
         add_btn_menu.addAction(add_btn_menu_action_path)
+
         add_btn_menu_action_size = QtGui.QAction("Size", add_btn_menu)
+        add_btn_menu_action_size.activated.connect(self._add_view_size)
         add_btn_menu.addAction(add_btn_menu_action_size)
+
         add_btn_menu_action_date = QtGui.QAction("Date/Time", add_btn_menu)
+        add_btn_menu_action_date.activated.connect(self._add_view_date)
         add_btn_menu.addAction(add_btn_menu_action_date)
+
         add_btn_menu_action_attributes = QtGui.QAction("Attributes", add_btn_menu)
+        add_btn_menu_action_attributes.activated.connect(self._add_view_attributes)
         add_btn_menu.addAction(add_btn_menu_action_attributes)
 
         add_btn.setMenu(add_btn_menu)
@@ -260,25 +348,13 @@ class FilterEditView(FilterEditInterface):
         for backup_filter_rule in self._backup_filter.backup_filter_rules:
             widget = None
             if isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleAttributesCtrl):
-                widget = FilterEditRuleAttributesView(self._filter_rules_container,
-                                                      backup_filter_rule,
-                                                      self._registered_widgets)
+                self._add_view_attributes(backup_filter_rule)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleDateCtrl):
-                widget = FilterEditRuleDateView(self._filter_rules_container,
-                                                backup_filter_rule,
-                                                self._registered_widgets)
+                self._add_view_date(backup_filter_rule)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRulePathCtrl):
-                widget = FilterEditRulePathView(self._filter_rules_container,
-                                                backup_filter_rule,
-                                                self._registered_widgets)
+                self._add_view_path(backup_filter_rule)
             elif isinstance(backup_filter_rule, bs.ctrl.session.BackupFilterRuleSizeCtrl):
-                widget = FilterEditRuleSizeView(self._filter_rules_container,
-                                                backup_filter_rule,
-                                                self._registered_widgets)
-            if widget:
-                self._registered_widgets[widget] = False
-                widget.update_signal.connect(self._update_event)
-                self._filter_rules_container._layout.addWidget(widget)
+                self._add_view_size(backup_filter_rule)
         # buffer widget at bottom
         widget = QtGui.QWidget(self)
         self._filter_rules_container._layout.addWidget(widget)
@@ -457,15 +533,12 @@ class FilterEditRuleInterface(QtGui.QFrame):
     backup-filter-rule managed by this GUI. NB: This has to be the corresponding \
     subclass to :class:`bs.ctrl.session.BackupFilterRuleCtrl`.
 
-    :param dictionary registered_widgets: The widget-registry-dictionary \
-    managing the modification-states of all registered widgets.
-
     This is the superclass for all filter-rule widgets.
     """
     _backup_filter_rule_ctrl = None
     _layout = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
+    def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleInterface, self).__init__(parent)
@@ -665,9 +738,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRuleAttributesCtrl backup_filter_ctrl: \
     The backup-filter-rule managed by this GUI.
 
-    :param dictionary registered_widgets: The widget-registry-dictionary \
-    managing the modification-states of all registered widgets.
-
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
@@ -678,12 +748,11 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     _incl_subfolders_widget = None
     _truth_widget = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
+    def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleAttributesView, self).__init__(parent,
-                                                           backup_filter_rule_ctrl,
-                                                           registered_widgets)
+                                                           backup_filter_rule_ctrl)
 
         self._init_ui()
 
@@ -1008,9 +1077,6 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRuleDateCtrl backup_filter_ctrl: The \
     backup-filter-rule managed by this GUI.
 
-    :param dictionary registered_widgets: The widget-registry-dictionary \
-    managing the modification-states of all registered widgets.
-
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
@@ -1034,12 +1100,11 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
     _timestamp_type_widget = None
     _position_widget = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
+    def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleDateView, self).__init__(parent,
-                                                     backup_filter_rule_ctrl,
-                                                     registered_widgets)
+                                                     backup_filter_rule_ctrl)
 
         self._date_display_pattern = "yyyy-MM-dd"
         self._time_display_pattern = "hh:mm:ss"
@@ -1289,7 +1354,10 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         if direction == "push":
             self._backup_filter_rule_ctrl.reference_date_time_type = options[self._reference_date_time_type_widget.currentIndex()]
         elif direction == "pull":
-            self._reference_date_time_type_widget.setCurrentIndex(options.index(self._backup_filter_rule_ctrl.reference_date_time_type))
+            index = options.index(self._backup_filter_rule_ctrl.reference_date_time_type)
+            if index == 0:
+                self._reference_date_time_type_widget.setCurrentIndex(1)
+            self._reference_date_time_type_widget.setCurrentIndex(index)
 
     def _pull_timestamp_type(self, direction="pull"):
         """ ..
@@ -1480,9 +1548,9 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         # update modified state
         # update ui
         if self._reference_date_time_type_widget.currentIndex() == 4:
-            if state:
+            if state == QtCore.Qt.Checked:
                 self._time_widget.show()
-            else:
+            elif state == QtCore.Qt.Unchecked:
                 self._time_widget.hide()
 
     def _time_update_event(self, text_state):
@@ -1535,20 +1603,16 @@ class FilterEditRulePathView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRulePathCtrl backup_filter_ctrl: The \
     backup-filter-rule managed by this GUI.
 
-    :param dictionary registered_widgets: The widget-registry-dictionary \
-    managing the modification-states of all registered widgets.
-
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
     This is the edit-view for the path-rule.
     """
-    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
+    def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRulePathView, self).__init__(parent,
-                                                     backup_filter_rule_ctrl,
-                                                     registered_widgets)
+                                                     backup_filter_rule_ctrl)
 
         self._init_ui()
 
@@ -1731,9 +1795,6 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
     :param bs.ctrl.session.BackupFilterRuleSizeCtrl backup_filter_ctrl: The \
     backup-filter-rule managed by this GUI.
 
-    :param dictionary registered_widgets: The widget-registry-dictionary \
-    managing the modification-states of all registered widgets.
-
     **Inherits from:** \
     :class:`bs.gui.backup_filter_manager.FilterEditRuleInterface`
 
@@ -1744,12 +1805,11 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
     _size_int_widget = None
     _size_float_widget = None
 
-    def __init__(self, parent, backup_filter_rule_ctrl, registered_widgets):
+    def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
         """
         super(FilterEditRuleSizeView, self).__init__(parent,
-                                                     backup_filter_rule_ctrl,
-                                                     registered_widgets)
+                                                     backup_filter_rule_ctrl)
 
         self._init_ui()
 
@@ -1998,7 +2058,7 @@ class FilterListView(QtGui.QListWidget):
     def _init_ui(self):
         """ ..
         """
-        self.currentItemChanged.connect(self.load_current_item)
+        self.itemSelectionChanged.connect(self.load_current_item)
         # (re)populate list
         self.refresh()
 
@@ -2025,16 +2085,17 @@ class FilterListView(QtGui.QListWidget):
             else:
                 item.set_enabled()
 
-    def load_current_item(self, current_item, previous_item):
+    def load_current_item(self):
         """ ..
 
-        :param PySide.QtGui.QListWidgetItem current_item: The item that is newly selected.
-
-        :param PySide.QtGui.QListWidgetItem previous_item: The item that was previously selected.
+        :rtype: `void`
 
         Loads the currently selected item.
         """
-        if previous_item:
+        current_item = None
+        if len(self.selectedItems()) > 0:
+            current_item = self.currentItem()
+        if current_item:
             if current_item.is_enabled:
                 self._window_filter_manager.load_filter(current_item._backup_filter)
 
