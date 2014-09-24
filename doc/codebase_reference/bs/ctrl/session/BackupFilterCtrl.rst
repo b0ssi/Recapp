@@ -26,6 +26,7 @@ Methods
    | :meth:`add_backup_filter_rule`
    | :meth:`associate`
    | :meth:`disassociate`
+   | :meth:`remove_backup_filter_rule`
 
 Detailed Description
 ********************

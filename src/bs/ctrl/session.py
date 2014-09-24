@@ -290,6 +290,21 @@ class BackupFilterCtrl(bs.model.models.Filters):
         """
         self._backup_entity_ass[backup_set].pop(self._backup_entity_ass[backup_set].index(backup_entity))
 
+    def remove_backup_filter_rule(self, backup_filter_rule):
+        """ ..
+
+        :rtype: `boolean`
+
+        Removes ``backup_filter_rule`` from backup-filter. Returns ``True`` \
+        on success, ``False`` if passed backup-filter-rule is not hosted by \
+        this backup-filter.
+        """
+        if backup_filter_rule in self._backup_filter_rules:
+            self._backup_filter_rules.remove(backup_filter_rule)
+            return True
+        else:
+            return False
+
 
 class BackupFiltersCtrl(bs.model.models.Filters):
     """ ..

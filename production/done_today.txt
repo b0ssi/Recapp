@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-25
+- Adds ability to remove filter-rule(-view) from backup-filter. Reverts it back onto filter on revert and removes permanently when saving (leaving particular filter edit context).
+
 2014-09-24
 - Adds ability to add filter-rules to filters; both on controller and in view.
 

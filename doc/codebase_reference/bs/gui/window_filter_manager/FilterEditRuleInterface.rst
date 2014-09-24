@@ -8,11 +8,13 @@ Synopsis
 
 Instance-Variables
 ==================
+   | :attr:`backup_filter_rule_ctrl`
    | :attr:`is_modified`
 
 Methods
 =======
    | :meth:`get_row_layout`
+   | :meth:`pull_data`
 
 Signals
 =======

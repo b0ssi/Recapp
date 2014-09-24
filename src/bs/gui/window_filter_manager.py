@@ -163,7 +163,7 @@ class FilterEditView(FilterEditInterface):
     _filter_rules_container = None
     _filter_rules_mode_widget = None
     _save_widget = None
-    _discard_widget = None
+    _revert_widget = None
     _backup_filter_name_widget = None
 
     def __init__(self, parent, backup_filter):
@@ -364,8 +364,8 @@ class FilterEditView(FilterEditInterface):
         self._save_widget = QtGui.QPushButton("Save", self)
         self._layout.addWidget(self._save_widget, 3, 3, 1, 1)
 
-        self._discard_widget = QtGui.QPushButton("Reset", self)
-        self._layout.addWidget(self._discard_widget, 3, 4, 1, 1)
+        self._revert_widget = QtGui.QPushButton("Revert", self)
+        self._layout.addWidget(self._revert_widget, 3, 4, 1, 1)
         # ======================================================================
         # register
         #
@@ -380,7 +380,7 @@ class FilterEditView(FilterEditInterface):
         self._filter_rules_mode_widget.currentIndexChanged.connect(self._backup_filter_rules_update_event)
 
         self._save_widget.clicked.connect(self.save)
-        self._discard_widget.clicked.connect(self.pull_data)
+        self._revert_widget.clicked.connect(self._revert)
         # ======================================================================
         # set-up
         # ======================================================================
@@ -388,7 +388,7 @@ class FilterEditView(FilterEditInterface):
         # save/discard buttons
         self._save_widget.setDisabled(True)
         self._save_widget.hide()
-        self._discard_widget.setDisabled(True)
+        self._revert_widget.setDisabled(True)
 
     def _pull_backup_filter_name(self, direction="pull"):
         if direction == "pull":
@@ -411,6 +411,18 @@ class FilterEditView(FilterEditInterface):
 
     def _push_backup_filter_rules_mode(self):
         self._pull_backup_filter_rules_mode("push")
+
+    def _revert(self):
+        """ ..
+
+        Reverts the view to its initial state, discarding any changes made.
+        """
+        self.pull_data()
+        # unhide all rule views
+        for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count()-1)]:
+            if filter_edit_view.isHidden():
+                filter_edit_view.show()
+        self._update_event(self, False)
 
     def pull_data(self):
         """ ..
@@ -450,6 +462,10 @@ class FilterEditView(FilterEditInterface):
         """
         # commit data from GUI to CTRL
         self.push_data()
+        # delete rules deleted in GUI (hidden) from CTRL
+        for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count()-1)]:
+            if filter_edit_view.isHidden():
+                self._backup_filter.remove_backup_filter_rule(filter_edit_view.backup_filter_rule_ctrl)
         # save data on CTRL
 
         self._update_event(self, False)
@@ -484,10 +500,10 @@ class FilterEditView(FilterEditInterface):
         """
         if self.is_modified:
             self._save_widget.setEnabled(True)
-            self._discard_widget.setEnabled(True)
+            self._revert_widget.setEnabled(True)
         else:
             self._save_widget.setDisabled(True)
-            self._discard_widget.setDisabled(True)
+            self._revert_widget.setDisabled(True)
 
 
 class FilterEditEmptyView(FilterEditInterface):
@@ -537,6 +553,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
     """
     _backup_filter_rule_ctrl = None
     _layout = None
+    _revert_widget = None
 
     def __init__(self, parent, backup_filter_rule_ctrl):
         """ ..
@@ -546,22 +563,42 @@ class FilterEditRuleInterface(QtGui.QFrame):
         self._row_layouts = {}  # holds the horizontal row layouts
         self._registered_widgets = {}  # holds all widgets to be watched for modification
         self._update_signal = bs.utils.Signal()
-        self._update_signal.connect(self._update_event)
 
         self._backup_filter_rule_ctrl = backup_filter_rule_ctrl
         # layout
         self._layout = QtGui.QGridLayout(self)
         # style
         self.setFrameStyle(self.Panel | self.Raised)
-        # del button
+        # revert button
         icon = QtGui.QIcon("img/icons_forget.png")
-        widget = QtGui.QPushButton(icon, None)
-        widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
-                             QtGui.QSizePolicy.Fixed)
-        self._layout.addWidget(widget, 0, 0, 1, 1)
+        self._revert_widget = QtGui.QPushButton(icon, None)
+        self._revert_widget.permanently_registered = True  # get the ``is_modified`` attributes to always consider this key
+        self._revert_widget.setSizePolicy(QtGui.QSizePolicy.Fixed,
+                                          QtGui.QSizePolicy.Fixed)
+        self._layout.addWidget(self._revert_widget, 0, 0, 1, 1)
         # geometry
         self.setSizePolicy(QtGui.QSizePolicy.Preferred,
                            QtGui.QSizePolicy.Fixed)
+        # ======================================================================
+        # register
+        #
+        # To register and watch a widget for modification to update the rule
+        # view, register widget here and connect to an update method that in
+        # return updates the registered state.
+        # ======================================================================
+        self._update_signal.connect(self._update_event)
+
+        self._registered_widgets[self._revert_widget] = False
+        self._revert_widget.clicked.connect(self._remove)
+        # ======================================================================
+        # set-up
+        # ======================================================================
+
+    @property
+    def backup_filter_rule_ctrl(self):
+        """ ..
+        """
+        return self._backup_filter_rule_ctrl
 
     @property
     def is_modified(self):
@@ -573,10 +610,13 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         modified = False
         for key in self._registered_widgets.keys():
-            if (self._registered_widgets[key] and
-                    key.isVisible()):
-                modified = True
-                break
+            if self._registered_widgets[key]:
+                if key.isVisible():
+                    modified = True
+                    break
+                elif "permanently_registered" in dir(key):
+                    modified = True
+                    break
         return modified
 
     @property
@@ -639,6 +679,16 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         self._pull_truth("push")
 
+    def _remove(self):
+        """ ..
+        "Removes" the current rule-view from the layout, hiding it and sending \
+        an update event.
+        """
+        self.hide()
+        self._registered_widgets[self._revert_widget] = True
+        self.update_signal.emit(self._revert_widget,
+                                self._registered_widgets[self._revert_widget])
+
     def get_row_layout(self, row):
         """ ..
 
@@ -662,6 +712,15 @@ class FilterEditRuleInterface(QtGui.QFrame):
             # spacer
             self._layout.addWidget(QtGui.QWidget(self), row, 2, 1, 1)
         return self._row_layouts[row]
+
+    def pull_data(self):
+        """ ..
+
+        Pulls the current data off the controller onto the view, resetting it.
+        """
+        # reset revert widget modification to mark it as not removed
+        self._registered_widgets[self._revert_widget] = False
+        self._update_event(self, False)
 
     def _file_folder_update_event(self, index):
         """ ..
@@ -934,6 +993,8 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         self._pull_truth()
         self._pull_attribute_value()
         self._pull_include_subfolders()
+
+        super(FilterEditRuleAttributesView, self).pull_data()
 
     def push_data(self):
         """ ..
@@ -1401,6 +1462,8 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         self._pull_include_subfolders()
         self._pull_include_subfolders()
 
+        super(FilterEditRuleDateView, self).pull_data()
+
     def push_data(self):
         """ ..
 
@@ -1716,6 +1779,8 @@ class FilterEditRulePathView(FilterEditRuleInterface):
         self._pull_path_pattern()
         self._pull_match_case()
 
+        super(FilterEditRulePathView, self).pull_data()
+
     def push_data(self):
         """ ..
 
@@ -1941,6 +2006,8 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         self._pull_mode_size()
         self._pull_size()
         self._pull_include_subfolders()
+
+        super(FilterEditRuleSizeView, self).pull_data()
 
     def push_data(self):
         """ ..
