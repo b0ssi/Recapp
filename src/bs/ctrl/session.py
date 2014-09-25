@@ -305,6 +305,40 @@ class BackupFilterCtrl(bs.model.models.Filters):
         else:
             return False
 
+    def save(self):
+        """ ..
+
+        Saves the filter to the databse.
+        """
+        filter_rules_data = {}
+        for backup_filter_rule in self._backup_filter_rules:
+            filter_rule_id = backup_filter_rule.id
+            filter_rule_data = {}
+            # add fields
+            filter_rule_data["category"] = backup_filter_rule.category
+            filter_rule_data["file_folder"] = backup_filter_rule.file_folder
+            filter_rule_data["include_subfolders"] = backup_filter_rule.include_subfolders
+            filter_rule_data["truth"] = backup_filter_rule.truth
+            if isinstance(backup_filter_rule, BackupFilterRuleAttributesCtrl):
+                filter_rule_data["attribute_type"] = backup_filter_rule.attribute_type
+                filter_rule_data["attribute_value"] = backup_filter_rule.attribute_value
+            elif isinstance(backup_filter_rule, BackupFilterRuleDateCtrl):
+                filter_rule_data["timestamp_type"] = backup_filter_rule.timestamp_type
+                filter_rule_data["position"] = backup_filter_rule.position
+                filter_rule_data["reference_date_time_type"] = backup_filter_rule.reference_date_time_type
+                filter_rule_data["reference_date_time_timestamp"] = backup_filter_rule.reference_date_time_timestamp
+                filter_rule_data["reference_date_time_offsets"] = backup_filter_rule.reference_date_time_offsets
+            elif isinstance(backup_filter_rule, BackupFilterRulePathCtrl):
+                filter_rule_data["mode_path"] = backup_filter_rule.mode_path
+                filter_rule_data["match_case"] = backup_filter_rule.match_case
+                filter_rule_data["path_pattern"] = backup_filter_rule.path_pattern
+            elif isinstance(backup_filter_rule, BackupFilterRuleSizeCtrl):
+                filter_rule_data["mode_size"] = backup_filter_rule.mode_size
+                filter_rule_data["size"] = backup_filter_rule.size
+            filter_rules_data[filter_rule_id] = filter_rule_data
+        filter_rules_data_json = json.dumps(filter_rules_data, indent=4)
+        self._update([["filter_rules_data", filter_rules_data_json]], [["id", "=", self.backup_filter_id]])
+
 
 class BackupFiltersCtrl(bs.model.models.Filters):
     """ ..

@@ -191,7 +191,7 @@ class FilterEditView(FilterEditInterface):
                 modified = True
                 break
         # check rule views
-        for rule_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count()-1)]:
+        for rule_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count() - 1)]:
             if rule_view.is_modified:
                 modified = True
                 break
@@ -392,7 +392,7 @@ class FilterEditView(FilterEditInterface):
 
     def _pull_backup_filter_name(self, direction="pull"):
         if direction == "pull":
-            self._backup_filter_name_widget.setText(self._backup_filter.backup_filter_name) 
+            self._backup_filter_name_widget.setText(self._backup_filter.backup_filter_name)
         elif direction == "push":
             self._backup_filter.backup_filter_name = self._backup_filter_name_widget.text()
 
@@ -419,7 +419,7 @@ class FilterEditView(FilterEditInterface):
         """
         self.pull_data()
         # unhide all rule views
-        for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count()-1)]:
+        for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count() - 1)]:
             if filter_edit_view.isHidden():
                 filter_edit_view.show()
         self._update_event(self, False)
@@ -433,7 +433,7 @@ class FilterEditView(FilterEditInterface):
         """
         self._pull_backup_filter_name()
         self._pull_backup_filter_rules_mode()
-        for i in range(self._filter_rules_container._layout.count()-1):
+        for i in range(self._filter_rules_container._layout.count() - 1):
             widget = self._filter_rules_container._layout.itemAt(i).widget()
             widget.pull_data()
 
@@ -444,7 +444,7 @@ class FilterEditView(FilterEditInterface):
 
         Pushes all GUI data onto controllers.
         """
-        for i in range(self._filter_rules_container._layout.count()-1):
+        for i in range(self._filter_rules_container._layout.count() - 1):
             widget = self._filter_rules_container._layout.itemAt(i).widget()
             widget.push_data()
         self._push_backup_filter_name()
@@ -460,15 +460,16 @@ class FilterEditView(FilterEditInterface):
 
         Saves the backup-filter.
         """
-        # commit data from GUI to CTRL
-        self.push_data()
-        # delete rules deleted in GUI (hidden) from CTRL
-        for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count()-1)]:
-            if filter_edit_view.isHidden():
-                self._backup_filter.remove_backup_filter_rule(filter_edit_view.backup_filter_rule_ctrl)
-        # save data on CTRL
-
-        self._update_event(self, False)
+        if self.is_modified:
+            # commit data from GUI to CTRL
+            self.push_data()
+            # delete rules deleted in GUI (hidden) from CTRL
+            for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count() - 1)]:
+                if filter_edit_view.isHidden():
+                    self._backup_filter.remove_backup_filter_rule(filter_edit_view.backup_filter_rule_ctrl)
+            # save data on CTRL
+            self._backup_filter.save()
+            self._update_event(self, False)
 
     def _backup_filter_name_update_event(self, text):
         if self._backup_filter_name_widget.text() == self._backup_filter.backup_filter_name:
@@ -955,7 +956,6 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
     def _pull_attribute_value(self, direction="pull"):
         """ ..
         """
-        options = [True, False]
         if direction == "push":
             if self._attribute_value_widget.isVisible():
                 self._backup_filter_rule_ctrl.attribute_value = [self._attribute_value_widget.text(), None, None]
@@ -1525,7 +1525,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
 
     def _reference_date_time_offset_update_event(self, checked_text):
         """ ..
- 
+
         Event that fires when the "with an offset of" checkbox is clicked. \
         Shows/hides widgets used to specify the time-offset.
         """
