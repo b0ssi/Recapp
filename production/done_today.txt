@@ -2,8 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-26
+- Fixes details in the filter-controller's representation (that "verbalizes" the rules) that needed update due to change of attributes/'-names.
+
 2014-09-25
-- backup-filters get saved to db now.
+- Backup-filters get saved to db now.
 
 2014-09-25
 - Adds ability to remove filter-rule(-view) from backup-filter. Reverts it back onto filter on revert and removes permanently when saving (leaving particular filter edit context).
