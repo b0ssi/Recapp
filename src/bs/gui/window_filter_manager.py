@@ -126,7 +126,8 @@ class WindowFilterManager(QtGui.QMainWindow):
 
         Override. Saves the current filter when window is closed.
         """
-        self.current_filter_edit_view.save()
+        if isinstance(self.current_filter_edit_view, FilterEditView):
+            self.current_filter_edit_view.save()
 
 
 class FilterEditInterface(QtGui.QWidget):
@@ -209,6 +210,10 @@ class FilterEditView(FilterEditInterface):
         if index > 0:
             index = index - 1
         self._filter_rules_container._layout.insertWidget(index, widget)
+
+        # set new widget modified so it is saved even if not edited
+        widget._registered_widgets[widget._revert_widget] = True
+        self._update_event(self, True)
 
     def _add_view_attributes(self, backup_filter_rule=None):
         # create new controller if not provided
@@ -499,12 +504,14 @@ class FilterEditView(FilterEditInterface):
 
         Is called when a registered rule-widget is updated.
         """
-        if self.is_modified:
-            self._save_widget.setEnabled(True)
-            self._revert_widget.setEnabled(True)
-        else:
-            self._save_widget.setDisabled(True)
-            self._revert_widget.setDisabled(True)
+        if (self._save_widget and
+            self._revert_widget):
+            if self.is_modified:
+                self._save_widget.setEnabled(True)
+                self._revert_widget.setEnabled(True)
+            else:
+                self._save_widget.setDisabled(True)
+                self._revert_widget.setDisabled(True)
 
 
 class FilterEditEmptyView(FilterEditInterface):

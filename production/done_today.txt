@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-27
+- Fixes bug where initially empty filter would not have been saved after a first rule had been added in GUI.
+
 2014-09-26
 - Fixes details in the filter-controller's representation (that "verbalizes" the rules) that needed update due to change of attributes/'-names.
 
