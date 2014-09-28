@@ -74,7 +74,7 @@ class WindowFilterManager(QtGui.QMainWindow):
 
         :param bs.ctrl.session.BackupFilterCtrl backup_filter:
 
-        :rtype: `void`
+        :rtype: :class:`bs.gui.window_filter_manager.FilterEditView`
 
         Loads the filter ``backup_filter`` into the details widget.
         """
@@ -95,6 +95,7 @@ class WindowFilterManager(QtGui.QMainWindow):
         else:  # load details view
             widget = FilterEditView(self, backup_filter)
             self._layout.addWidget(widget, 0, 1, 1, 1)
+        return widget
 
     def refresh(self):
         """ ..
@@ -166,6 +167,7 @@ class FilterEditView(FilterEditInterface):
     _save_widget = None
     _revert_widget = None
     _backup_filter_name_widget = None
+    _update_signal = None
 
     def __init__(self, parent, backup_filter):
         """ ..
@@ -174,6 +176,9 @@ class FilterEditView(FilterEditInterface):
 
         self._backup_filter = backup_filter
         self._registered_widgets = {}  # holds all widgets to be watched for modification
+
+        self._update_signal = bs.utils.Signal()
+        self._update_signal.connect(self._update_event)
 
         self._init_ui()
 
@@ -198,22 +203,37 @@ class FilterEditView(FilterEditInterface):
                 break
         return modified
 
-    def _add_view(self, widget):
+    @property
+    def update_signal(self):
         """ ..
+
+        :type: `bs.ctrl.utils.Signal`
+
+        The signal emits when anything in the filter-ui has (been) updated.
+        """
+        return self._update_signal
+
+    def _add_view(self, widget, is_new=False):
+        """ ..
+
+        :param int is_new: Indicates whether or not this rule-widget is newly added to the filter. \
+        Will set the rule/filter as modified so it saves even if rule is not changed at all after \
+        adding.
 
         Does the tasks common to all self._add_view_* methods.
         """
         # register
         self._registered_widgets[widget] = False
-        widget.update_signal.connect(self._update_event)
+        widget.update_signal.connect(self._update_signal.emit)
         index = self._filter_rules_container._layout.count()
         if index > 0:
             index = index - 1
         self._filter_rules_container._layout.insertWidget(index, widget)
 
         # set new widget modified so it is saved even if not edited
-        widget._registered_widgets[widget._revert_widget] = True
-        self._update_event(self, True)
+        if is_new:
+            widget._registered_widgets[widget._revert_widget] = True
+            self.update_signal.emit()
 
     def _add_view_attributes(self, backup_filter_rule=None):
         # create new controller if not provided
@@ -229,7 +249,7 @@ class FilterEditView(FilterEditInterface):
         # add gui
         widget = FilterEditRuleAttributesView(self._filter_rules_container,
                                               backup_filter_rule)
-        self._add_view(widget)
+        self._add_view(widget, is_new=True)
 
     def _add_view_date(self, backup_filter_rule=None):
         # create new controller if not provided
@@ -248,7 +268,7 @@ class FilterEditView(FilterEditInterface):
         # add gui
         widget = FilterEditRuleDateView(self._filter_rules_container,
                                         backup_filter_rule)
-        self._add_view(widget)
+        self._add_view(widget, is_new=True)
 
     def _add_view_path(self, backup_filter_rule=None):
         # create new controller if not provided
@@ -265,7 +285,7 @@ class FilterEditView(FilterEditInterface):
         # add gui
         widget = FilterEditRulePathView(self._filter_rules_container,
                                         backup_filter_rule)
-        self._add_view(widget)
+        self._add_view(widget, is_new=True)
 
     def _add_view_size(self, backup_filter_rule=None):
         # create new controller if not provided
@@ -281,7 +301,7 @@ class FilterEditView(FilterEditInterface):
         # add gui
         widget = FilterEditRuleSizeView(self._filter_rules_container,
                                         backup_filter_rule)
-        self._add_view(widget)
+        self._add_view(widget, is_new=True)
 
     def _init_ui(self):
         """ ..
@@ -427,7 +447,7 @@ class FilterEditView(FilterEditInterface):
         for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count() - 1)]:
             if filter_edit_view.isHidden():
                 filter_edit_view.show()
-        self._update_event(self, False)
+        self._update_signal.emit()
 
     def pull_data(self):
         """ ..
@@ -474,15 +494,14 @@ class FilterEditView(FilterEditInterface):
                     self._backup_filter.remove_backup_filter_rule(filter_edit_view.backup_filter_rule_ctrl)
             # save data on CTRL
             self._backup_filter.save()
-            self._update_event(self, False)
+            self._update_signal.emit()
 
     def _backup_filter_name_update_event(self, text):
         if self._backup_filter_name_widget.text() == self._backup_filter.backup_filter_name:
             self._registered_widgets[self._backup_filter_name_widget] = False
         else:
             self._registered_widgets[self._backup_filter_name_widget] = True
-        self._update_event(self._backup_filter_name_widget,
-                           self._registered_widgets[self._backup_filter_name_widget])
+        self._update_signal.emit()
 
     def _backup_filter_rules_update_event(self, index):
         """ ..
@@ -496,16 +515,15 @@ class FilterEditView(FilterEditInterface):
             self._registered_widgets[self._filter_rules_mode_widget] = False
         else:
             self._registered_widgets[self._filter_rules_mode_widget] = True
-        self._update_event(self._filter_rules_mode_widget,
-                           self._registered_widgets[self._filter_rules_mode_widget])
+        self._update_signal.emit()
 
-    def _update_event(self, widget, modified):
+    def _update_event(self):
         """ ..
 
-        Is called when a registered rule-widget is updated.
+        Is called when a registered rule-widget or detail on filter itself \
+        (such as the name) is updated.
         """
-        if (self._save_widget and
-            self._revert_widget):
+        if (self._save_widget and self._revert_widget):
             if self.is_modified:
                 self._save_widget.setEnabled(True)
                 self._revert_widget.setEnabled(True)
@@ -694,8 +712,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         self.hide()
         self._registered_widgets[self._revert_widget] = True
-        self.update_signal.emit(self._revert_widget,
-                                self._registered_widgets[self._revert_widget])
+        self.update_signal.emit()
 
     def get_row_layout(self, row):
         """ ..
@@ -728,7 +745,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         # reset revert widget modification to mark it as not removed
         self._registered_widgets[self._revert_widget] = False
-        self._update_event(self, False)
+        self._update_event()
 
     def _file_folder_update_event(self, index):
         """ ..
@@ -746,8 +763,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._registered_widgets[self._file_folder_widget] = False
         else:
             self._registered_widgets[self._file_folder_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._file_folder_widget])
+        self.update_signal.emit()
         # update ui
         if index == 1:
             self._incl_subfolders_widget.hide()
@@ -767,8 +783,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._registered_widgets[self._incl_subfolders_widget] = False
         else:
             self._registered_widgets[self._incl_subfolders_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._incl_subfolders_widget])
+        self.update_signal.emit()
 
     def _truth_update_event(self, index):
         """ ..
@@ -782,10 +797,9 @@ class FilterEditRuleInterface(QtGui.QFrame):
             self._registered_widgets[self._truth_widget] = False
         else:
             self._registered_widgets[self._truth_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._truth_widget])
+        self.update_signal.emit()
 
-    def _update_event(self, widget, modified):
+    def _update_event(self):
         """ ..
 
         Fires when a registered widget is updated.
@@ -1020,7 +1034,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             # reset modification states
             for item in self._registered_widgets:
                 self._registered_widgets[item] = False
-            self.update_signal.emit(self, False)
+            self.update_signal.emit()
 
     def _attribute_type_update_event(self, index):
         """ ..
@@ -1073,8 +1087,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
         else:
             self._set_widget.hide()
 
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._attribute_type_widget])
+        self.update_signal.emit()
 
     def _attribute_value_widget_update_event(self, text):
         """ ..
@@ -1088,8 +1101,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._attribute_value_widget] = False
         else:
             self._registered_widgets[self._attribute_value_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._attribute_value_widget])
+        self.update_signal.emit()
 
     def _permissions_group_update_event(self, index):
         """ ..
@@ -1103,8 +1115,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._permissions_group_widget] = False
         else:
             self._registered_widgets[self._permissions_group_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._permissions_group_widget])
+        self.update_signal.emit()
 
     def _permissions_others_update_event(self, index):
         """ ..
@@ -1118,8 +1129,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._permissions_others_widget] = False
         else:
             self._registered_widgets[self._permissions_others_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._permissions_others_widget])
+        self.update_signal.emit()
 
     def _permissions_user_update_event(self, index):
         """ ..
@@ -1133,8 +1143,7 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             self._registered_widgets[self._permissions_user_widget] = False
         else:
             self._registered_widgets[self._permissions_user_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._permissions_user_widget])
+        self.update_signal.emit()
 
 
 class FilterEditRuleDateView(FilterEditRuleInterface):
@@ -1491,7 +1500,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             # reset modification states
             for item in self._registered_widgets:
                 self._registered_widgets[item] = False
-            self.update_signal.emit(self, False)
+            self.update_signal.emit()
 
     def _date_update_event(self, text):
         """ ..
@@ -1509,8 +1518,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._date_widget] = False
         else:
             self._registered_widgets[self._date_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._date_widget])
+        self.update_signal.emit()
 
     def _position_update_event(self, index):
         """ ..
@@ -1527,8 +1535,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._position_widget] = False
         else:
             self._registered_widgets[self._position_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._position_widget])
+        self.update_signal.emit()
 
     def _reference_date_time_offset_update_event(self, checked_text):
         """ ..
@@ -1577,8 +1584,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._time_offset_minutes.hide()
             self._time_offset_seconds.hide()
 
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._offset_check_box])
+        self.update_signal.emit()
 
     def _reference_date_time_type_update_event(self, index):
         """ ..
@@ -1606,8 +1612,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
         else:  # anything else is chosen. Deactivate date/time widgets
             self._date_widget.hide()
             self._time_widget.hide()
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._reference_date_time_type_widget])
+        self.update_signal.emit()
 
     def _time_check_box_update_event(self, state):
         """ ..
@@ -1643,8 +1648,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._time_check_box_widget] = False
         else:
             self._registered_widgets[self._time_check_box_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._time_check_box_widget])
+        self.update_signal.emit()
 
     def _timestamp_type_update_event(self, index):
         """ ..
@@ -1661,8 +1665,7 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
             self._registered_widgets[self._timestamp_type_widget] = False
         else:
             self._registered_widgets[self._timestamp_type_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._timestamp_type_widget])
+        self.update_signal.emit()
 
 
 class FilterEditRulePathView(FilterEditRuleInterface):
@@ -1804,7 +1807,7 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             # reset modification states
             for item in self._registered_widgets:
                 self._registered_widgets[item] = False
-            self.update_signal.emit(self, False)
+            self.update_signal.emit()
 
     def _mode_update_event(self, index):
         """ ..
@@ -1823,8 +1826,7 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._registered_widgets[self._mode_widget] = False
         else:
             self._registered_widgets[self._mode_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._mode_widget])
+        self.update_signal.emit()
 
     def _pattern_update_event(self, text):
         """ ..
@@ -1839,8 +1841,7 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._registered_widgets[self._pattern_widget] = False
         else:
             self._registered_widgets[self._pattern_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._pattern_widget])
+        self.update_signal.emit()
 
     def _match_case_update_event(self, code):
         """ ..
@@ -1855,8 +1856,7 @@ class FilterEditRulePathView(FilterEditRuleInterface):
             self._registered_widgets[self._match_case_widget] = False
         else:
             self._registered_widgets[self._match_case_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._match_case_widget])
+        self.update_signal.emit()
 
 
 class FilterEditRuleSizeView(FilterEditRuleInterface):
@@ -2033,7 +2033,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
             # reset modification states
             for item in self._registered_widgets:
                 self._registered_widgets[item] = False
-            self.update_signal.emit(self, False)
+            self.update_signal.emit()
 
     def _mode_size_update_event(self, index):
         """ ..
@@ -2052,8 +2052,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
             self._registered_widgets[self._mode_size_widget] = False
         else:
             self._registered_widgets[self._mode_size_widget] = True
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._mode_size_widget])
+        self.update_signal.emit()
 
     def _size_unit_update_event(self, value_index):
         """ ..
@@ -2071,8 +2070,7 @@ class FilterEditRuleSizeView(FilterEditRuleInterface):
         if int(value * pow(1024, self._unit_widget.currentIndex())) == self._backup_filter_rule_ctrl.size:
             self._registered_widgets[self._size_int_widget] = False
             self._registered_widgets[self._size_float_widget] = False
-        self.update_signal.emit(self,
-                                self._registered_widgets[self._size_float_widget])
+        self.update_signal.emit()
 
     def _unit_update_event(self, index):
         """ ..
@@ -2152,8 +2150,9 @@ class FilterListView(QtGui.QListWidget):
                 if backup_filter not in [x.backup_filter for x in self.items]:
                     item = FilterListItemView(backup_filter)
                     self.addItem(item)
-        # iterate through items and lock/unlock if necessary
+        # iterate through items
         for item in self.items:
+            # lock/unlock if necessary
             if not item.backup_filter.session.is_logged_in or not item.backup_filter.session.is_unlocked:
                 item.set_disabled()
             else:
@@ -2168,10 +2167,10 @@ class FilterListView(QtGui.QListWidget):
         """
         current_item = None
         if len(self.selectedItems()) > 0:
-            current_item = self.currentItem()
+            current_item = self.selectedItems()[0]
         if current_item:
             if current_item.is_enabled:
-                self._window_filter_manager.load_filter(current_item._backup_filter)
+                filter_view = self._window_filter_manager.load_filter(current_item._backup_filter)
 
 
 class FilterListItemView(QtGui.QListWidgetItem):

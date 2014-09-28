@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-28
+- Fixes bug where **previously** selected instead of current filter had been selected when **scrubbing** through filter list. Also fixes bug where filter had not been saved when first filter-rule was added on empty filter.
+
 2014-09-27
 - Fixes bug where initially empty filter would not have been saved after a first rule had been added in GUI.
 
