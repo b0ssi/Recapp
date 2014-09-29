@@ -65,6 +65,8 @@ class BackupFilterCtrl(bs.model.models.Filters):
                             (self._session.user.id, ))
             self._backup_filter_id = res.lastrowid
 
+        self._update_signal = bs.utils.Signal()
+
         self._backup_entity_ass = []
         self._backup_filter_rules = []
 
@@ -100,6 +102,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
     @backup_filter_rules_mode.setter
     def backup_filter_rules_mode(self, backup_filter_rules_mode):
         self._backup_filter_rules_mode = backup_filter_rules_mode
+        self._update_signal.emit()
 
     @property
     def backup_filter_name(self):
@@ -116,6 +119,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
     @backup_filter_name.setter
     def backup_filter_name(self, backup_filter_name):
         self._backup_filter_name = backup_filter_name
+        self._update_signal.emit()
 
     @property
     def backup_filter_rules(self):
@@ -245,6 +249,17 @@ class BackupFilterCtrl(bs.model.models.Filters):
         The corresponding :class:`bs.ctrl.session.SessionCtrl`.
         """
         return self._session
+
+    @property
+    def update_signal(self):
+        """ ..
+
+        :type: :class:`bs.utils.Signal`
+
+        This update signal signifies when a property of the filter is \
+        changed/updated.
+        """
+        return self._update_signal
 
     def add_backup_filter_rule(self, backup_filter_rule):
         """ ..

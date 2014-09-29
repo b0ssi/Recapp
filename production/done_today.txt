@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-29
+- Creates update signal on BackupFilterCtrl directly that fires when filter detail is changed/updated. Connects this signal directly to subscriber(s), list-view-items in filter-manager for now only.
+
 2014-09-28
 - Fixes bug where **previously** selected instead of current filter had been selected when **scrubbing** through filter list. Also fixes bug where filter had not been saved when first filter-rule was added on empty filter.
 

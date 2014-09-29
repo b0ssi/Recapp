@@ -29,6 +29,10 @@ Methods
    | :meth:`remove_backup_filter_rule`
    | :meth:`save`
 
+Signals
+=======
+   | :meth:`update_signal`
+
 Detailed Description
 ********************
 .. autoclass:: bs.ctrl.session.BackupFilterCtrl

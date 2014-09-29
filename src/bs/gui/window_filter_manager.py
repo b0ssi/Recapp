@@ -2170,7 +2170,7 @@ class FilterListView(QtGui.QListWidget):
             current_item = self.selectedItems()[0]
         if current_item:
             if current_item.is_enabled:
-                filter_view = self._window_filter_manager.load_filter(current_item._backup_filter)
+                self._window_filter_manager.load_filter(current_item._backup_filter)
 
 
 class FilterListItemView(QtGui.QListWidgetItem):
@@ -2189,6 +2189,12 @@ class FilterListItemView(QtGui.QListWidgetItem):
 
         self._backup_filter = backup_filter
         self._enabled = True
+
+        # TODO: refine. Why does list not list items when connecting signal to list item method?
+        # connect filter update signal to title
+        def refresh():
+            self.setText(self._backup_filter.backup_filter_name)
+        self._backup_filter.update_signal.connect(refresh)
 
         self._init_ui()
 
