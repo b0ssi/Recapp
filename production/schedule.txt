@@ -210,9 +210,9 @@
 				[X] add name and use as title on node ("Files > 1GiB"/".pdf Files")
 				[X] display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
 				[...] start writing filter-type classes (path, size, date, ...) and db serialization of said
-					[...] add filter manager
-						[...] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
-						[...] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
+					[x] add filter manager
+						[x] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
+						[x] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
 					[X] implement "and/or" association among filter rules
 					[ ] filter rule representation
 						[ ] update representation to implement all changed/new attributes

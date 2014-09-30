@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-30
+- Cleans up how the items in the list view of the filter-manager are refreshed, modifies the Signal class as it didn't connect a signal on a controller (BackupFilterCtrl) with an instance-method on a QListViewItem which seemed to have had to do with the fact that the Signal kept its handlers in a set(). When adding a handler to the set, code execution on that branch just stopped, w/o an exception, resulting in the list item not being initialized properly.
+
 2014-09-29
 - Creates update signal on BackupFilterCtrl directly that fires when filter detail is changed/updated. Connects this signal directly to subscriber(s), list-view-items in filter-manager for now only.
 
