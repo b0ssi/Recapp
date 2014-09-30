@@ -216,6 +216,7 @@
 					[...] filter rule representation
 >						[...] update representation to implement all changed/new attributes
 >						[...] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
+						[ ] hook up set-view filter-widgets to filter-ctrl update signal.
 						[x] implement "is/is not" per rule
 				[...] start implementing gui on filter node
 			[.] targets

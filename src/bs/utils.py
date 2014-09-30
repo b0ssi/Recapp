@@ -40,7 +40,7 @@ class Signal(object):
         return len(self.handlers)
 
     def __repr__(self):
-        return "Event (%s) <%s>" % (self.num_handlers(),
+        return "Event (%s) <%s>" % (self.num_handlers,
                                     self.__class__.__name__, )
 
     def connect(self, handler):
