@@ -2,6 +2,99 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-31
+- Adds target-selection list to set-creation-dialog; this also checks if at least one target was selected to be added to new set and complains if not.
+
+2014-09-30
+- Cleans up how the items in the list view of the filter-manager are refreshed, modifies the Signal class as it didn't connect a signal on a controller (BackupFilterCtrl) with an instance-method on a QListViewItem which seemed to have had to do with the fact that the Signal kept its handlers in a set(). When adding a handler to the set, code execution on that branch just stopped, w/o an exception, resulting in the list item not being initialized properly.
+
+2014-09-29
+- Creates update signal on BackupFilterCtrl directly that fires when filter detail is changed/updated. Connects this signal directly to subscriber(s), list-view-items in filter-manager for now only.
+
+2014-09-28
+- Fixes bug where **previously** selected instead of current filter had been selected when **scrubbing** through filter list. Also fixes bug where filter had not been saved when first filter-rule was added on empty filter.
+
+2014-09-27
+- Fixes bug where initially empty filter would not have been saved after a first rule had been added in GUI.
+
+2014-09-26
+- Fixes details in the filter-controller's representation (that "verbalizes" the rules) that needed update due to change of attributes/'-names.
+
+2014-09-25
+- Backup-filters get saved to db now.
+
+2014-09-25
+- Adds ability to remove filter-rule(-view) from backup-filter. Reverts it back onto filter on revert and removes permanently when saving (leaving particular filter edit context).
+
+2014-09-24
+- Adds ability to add filter-rules to filters; both on controller and in view.
+
+2014-09-24
+- Filter-views now safe automatically when new filter is loaded and/or window closed. Removes explicit save button (hidden for now); fully implements reset functionality.
+
+2014-09-23
+- Filter-view and all rule-views now fully notify and synchronize bi-directionally.
+
+2014-09-23
+- Filter-view: size and path now pull from and push to controller. This concludes all controller-view synchronization, bi-directionally.
+
+2014-09-22
+- Filter-view: date now fully pulls from and pushes to controller.
+
+2014-09-21
+- Filter-view: attributes and a few items of date now push their data back to their respective controller. Also adds save and revert buttons that call the push for all edited rules.
+
+2014-09-20
+- Amends and completes modification tracking on filter-view: date/time.
+
+2014-09-20
+- Installs modification tracking on filter-view: date/time.
+
+2014-09-19
+- Installs modification tracking on filter-view: attributes.
+
+2014-09-19
+- Adds transparency to the main logo in the log-in view.
+
+2014-09-18
+- Installs modification tracking on filter-view: path.
+
+2014-09-18
+- Installs modification tracking on filter-view: size that compares currently set values against saved values on controller, updates the modified state and emits a signal accordingly. Fixes minor issue in filter-rule-view layout where layout would jump if widgets were conditionally shown/hidden.
+
+2014-09-17
+- Binds filter-view mode selector to controller. Adds column to db to hold value, enums to filter controller.
+
+2014-09-17
+- Adds "include subfolders" to all filter-rule-views except for "path". Also adds a "File/Folder / File / Folder" drop down box to each filter view, except for "path". All these properties are also fully bound to their controllers. Cleans up the layout system, moving existing layouts into row layouts and moving these shared row layouts onto the interface.
+
+2014-09-16
+- Binds filter-edit-rule: attributes to their controller including their context-sensitive dependencies; extends the filter-rule-attributes controller to accommodate for necessary attribute data.
+
+2014-09-14
+- Binds the following filter-edit-rule views to their respective controller-data on init: size, path, date. Also implements full conditional widget-switching (e.g. time widget hides when "and time" tickbox is unticked). 
+
+2014-09-14
+- Optimizes layout of filter-edit-view: date/time. Adds the filter-edit-view: attribute and removes filter-edit-view: age (as age can already be expressed through date rule).
+
+2014-09-14
+- Adds initial GUI for backup-filter-rule-date.
+
+2014-09-13
+- In the backup-filter edit-view, adds scroll area for filter rules as well as initial rule widgets for size and path. Also extends view to change filter title, mode (and/or/xor) and adds a drop-down list to add a rule. 
+
+2014-09-13
+- Filter manager now refreshes directly on log-in/-out/lock/unlock signal. Did on focusIn before which was a bit dirty.
+
+2014-09-12
+- Filter manager now loads filter edit view when selecting filter in list.
+
+2014-09-10
+- Filter-list in filter-manager now lists available filters. It does session-state-sensitive refreshing, which means that it disables filters for sessions that are currently locked or logged-out all together (and re-enables if locked-in and unlocked).
+
+2014-09-10
+- Adds initial filter-manager window which is also accessible through main-menu -> window -> Filter-Manager
+
 2014-09-10
 - Backup-Set add dialog now responds to validation errors with a message popup specifying the exact error.
 

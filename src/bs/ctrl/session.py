@@ -14,6 +14,7 @@ import bs.config
 import bs.ctrl.backup
 import bs.gui.window_main
 import bs.gui.window_backup_monitor
+import bs.gui.window_filter_manager
 import bs.messages
 import bs.model.models
 import Crypto.Protocol.KDF
@@ -33,7 +34,8 @@ if platform.system().startswith("win"):
 class BackupFilterCtrl(bs.model.models.Filters):
     """ ..
 
-    :param bs.ctrl.session.SessionGuiCtrl session_gui: The session's GUI controller.
+    :param bs.ctrl.session.SessionCtrl session: The corresponding session \
+    controller.
     :param int backup_filter_id: The filter's ID identifying it uniquely in \
     the database.
 
@@ -45,15 +47,25 @@ class BackupFilterCtrl(bs.model.models.Filters):
 
     _backup_entity_ass = None
     _backup_filter_rules = None
+    _backup_filter_rules_mode = None
 
-    def __init__(self, session_gui, backup_filter_id):
-        self._session = session_gui
+    #: ..
+    backup_filter_rules_mode_and = "backup_filter_rules_mode_and"
+    #: ..
+    backup_filter_rules_mode_or = "backup_filter_rules_mode_or"
+    #: ..
+    backup_filter_rules_mode_xor = "backup_filter_rules_mode_xor"
+
+    def __init__(self, session, backup_filter_id):
+        self._session = session
         self._backup_filter_id = backup_filter_id
         # if flter_id == None, this is a new filter, add to database
         if not self._backup_filter_id:
             res = self._add("user_id",
                             (self._session.user.id, ))
             self._backup_filter_id = res.lastrowid
+
+        self._update_signal = bs.utils.Signal()
 
         self._backup_entity_ass = []
         self._backup_filter_rules = []
@@ -72,6 +84,27 @@ class BackupFilterCtrl(bs.model.models.Filters):
         return self._backup_filter_id
 
     @property
+    def backup_filter_rules_mode(self):
+        """ ..
+
+        :type: `enum`
+
+        The mode this filter's rules are to interpreted in. This is an enum on \
+        :class:`bs.ctrl.session.BackupFilterCtrl`.
+        """
+        if not self._backup_filter_rules_mode:
+            self._backup_filter_rules_mode = self._get("filter_rules_mode",
+                                                       (("user_id", "=", self._session.user.id, ),
+                                                        ("id", "=", self._backup_filter_id),
+                                                        ))[0][0]
+        return self._backup_filter_rules_mode
+
+    @backup_filter_rules_mode.setter
+    def backup_filter_rules_mode(self, backup_filter_rules_mode):
+        self._backup_filter_rules_mode = backup_filter_rules_mode
+        self._update_signal.emit()
+
+    @property
     def backup_filter_name(self):
         """ ..
 
@@ -82,6 +115,11 @@ class BackupFilterCtrl(bs.model.models.Filters):
         if not self._backup_filter_name:
             self._backup_filter_name = self._get("name", (("id", "=", self._backup_filter_id, ), ), )[0][0]
         return self._backup_filter_name
+
+    @backup_filter_name.setter
+    def backup_filter_name(self, backup_filter_name):
+        self._backup_filter_name = backup_filter_name
+        self._update_signal.emit()
 
     @property
     def backup_filter_rules(self):
@@ -105,6 +143,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                 category = data_sets[key_id]["category"]
                 file_folder = data_sets[key_id]["file_folder"]
                 include_subfolders = data_sets[key_id]["include_subfolders"]
+                truth = data_sets[key_id]["truth"]
                 # instantiate object
                 if category == BackupFilterRuleCtrl.category_size:
                     mode_size = data_sets[key_id]["mode_size"]
@@ -113,6 +152,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
+                                                   truth,
                                                    mode_size,
                                                    size)
                 if category == BackupFilterRuleCtrl.category_path:
@@ -123,53 +163,38 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
+                                                   truth,
                                                    mode_path,
                                                    match_case,
                                                    path_pattern)
                 if category == BackupFilterRuleCtrl.category_date:
                     timestamp_type = data_sets[key_id]["timestamp_type"]
                     position = data_sets[key_id]["position"]
-                    reference_date = data_sets[key_id]["reference_date"]
-                    offset = data_sets[key_id]["offset"]
+                    reference_date_time_type = data_sets[key_id]["reference_date_time_type"]
+                    reference_date_time_timestamp = data_sets[key_id]["reference_date_time_timestamp"]
+                    reference_date_time_offsets = data_sets[key_id]["reference_date_time_offsets"]
                     obj = BackupFilterRuleDateCtrl(key_id,
                                                    category,
                                                    file_folder,
                                                    include_subfolders,
+                                                   truth,
                                                    timestamp_type,
                                                    position,
-                                                   reference_date,
-                                                   offset)
+                                                   reference_date_time_type,
+                                                   reference_date_time_timestamp,
+                                                   reference_date_time_offsets)
                 if category == BackupFilterRuleCtrl.category_attributes:
-                    attribute = data_sets[key_id]["attribute"]
+                    attribute_type = data_sets[key_id]["attribute_type"]
+                    attribute_value = data_sets[key_id]["attribute_value"]
                     obj = BackupFilterRuleAttributesCtrl(key_id,
                                                          category,
                                                          file_folder,
                                                          include_subfolders,
-                                                         attribute)
-                self._backup_filter_rules.append(obj)
-            self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
+                                                         truth,
+                                                         attribute_type,
+                                                         attribute_value)
+                self.add_backup_filter_rule(obj)
         return self._backup_filter_rules
-
-#     @backup_filter_rules.setter
-#     def backup_filter_rules(self, backup_filter_rules):
-#         """ * """
-#         # VALIDATE DATA
-#         # backup_filter_rules
-#         if not re.match("$.*^", backup_filter_rules):
-#             logging.warning("%s: The backup_filter_rules contains invalid "\
-#                             "characters. It needs to start with an "\
-#                             "alphabetic and contain alphanumerical "\
-#                             "characters plus '\_\-\#' and space."
-#                             % (self.__class__.__name__, ))
-#             return False
-#         # change data in db
-#         self._update(
-#                      ("filter_pattern", backup_filter_rules, ),
-#                      ("id", "=", self._backup_filter_id, ),
-#                      )
-#         self._backup_filter_rules = backup_filter_rules
-#         # out
-#         return True
 
     @property
     def backup_entity_ass(self):
@@ -215,6 +240,46 @@ class BackupFilterCtrl(bs.model.models.Filters):
             self._backup_entity_ass = backup_entity_ass
         return self._backup_entity_ass
 
+    @property
+    def session(self):
+        """ ..
+
+        :rtype: :class:`bs.ctrl.session.SessionCtrl`
+
+        The corresponding :class:`bs.ctrl.session.SessionCtrl`.
+        """
+        return self._session
+
+    @property
+    def update_signal(self):
+        """ ..
+
+        :type: :class:`bs.utils.Signal`
+
+        This update signal signifies when a property of the filter is \
+        changed/updated.
+        """
+        return self._update_signal
+
+    def add_backup_filter_rule(self, backup_filter_rule):
+        """ ..
+
+        :param bs.ctrl.session.BackupFilterRuleCtrl backup_filter_rule:
+
+        :rtype: `boolean`
+
+        Adds a filter-rule to the filter. Returns ``True`` on success, ``False`` if filter already exists.
+        """
+        # set default id
+        if not backup_filter_rule.id:
+            backup_filter_rule.id = str(len(self._backup_filter_rules))
+        if backup_filter_rule not in self._backup_filter_rules:
+            self._backup_filter_rules.append(backup_filter_rule)
+            self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
+            return True
+        else:
+            return False
+
     def associate(self, backp_set, backup_entity):
         """ ..
 
@@ -239,6 +304,55 @@ class BackupFilterCtrl(bs.model.models.Filters):
         Breaks connection to a given :meth:`backup_entity_ass`
         """
         self._backup_entity_ass[backup_set].pop(self._backup_entity_ass[backup_set].index(backup_entity))
+
+    def remove_backup_filter_rule(self, backup_filter_rule):
+        """ ..
+
+        :rtype: `boolean`
+
+        Removes ``backup_filter_rule`` from backup-filter. Returns ``True`` \
+        on success, ``False`` if passed backup-filter-rule is not hosted by \
+        this backup-filter.
+        """
+        if backup_filter_rule in self._backup_filter_rules:
+            self._backup_filter_rules.remove(backup_filter_rule)
+            return True
+        else:
+            return False
+
+    def save(self):
+        """ ..
+
+        Saves the filter to the databse.
+        """
+        filter_rules_data = {}
+        for backup_filter_rule in self._backup_filter_rules:
+            filter_rule_id = backup_filter_rule.id
+            filter_rule_data = {}
+            # add fields
+            filter_rule_data["category"] = backup_filter_rule.category
+            filter_rule_data["file_folder"] = backup_filter_rule.file_folder
+            filter_rule_data["include_subfolders"] = backup_filter_rule.include_subfolders
+            filter_rule_data["truth"] = backup_filter_rule.truth
+            if isinstance(backup_filter_rule, BackupFilterRuleAttributesCtrl):
+                filter_rule_data["attribute_type"] = backup_filter_rule.attribute_type
+                filter_rule_data["attribute_value"] = backup_filter_rule.attribute_value
+            elif isinstance(backup_filter_rule, BackupFilterRuleDateCtrl):
+                filter_rule_data["timestamp_type"] = backup_filter_rule.timestamp_type
+                filter_rule_data["position"] = backup_filter_rule.position
+                filter_rule_data["reference_date_time_type"] = backup_filter_rule.reference_date_time_type
+                filter_rule_data["reference_date_time_timestamp"] = backup_filter_rule.reference_date_time_timestamp
+                filter_rule_data["reference_date_time_offsets"] = backup_filter_rule.reference_date_time_offsets
+            elif isinstance(backup_filter_rule, BackupFilterRulePathCtrl):
+                filter_rule_data["mode_path"] = backup_filter_rule.mode_path
+                filter_rule_data["match_case"] = backup_filter_rule.match_case
+                filter_rule_data["path_pattern"] = backup_filter_rule.path_pattern
+            elif isinstance(backup_filter_rule, BackupFilterRuleSizeCtrl):
+                filter_rule_data["mode_size"] = backup_filter_rule.mode_size
+                filter_rule_data["size"] = backup_filter_rule.size
+            filter_rules_data[filter_rule_id] = filter_rule_data
+        filter_rules_data_json = json.dumps(filter_rules_data, indent=4)
+        self._update([["filter_rules_data", filter_rules_data_json]], [["id", "=", self.backup_filter_id]])
 
 
 class BackupFiltersCtrl(bs.model.models.Filters):
@@ -368,10 +482,11 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 class BackupFilterRuleCtrl(object):
     """ ..
 
-    :param id: The filter-rule-attribute's ID.
-    :param category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param int id: The filter-rule-attribute's ID.
+    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    :param boolean truth: Indicates whether the rule is set to true ("is/does") or false ("is not/does not")
 
     This class is not to be instantiated directly but serves as an abstract
     superclass to
@@ -385,14 +500,33 @@ class BackupFilterRuleCtrl(object):
     _category = None  # enum (self.category_size, ...
     _file_folder = None  # enum (file/file_folder/folder)
     _include_subfolders = None
+    _truth = None  # is/is not / does/does not
 
     # enums
     #: ..
-    category_size = "category_size"
+    attribute_hidden = "attribute_hidden"
+    #: ..
+    attribute_group = "attribute_group"
+    #: ..
+    attribute_owner = "attribute_owner"
+    #: ..
+    attribute_win_archive = "attribute_win_archive"
+    #: ..
+    attribute_win_encrypted = "attribute_win_encrypted"
+    #: ..
+    attribute_win_offline = "attribute_win_offline"
+    #: ..
+    attribute_unix_permissions = "attribute_unix_permissions"
+    #: ..
+    attribute_win_read_only = "attribute_win_read_only"
+    #: ..
+    attribute_win_system = "attribute_win_system"
+    #: ..
+    category_date = "category_date"
     #: ..
     category_path = "category_path"
     #: ..
-    category_date = "category_date"
+    category_size = "category_size"
     #: ..
     category_attributes = "category_attributes"
     #: ..
@@ -412,33 +546,19 @@ class BackupFilterRuleCtrl(object):
     #: ..
     mode_size_larger = "mode_size_larger"
     #: ..
-    mode_path_match_pattern = "mode_path_match_pattern"
-    #: ..
-    mode_path_starts_with = "mode_path_starts_with"
+    mode_path_contains = "mode_path_contains"
     #: ..
     mode_path_ends_with = "mode_path_ends_with"
     #: ..
-    mode_path_contains = "mode_path_contains"
+    mode_path_match_pattern = "mode_path_match_pattern"
     #: ..
-    mode_path_matches = "mode_path_matches"
+    mode_path_match_regex = "mode_path_match_regex"
     #: ..
-    timestamp_type_cdate = "timestamp_type_cdate"
-    #: ..
-    timestamp_type_ctime = "timestamp_type_ctime"
-    #: ..
-    timestamp_type_mdate = "timestamp_type_mdate"
-    #: ..
-    timestamp_type_mtime = "timestamp_type_mtime"
-    #: ..
-    timestamp_type_adate = "timestamp_type_adate"
-    #: ..
-    timestamp_type_atime = "timestamp_type_atime"
+    mode_path_starts_with = "mode_path_starts_with"
     #: ..
     position_before = "position_before"
     #: ..
     position_on = "position_on"
-    #: ..
-    position_exactly = "position_exactly"
     #: ..
     position_after = "position_after"
     #: ..
@@ -452,25 +572,20 @@ class BackupFilterRuleCtrl(object):
     #: ..
     reference_date_fixed = "reference_date_fixed"
     #: ..
-    attribute_archive = "attribute_archive"
+    timestamp_type_ctime = "timestamp_type_ctime"
     #: ..
-    attribute_encrypted = "attribute_encrypted"
+    timestamp_type_mtime = "timestamp_type_mtime"
     #: ..
-    attribute_hidden = "attribute_hidden"
-    #: ..
-    attribute_offline = "attribute_offline"
-    #: ..
-    attribute_read_only = "attribute_read_only"
-    #: ..
-    attribute_system = "attribute_system"
+    timestamp_type_atime = "timestamp_type_atime"
 
-    def __init__(self, key_id, category, file_folder, include_subfolders):
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth):
         super(BackupFilterRuleCtrl, self).__init__()
 
         self._id = key_id
         self._category = category
         self._file_folder = file_folder
         self._include_subfolders = include_subfolders
+        self._truth = truth
 
     def __repr__(self):
         """ *
@@ -523,90 +638,90 @@ class BackupFilterRuleCtrl(object):
                 out_mode = "<b>ends with</b> "
             if self._mode_path == self.mode_path_contains:
                 out_mode = "<b>contains</b> "
-            if self._mode_path == self.mode_path_matches:
-                out_mode = "<b>matches</b> "
+            if self._mode_path == self.mode_path_match_pattern:
+                out_mode = "<b>matches pattern</b> "
+            if self._mode_path == self.mode_path_match_regex:
+                out_mode = "<b>matches regex</b> "
             if self._match_case:
                 out_match_case = ", matching case"
             out_attribution = "<b>%s</b>" % (self._path_pattern, )
         elif isinstance(self, BackupFilterRuleDateCtrl):
-            if self._timestamp_type == self.timestamp_type_cdate:
-                out_subject = "<b>Creation date</b> of "
-            elif self._timestamp_type == self.timestamp_type_ctime:
+            if self._timestamp_type == self.timestamp_type_ctime:
                 out_subject = "<b>Creation time</b> of "
-            elif self._timestamp_type == self.timestamp_type_mdate:
-                out_subject = "<b>Modification date</b> of "
             elif self._timestamp_type == self.timestamp_type_mtime:
                 out_subject = "<b>Modification time</b> of "
-            elif self._timestamp_type == self.timestamp_type_adate:
-                out_subject = "<b>Access date</b> of "
             elif self._timestamp_type == self.timestamp_type_atime:
                 out_subject = "<b>Access time</b> of "
             if self._position == self.position_before:
                 out_position = "is <b>before</b> "
             elif self._position == self.position_on:
                 out_position = "is <b>on</b> "
-            elif self._position == self.position_exactly:
-                out_position = "is <b>exactly</b> "
             elif self._position == self.position_after:
                 out_position = "is <b>after</b> "
-            if self._reference_date == self.reference_date_current_date:
+            if self._reference_date_time_type == self.reference_date_current_date:
                 out_reference_date = "<b>current date</b> "
-            elif self._reference_date == self.reference_date_file_backup:
+            elif self._reference_date_time_type == self.reference_date_file_backup:
                 out_reference_date = "<b>file backup</b> "
-            elif self._reference_date == self.reference_date_folder_backup:
+            elif self._reference_date_time_type == self.reference_date_folder_backup:
                 out_reference_date = "<b>folder backup</b> "
-            elif self._reference_date == self.reference_date_volume_backup:
+            elif self._reference_date_time_type == self.reference_date_volume_backup:
                 out_reference_date = "<b>volume backup</b> "
-            elif self._reference_date == self.reference_date_fixed:
+            elif self._reference_date_time_type == self.reference_date_fixed:
                 out_reference_date = "<b>fixed date</b> "
             # offset
-            if self._offset[1] == 1:
-                out_offset += ", <b>%s year</b>" % (self._offset[1], )
-            elif self._offset[1] > 1:
-                out_offset += ", <b>%s years</b>" % (self._offset[1], )
-            if self._offset[2] == 1:
-                out_offset += ", <b>%s month</b>" % (self._offset[2], )
-            elif self._offset[2] > 1:
-                out_offset += ", <b>%s months</b>" % (self._offset[2], )
-            if self._offset[3] == 1:
-                out_offset += ", <b>%s week</b>" % (self._offset[3], )
-            elif self._offset[3] > 1:
-                out_offset += ", <b>%s weeks</b>" % (self._offset[3], )
-            if self._offset[4] == 1:
-                out_offset += ", <b>%s day</b>" % (self._offset[4], )
-            elif self._offset[4] > 1:
-                out_offset += ", <b>%s days</b>" % (self._offset[4], )
-            if self._offset[5] == 1:
-                out_offset += ", <b>%s hour</b>" % (self._offset[5], )
-            elif self._offset[5] > 1:
-                out_offset += ", <b>%s hours</b>" % (self._offset[5], )
-            if self._offset[6] == 1:
-                out_offset += ", <b>%s minute</b>" % (self._offset[6], )
-            elif self._offset[6] > 1:
-                out_offset += ", <b>%s minutes</b>" % (self._offset[6], )
-            if self._offset[7] == 1:
-                out_offset += ", <b>%s second</b>" % (self._offset[7], )
-            elif self._offset[7] > 1:
-                out_offset += ", <b>%s seconds</b>" % (self._offset[7], )
+            if self._reference_date_time_offsets[1] == 1:
+                out_offset += ", <b>%s year</b>" % (self._reference_date_time_offsets[1], )
+            elif self._reference_date_time_offsets[1] > 1:
+                out_offset += ", <b>%s years</b>" % (self._reference_date_time_offsets[1], )
+            if self._reference_date_time_offsets[2] == 1:
+                out_offset += ", <b>%s month</b>" % (self._reference_date_time_offsets[2], )
+            elif self._reference_date_time_offsets[2] > 1:
+                out_offset += ", <b>%s months</b>" % (self._reference_date_time_offsets[2], )
+            if self._reference_date_time_offsets[3] == 1:
+                out_offset += ", <b>%s week</b>" % (self._reference_date_time_offsets[3], )
+            elif self._reference_date_time_offsets[3] > 1:
+                out_offset += ", <b>%s weeks</b>" % (self._reference_date_time_offsets[3], )
+            if self._reference_date_time_offsets[4] == 1:
+                out_offset += ", <b>%s day</b>" % (self._reference_date_time_offsets[4], )
+            elif self._reference_date_time_offsets[4] > 1:
+                out_offset += ", <b>%s days</b>" % (self._reference_date_time_offsets[4], )
+            if self._reference_date_time_offsets[5] == 1:
+                out_offset += ", <b>%s hour</b>" % (self._reference_date_time_offsets[5], )
+            elif self._reference_date_time_offsets[5] > 1:
+                out_offset += ", <b>%s hours</b>" % (self._reference_date_time_offsets[5], )
+            if self._reference_date_time_offsets[6] == 1:
+                out_offset += ", <b>%s minute</b>" % (self._reference_date_time_offsets[6], )
+            elif self._reference_date_time_offsets[6] > 1:
+                out_offset += ", <b>%s minutes</b>" % (self._reference_date_time_offsets[6], )
+            if self._reference_date_time_offsets[7] == 1:
+                out_offset += ", <b>%s second</b>" % (self._reference_date_time_offsets[7], )
+            elif self._reference_date_time_offsets[7] > 1:
+                out_offset += ", <b>%s seconds</b>" % (self._reference_date_time_offsets[7], )
             if out_offset != "":
                 out_offset = out_offset[2:]
-                if self._offset[0] == "+":
+                if self._reference_date_time_offsets[0] == 0:
                     out_offset += " <b>subsequent</b> to "
-                if self._offset[0] == "-":
+                if self._reference_date_time_offsets[0] == -1:
                     out_offset += " <b>prior</b> to "
         elif isinstance(self, BackupFilterRuleAttributesCtrl):
-            if self._attribute == self.attribute_read_only:
-                out_attribute_tmp = "<b>read only</b> "
-            elif self._attribute == self.attribute_hidden:
+            if self._attribute_type == self.attribute_hidden:
                 out_attribute_tmp = "<b>hidden</b> "
-            elif self._attribute == self.attribute_archive:
+            if self._attribute_type == self.attribute_group:
+                out_attribute_tmp = "<b>group</b> "
+            if self._attribute_type == self.attribute_owner:
+                out_attribute_tmp = "<b>owner</b> "
+            elif self._attribute_type == self.attribute_win_archive:
                 out_attribute_tmp = "<b>archive</b> "
-            elif self._attribute == self.attribute_system:
-                out_attribute_tmp = "<b>system</b> "
-            elif self._attribute == self.attribute_encrypted:
+            elif self._attribute_type == self.attribute_win_encrypted:
                 out_attribute_tmp = "<b>encrypted</b> "
-            elif self._attribute == self.attribute_offline:
+            elif self._attribute_type == self.attribute_win_offline:
                 out_attribute_tmp = "<b>offline</b> "
+            elif self._attribute_type == self.attribute_unix_permissions:
+                out_attribute_tmp = "<b>permissions</b> "
+            elif self._attribute_type == self.attribute_win_read_only:
+                out_attribute_tmp = "<b>read only</b> "
+            elif self._attribute_type == self.attribute_win_system:
+                out_attribute_tmp = "<b>system</b> "
             out_attribute = "has "
             out_attribute += out_attribute_tmp
             out_attribute += "flag set"
@@ -626,77 +741,291 @@ class BackupFilterRuleCtrl(object):
 
     @property
     def id(self):
+        """ ..
+
+        :type: `int`
+
+        Holds the id of the backup-filter.
+        """
         return self._id
+
+    @id.setter
+    def id(self, id):
+        self._id = id
 
     @property
     def category(self):
+        """ ..
+
+        :type: `string`
+
+        Holds a ``enum`` of :class:`bs.ctrl.session.BackupFilterRuleCtrl`.
+        """
         return self._category
+
+    @category.setter
+    def category(self, category):
+        self._category = category
 
     @property
     def file_folder(self):
+        """ ..
+
+        :type: `enum`
+
+        Holds an ``enum`` of :class:`bs.ctrl.session.BackupFilterRuleCtrl`.
+        """
         return self._file_folder
+
+    @file_folder.setter
+    def file_folder(self, file_folder):
+        self._file_folder = file_folder
 
     @property
     def include_subfolders(self):
+        """ ..
+
+        :type: `boolean`
+
+        Holds ``boolean`` that expresses whether or not subfolders are to be \
+        included.
+        """
         return self._include_subfolders
 
+    @include_subfolders.setter
+    def include_subfolders(self, include_subfolders):
+        self._include_subfolders = include_subfolders
 
-class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
+    @property
+    def truth(self):
+        """ ..
+
+        :rtype: `boolean`
+
+        Holds the truth value about this rule, as in "does/does not" and \
+        "is/is not" respectively.
+        """
+        return self._truth
+
+    @truth.setter
+    def truth(self, truth):
+        self._truth = truth
+
+
+class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_size: A *mode_size* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param int size: The *data-size* in bytes to be compared against.
 
-    This class represent a *file-/directory-size filter* that is set for a
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true ("is set") \
+    or false ("is not set")
+
+    :param enum attribute: An *attribute* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    This class represent a *file-attribute filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _mode_size = None  # >, >=, =, <=, <
-    _size = None  # int bytes
+    _attribute_type = None  # owner, group, backup flag, hidden flag/file prefix
+    _attribute_value = None  # list: [<username> | <group>] | [<x>, <w>, <r>]
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
-                 mode_size, size):
-        super(BackupFilterRuleSizeCtrl, self).__init__(key_id,
-                                                       category,
-                                                       file_folder,
-                                                       include_subfolders)
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
+                 attribute_type, attribute_value):
+        super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
+                                                             category,
+                                                             file_folder,
+                                                             include_subfolders,
+                                                             truth)
 
-        self._mode_size = mode_size
-        self._size = size
+        self._attribute_type = attribute_type
+        self._attribute_value = attribute_value
 
     @property
-    def mode_size(self):
+    def attribute_type(self):
         """
         :type: *enum*
 
-        The mode the size attribution is evaluated as.
+        The attribute type set on this object.
         """
-        return self._mode_size
+        return self._attribute_type
+
+    @attribute_type.setter
+    def attribute_type(self, attribute_type):
+        self._attribute_type = attribute_type
 
     @property
-    def size(self):
-        """
-        :type: *int*
+    def attribute_value(self):
+        """ ..
 
-        The size to be used as reference, in bytes.
+        :type: *list*: [<str username> | <str group>] | [<int x>, <int w>, <int r>]
+
+        The attribute value set on this object.
         """
-        return self._size
+        return self._attribute_value
+
+    @attribute_value.setter
+    def attribute_value(self, attribute_value):
+        self._attribute_value = attribute_value
+
+
+class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
+    """ ..
+
+    :param int id: The filter-rule-attribute's ID.
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true \
+    ("is set") or false ("is not set")
+
+    :param enum timestamp_type: A *typestamp_type* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum position: A *position* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum reference_date_time_type: A *reference_date* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param int reference_date_time_timestamp: The unix timestamp of \
+    the offset for a fixed reference date/time.
+
+    :param list reference_date_time_offsets: A list of offsets in the \
+    following format: \
+    ``[<int negative/positive>, <int years>, <int months>, <int weeks>, <int days>, <int hours>, <int minutes>, <int seconds>]``
+
+    This class represent a *date filter* that is set for a
+    :class:`~bs.ctrl.session.BackupFilterCtrl`.
+
+    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+    """
+    _timestamp_type = None  # cdate, ctime, mdate, mtime, ...
+    _position = None  # before, on, after, exactly
+    _reference_date_time_type = None  # current date, file, folder, volume backup, fixed date, ...
+    _reference_date_time_timestamp = None  # the timestamp for a fixed date.
+    _reference_date_time_offsets = None  # time offset in milliseconds
+
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
+                 timestamp_type, position, reference_date_time_type,
+                 reference_date_time_timestamp, reference_date_time_offsets):
+        super(BackupFilterRuleDateCtrl, self).__init__(key_id,
+                                                       category,
+                                                       file_folder,
+                                                       include_subfolders,
+                                                       truth)
+
+        self._timestamp_type = timestamp_type
+        self._position = position
+        self._reference_date_time_type = reference_date_time_type
+        self._reference_date_time_timestamp = reference_date_time_timestamp
+        self._reference_date_time_offsets = reference_date_time_offsets
+
+    @property
+    def position(self):
+        """
+        :type: *enum*
+
+        The position value set on this object.
+        """
+        return self._position
+
+    @position.setter
+    def position(self, position):
+        self._position = position
+
+    @property
+    def reference_date_time_offsets(self):
+        """
+        :type: *enum*
+
+        The time-offset value set on this object.
+        """
+        return self._reference_date_time_offsets
+
+    @reference_date_time_offsets.setter
+    def reference_date_time_offsets(self, reference_date_time_offsets):
+        self._reference_date_time_offsets = reference_date_time_offsets
+
+    @property
+    def reference_date_time_timestamp(self):
+        """
+        :type: *enum*
+
+        The timestamp for a fixed reference-time set on this object.
+        """
+        return self._reference_date_time_timestamp
+
+    @reference_date_time_timestamp.setter
+    def reference_date_time_timestamp(self, reference_date_time_timestamp):
+        self._reference_date_time_timestamp = reference_date_time_timestamp
+
+    @property
+    def reference_date_time_type(self):
+        """
+        :type: *enum*
+
+        The reference-date value set on this object.
+        """
+        return self._reference_date_time_type
+
+    @reference_date_time_type.setter
+    def reference_date_time_type(self, reference_date_time_type):
+        self._reference_date_time_type = reference_date_time_type
+
+    @property
+    def timestamp_type(self):
+        """
+        :type: *enum*
+
+        The timestamp-type value set on this object.
+        """
+        return self._timestamp_type
+
+    @timestamp_type.setter
+    def timestamp_type(self, timestamp_type):
+        self._timestamp_type = timestamp_type
 
 
 class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum mode_path: A *mode-path* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true ("is set") \
+    or false ("is not set")
+
+    :param enum mode_path: A *mode-path* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
     :param bool match_case: If `True`, filter will be evaluated case-sensitively.
+
     :param str path_pattern: The (file-/directory path-)pattern that is to be \
     matched.
 
@@ -709,12 +1038,13 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
     _match_case = None  # bool
     _path_pattern = None  # pattern, path, regex, ...
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
                  mode_path, match_case, path_pattern):
         super(BackupFilterRulePathCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
-                                                       include_subfolders)
+                                                       include_subfolders,
+                                                       truth)
 
         self._mode_path = mode_path
         self._match_case = match_case
@@ -729,6 +1059,10 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
         """
         return self._mode_path
 
+    @mode_path.setter
+    def mode_path(self, mode_path):
+        self._mode_path = mode_path
+
     @property
     def match_case(self):
         """
@@ -737,6 +1071,10 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
         If `True`, file-/directory paths will be evaluated case-sensitively.
         """
         return self._match_case
+
+    @match_case.setter
+    def match_case(self, match_case):
+        self._match_case = match_case
 
     @property
     def path_pattern(self):
@@ -747,111 +1085,77 @@ class BackupFilterRulePathCtrl(BackupFilterRuleCtrl):
         """
         return self._path_pattern
 
+    @path_pattern.setter
+    def path_pattern(self, path_pattern):
+        self._path_pattern = path_pattern
 
-class BackupFilterRuleDateCtrl(BackupFilterRuleCtrl):
+
+class BackupFilterRuleSizeCtrl(BackupFilterRuleCtrl):
     """ ..
 
     :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum timestamp_type: A *typestamp_type* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum position: A *position* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum reference_date: A *reference_date* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum offset: An *offset* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
 
-    This class represent a *date filter* that is set for a
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true ("is set") \
+    or false ("is not set")
+
+    :param enum mode_size: A *mode_size* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param int size: The *data-size* in bytes to be compared against.
+
+    This class represent a *file-/directory-size filter* that is set for a
     :class:`~bs.ctrl.session.BackupFilterCtrl`.
 
     **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
     """
-    _timestamp_type = None  # cdate, ctime, mdate, mtime, ...
-    _position = None  # before, on, after, exactly
-    _reference_date = None  # current date, file, folder, volume backup, fixed date, ...
-    _offset = None  # [years, months, weeks, days, hours, minutes, seconds]
+    _mode_size = None  # >, >=, =, <=, <
+    _size = None  # int bytes
 
-    def __init__(self, key_id, category, file_folder, include_subfolders,
-                 timestamp_type, position, reference_date, offset):
-        super(BackupFilterRuleDateCtrl, self).__init__(key_id,
+    def __init__(self, key_id, category, file_folder, include_subfolders, truth,
+                 mode_size, size):
+        super(BackupFilterRuleSizeCtrl, self).__init__(key_id,
                                                        category,
                                                        file_folder,
-                                                       include_subfolders)
+                                                       include_subfolders,
+                                                       truth)
 
-        self._timestamp_type = timestamp_type
-        self._position = position
-        self._reference_date = reference_date
-        self._offset = offset
+        self._mode_size = mode_size
+        self._size = size
 
     @property
-    def timestamp_type(self):
+    def mode_size(self):
         """
         :type: *enum*
 
-        The timestamp-type value set on this object.
+        The mode the size attribution is evaluated as.
         """
-        return self._timestamp_type
+        return self._mode_size
+
+    @mode_size.setter
+    def mode_size(self, mode_size):
+        self._mode_size = mode_size
 
     @property
-    def position(self):
+    def size(self):
         """
-        :type: *enum*
+        :type: *int*
 
-        The position value set on this object.
+        The size to be used as reference, in bytes.
         """
-        return self._position
+        return self._size
 
-    @property
-    def reference_date(self):
-        """
-        :type: *enum*
-
-        The reference-date value set on this object.
-        """
-        return self._reference_date
-
-    @property
-    def offset(self):
-        """
-        :type: *enum*
-
-        The time-offset value set on this object.
-        """
-        return self._offset
-
-
-class BackupFilterRuleAttributesCtrl(BackupFilterRuleCtrl):
-    """ ..
-
-    :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum attribute: An *attribute* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-
-    This class represent a *file-attribute filter* that is set for a
-    :class:`~bs.ctrl.session.BackupFilterCtrl`.
-
-    **Inherits from:** :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    """
-    _attribute = None
-
-    def __init__(self, key_id, category, file_folder, include_subfolders,
-                 attribute):
-        super(BackupFilterRuleAttributesCtrl, self).__init__(key_id,
-                                                             category,
-                                                             file_folder,
-                                                             include_subfolders)
-
-        self._attribute = attribute
-
-    @property
-    def attribute(self):
-        """
-        :type: *enum*
-
-        The attribute value set on this object.
-        """
-        return self._attribute
+    @size.setter
+    def size(self, size):
+        self._size = size
 
 
 class BackupSetCtrl(bs.model.models.Sets):
@@ -1444,7 +1748,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
 
         Raises an `Exception` with a tuple as its ``args`` field that contains
         a boolean value for each of the following test outcomes:
-        ``((<set_name_valid>, <msg>), (<key_raw_valid>, <msg>), <<set_db_path_valid>, <msg>))``
+        ``((<set_name_valid>, <msg>), (<key_raw_valid>, <msg>), (<set_db_path_valid>, <msg>), (<target_objs_valid>, <msg>))``
 
         Creates a new (empty) backup-set.
         """
@@ -1455,6 +1759,8 @@ class BackupSetsCtrl(bs.model.models.Sets):
         key_raw_msg = ""
         set_db_path_valid = True
         set_db_path_msg = ""
+        target_objs_valid = True
+        target_objs_msg = ""
         # set_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
             msg = "The name contains invalid characters: It needs to "\
@@ -1518,18 +1824,24 @@ class BackupSetsCtrl(bs.model.models.Sets):
                 if not isinstance(filter_obj, BackupFilterCtrl):
                     check = True
         # target_objs
-        if not isinstance(target_objs, (list, tuple)):
+        if len(target_objs) == 0:
+            msg = "At least one target needs to be added to the new backup-set."
+            logging.warning("%s: %s" % (msg, self.__class__.__name__, ))
+            target_objs_valid = False
+            target_objs_msg = msg
             check = True
         else:
             for target_obj in target_objs:
                 if not isinstance(target_obj, BackupTargetCtrl):
                     check = True
         # raise exception if necessary
-        if not set_name_valid or not key_raw_valid or not set_db_path_valid:
+        if (not set_name_valid or not key_raw_valid or not set_db_path_valid or
+                not target_objs_valid):
             e = Exception()
             e.args = ((set_name_valid, set_name_msg),
                       (key_raw_valid, key_raw_msg),
-                      (set_db_path_valid, set_db_path_msg)
+                      (set_db_path_valid, set_db_path_msg),
+                      (target_objs_valid, target_objs_msg)
                       )
             raise(e)
 
@@ -2086,7 +2398,7 @@ class BackupTargetsCtrl(bs.model.models.Targets):
 
         :type: *list*
 
-        Returns a list of all targets objects.
+        Returns a list of all :class:`bs.ctrl.session.BackupTargetCtrl` objects.
         """
         # targets list is empty, load from db
         if len(self._targets) == 0:
@@ -2232,6 +2544,10 @@ class BackupTargetsCtrl(bs.model.models.Targets):
 
 class SessionCtrl(object):
     """
+
+    :param bs.ctrl.session.SessionsCtrl sessions_ctrl: The central \
+    :class:`bs.ctrl.session.SessionsCtrl` hosting this session.
+
     Stores and manages contents of a single session. user, sources, targets,
     filters, sets, etc..
 
@@ -2245,8 +2561,9 @@ class SessionCtrl(object):
     _backup_sets = None
     _is_unlocked = None
     _is_logged_in = None
+    _sessions_ctrl = None
 
-    def __init__(self):
+    def __init__(self, sessions_ctrl):
         super(SessionCtrl, self).__init__()
 
         self._user = UserCtrl(self)
@@ -2256,6 +2573,7 @@ class SessionCtrl(object):
         self._backup_sets = BackupSetsCtrl(self)
         self._is_unlocked = False
         self._is_logged_in = False
+        self._sessions_ctrl = sessions_ctrl
 
     def __repr__(self):
         return(str((self._user,
@@ -2376,6 +2694,7 @@ class SessionCtrl(object):
                 self.is_logged_in = True
                 logging.info("%s: Session successfully logged in."
                              % (self.__class__.__name__, ))
+                self._sessions_ctrl.session_activity_signal.emit()
                 return True
             else:
                 logging.warning("%s: Session login failed: Invalid credentials."
@@ -2401,6 +2720,7 @@ class SessionCtrl(object):
             self.is_logged_in = False
             logging.info("%s: Session successfully logged out."
                          % (self.__class__.__name__, ))
+            self._sessions_ctrl.session_activity_signal.emit()
             return True
         else:
             logging.warning("%s: Session logout failed: Already logged out."
@@ -2419,6 +2739,7 @@ class SessionCtrl(object):
                 self.is_unlocked = False
                 logging.info("%s: Session successfully locked."
                              % (self.__class__.__name__, ))
+                self._sessions_ctrl.session_activity_signal.emit()
                 return True
             else:
                 logging.warning("%s: Session lock failed: Already locked."
@@ -2454,6 +2775,7 @@ class SessionCtrl(object):
                     self.is_unlocked = True
                     logging.info("%s: Session successfully unlocked."
                                  % (self.__class__.__name__, ))
+                    self._sessions_ctrl.session_activity_signal.emit()
                     return True
                 else:
                     logging.warning("%s: Session unlock failed: Invalid "
@@ -2482,13 +2804,16 @@ class SessionsCtrl(object):
     # gui
     _app = None
     _guis = None  # holds currently is_unlocked guis that (actively) respectively manage a session
+    _session_activity_signal = None
     _window_backup_monitor = None
+    _window_filter_manager = None
     _gui_mode = None
 
     def __init__(self, gui_mode=False):
         super(SessionsCtrl, self).__init__()
-        self._gui_mode = gui_mode
 
+        self._gui_mode = gui_mode
+        self._session_activity_signal = bs.utils.Signal()
         self._sessions = []
         self._guis = []
         # gui stuff
@@ -2496,6 +2821,7 @@ class SessionsCtrl(object):
             self._app = bs.gui.window_main.Application("recapp")
             self.add_session_gui()
             self._window_backup_monitor = bs.gui.window_backup_monitor.WindowBackupMonitor(self)
+            self._window_filter_manager = bs.gui.window_filter_manager.WindowFilterManager(self)
             self._app.exec_()
 
     def __repr__(self):
@@ -2522,15 +2848,12 @@ class SessionsCtrl(object):
         return self._guis
 
     @property
-    def window_backup_monitor(self):
+    def session_activity_signal(self):
         """ ..
 
-        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
-
-        The central Backup-Monitor window that displays stati of and \
-        management options for all dispatched backup-jobs.
+        This signal fires when a session loggs in, out, locks or unlocks.
         """
-        return self._window_backup_monitor
+        return self._session_activity_signal
 
     @property
     def sessions(self):
@@ -2540,6 +2863,29 @@ class SessionsCtrl(object):
         The :class:`~bs.ctrl.session.SessionsCtrl` this session is associated with.
         """
         return self._sessions
+
+    @property
+    def window_backup_monitor(self):
+        """ ..
+
+        :type: :class:`~bs.gui.window_backup_monitor.WindowBackupMonitor`
+
+        The central Backup-Monitor window that displays state of and \
+        management options for all dispatched and currently idle/active \
+        backup-jobs.
+        """
+        return self._window_backup_monitor
+
+    @property
+    def window_filter_manager(self):
+        """ ..
+
+        :type: :class:`~bs.gui.window_filter_manager.WindowFilterManager`
+
+        The central Filter-Manager window that displays all filters for the \
+        current user and offers editing and management options.
+        """
+        return self._window_filter_manager
 
     def add_session(self, username, password):
         """
@@ -2566,14 +2912,13 @@ class SessionsCtrl(object):
         # if no existing session for user was found
         if not new_session:
             # create new session
-            new_session = SessionCtrl()
+            new_session = SessionCtrl(self)
         # verify scenarios
-        if new_session.is_logged_in:
+        if new_session.is_logged_in:  # logged in but locked
             if not new_session.is_unlocked:
+                if new_session not in self._sessions:
+                    self._sessions.append(new_session)
                 if new_session.log_in(username, password):
-                    # add new_session to self._sessions
-                    if new_session not in self._sessions:
-                        self._sessions.append(new_session)
                     logging.info("%s: New session successfully unlocked."
                                  % (self.__class__.__name__, ))
                     return new_session
@@ -2582,20 +2927,20 @@ class SessionsCtrl(object):
                                     % (self.__class__.__name__, ))
                     return False
             else:
-                logging.warning("%s: The session for this user is already active."
-                                % (self.__class__.__name__, ))
+                logging.warning("%s: The session for this user is already "
+                                "active." % (self.__class__.__name__, ))
                 return -1
-        else:
+        else:  # not logged in, new session
+            self._sessions.append(new_session)
             if new_session.log_in(username, password):
-                # add new_session to self._sessions
-                if new_session not in self._sessions:
-                    self._sessions.append(new_session)
-                logging.info("%s: New session successfully logged in and unlocked."
-                             % (self.__class__.__name__, ))
+                logging.info("%s: New session successfully logged in and "
+                             "unlocked." % (self.__class__.__name__, ))
                 return new_session
             else:
                 logging.warning("%s: No session created: Log-on failed."
                                 % (self.__class__.__name__, ))
+                # remove session again since invalid
+                self._sessions.remove(new_session)
                 return False
 
     def add_session_gui(self):

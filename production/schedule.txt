@@ -23,7 +23,7 @@
 				> functions/methods
 			- check docstrings for validity
 				> parameters
-				> (r)types
+				> types
 				> description
 			> build docs
 > reset day-modification marks (".. x" -> "..")
@@ -177,41 +177,47 @@
 	[ ] remove unused imports
 	[ ] Make sure all modified-flags (*) are reset
 ################################################################################
-[.] ### NEXT MILESTONE: 0.0.3 ##
+[(X)] ### NEXT MILESTONE: 0.0.3 ##
 ################################
 (skipped due to inconsistency in version counting)
 ################################################################################
-[.] ### NEXT MILESTONE: 0.0.4 ##
+[...] ### NEXT MILESTONE: 0.0.4 ##
 ################################
-[.] views:
+[...] views:
 	[X] basic main-window
 	[X] basic login-view
-	[.] basic set-management view
-		[.] list widget for sets
-			[...] ability to create a new set
+	[...] basic set-management view
+		[X] list widget for sets
+			[X] ability to create a new set
+				[X] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
 			[X] ability to delete an existing set
 			[X] edit an existing set
 				[X] add an existing unused source
 				[X] add an existing unused filter
 				[X] remove a source in use by current set
 				[X] remove a filter in use by current set
-		[.] details widget to visualize/edit/execute etc. sets
+		[...] details widget to visualize/edit/execute etc. sets
 			[X] sources
 				[X] ability to add a source
 				[X] ability to remove a source
 				[X] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 					[(X)] install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
 						> installed on each backup_source, so central location can iterate over all backup_sources to do a batch-process
-			[.] filters
+			[...] filters
 				[X] ability to add a filter
 				[X] ability to remove a filter
 				[X] add name and use as title on node ("Files > 1GiB"/".pdf Files")
 				[X] display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
-				[.] start writing filter-type classes (path, size, date, ...) and db serialization of said
-					[ ] implement and/or association among filter rules
-					[ ] (better implicit that explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)__repr__: hide properties that are irrelevant for given combination or even contradictory/confusing
-					[ ] filterRule: implement "is/is not" per rule
-				[.] start implementing gui on filter node
+				[...] start writing filter-type classes (path, size, date, ...) and db serialization of said
+					[x] add filter manager
+						[x] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
+						[x] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
+					[X] implement "and/or" association among filter rules
+					[...] filter rule representation
+>						[...] update representation to implement all changed/new attributes
+>						[...] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
+						[x] implement "is/is not" per rule
+				[...] start implementing gui on filter node
 			[.] targets
 				[X] Nest all targets in targets main node~
 				[.] BackupTargetCtrl: status-check method (online, offline, locked/in use, etc.)
@@ -272,16 +278,6 @@
 							[ ] save to snapshot column in db
 							[ ] push log data to new log window in details-view
 	[X] window_about: Fill with simple info
-	[ ] refactor object/module/package/class names, implement consistent scheme
-		[ ] example!?
-		[ ] get rid of ``bs`` and move everything in ``bs`` into root of local path
-		[ ] move utils module into utils package
-		[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
-		[ ] view_sets.BS -> view_sets.BSMainView
-		[ ] view_sets -> view_bs
-		[ ] view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
-		[ ] view_login.ViewLogin -> view_login.LoginView
-		[ ] window_about.WindowAbout merge into window_main.WindowMainAbout
 	[X] implement consistent scheme for passing object-references into classes
 [X] controllers:
 	[X] refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
@@ -309,11 +305,25 @@
 				[ ] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 					[ ] implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
 						[ ] look into Qt animations (wading throbber e.g. while scanning~)
+			[ ] filters
+				[ ] add update signal so UIs update filter representation when changed (e.g. in filter manager)
 			[ ] targets
 				[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
 				[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
-			[ ] execution-panel...
-			[ ] Set-save: Optimize
+		[ ] arrows: implement and/or/xor selector
+		[ ] execution-panel...
+		[ ] Set-save: Optimize
+[ ] misc:
+	[ ] refactor object/module/package/class names, implement consistent scheme
+		[ ] example!?
+		[ ] get rid of ``bs`` and move everything in ``bs`` into root of local path
+		[ ] move utils module into utils package
+		[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
+		[ ] view_sets.BS -> view_sets.BSMainView
+		[ ] view_sets -> view_bs
+		[ ] view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
+		[ ] view_login.ViewLogin -> view_login.LoginView
+		[ ] window_about.WindowAbout merge into window_main.WindowMainAbout
 ################################
 [ ] ### Q/A ####################
 ################################
