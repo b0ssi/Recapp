@@ -531,7 +531,7 @@ class BSMenu(bs.gui.lib.BSDraggable):
         """
         if e.oldSize().width() > 0:
             x = self._x_c - self.width() / 2
-            y = self._y_c - self.height() / 2
+#             y = self._y_c - self.height() / 2
             scale_factor_x = (e.size().width() / e.oldSize().width())
             scale_factor_y = (e.size().height() / e.oldSize().height())
             delta_y = e.size().height() - e.oldSize().height()
@@ -734,7 +734,7 @@ class BSMenuItemAddDialog(QtGui.QDialog):
         """ ..
         """
         layout = QtGui.QGridLayout(self)
-        #title
+        # title
         self.setWindowTitle("Add new Backup-Set")
         # set name
         self._input_name_title = QtGui.QLabel("Please specify a name for the "

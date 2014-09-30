@@ -8,10 +8,11 @@ Synopsis
 
 Instance-Variables
 ==================
-	| :attr:`offset`
-	| :attr:`position`
-	| :attr:`reference_date`
-	| :attr:`timestamp_type`
+   | :attr:`position`
+   | :attr:`reference_date_time_offsets`
+   | :attr:`reference_date_time_timestamp`
+   | :attr:`reference_date_time_type`
+   | :attr:`timestamp_type`
 
 Methods
 =======
@@ -19,4 +20,4 @@ Methods
 Detailed Description
 ********************
 .. autoclass:: bs.ctrl.session.BackupFilterRuleDateCtrl
-	:members:
+   :members:

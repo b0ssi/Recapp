@@ -8,7 +8,8 @@ Synopsis
 
 Instance-Variables
 ==================
-	| :attr:`attribute`
+   | :attr:`attribute_type`
+   | :attr:`attribute_value`
 
 Methods
 =======
@@ -16,4 +17,4 @@ Methods
 Detailed Description
 ********************
 .. autoclass:: bs.ctrl.session.BackupFilterRuleAttributesCtrl
-	:members:
+   :members:

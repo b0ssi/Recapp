@@ -27,22 +27,47 @@ class Signal(object):
     handlers = None
 
     def __init__(self):
-        self.handlers = set()
+        self.handlers = []
+
+    @property
+    def num_handlers(self):
+        """ ..
+
+        :type: `int`
+
+        The number of handlers currently registered with the signal.
+        """
+        return len(self.handlers)
 
     def __repr__(self):
         return "Event (%s) <%s>" % (self.num_handlers(),
                                     self.__class__.__name__, )
 
     def connect(self, handler):
-        """ * """
-        self.handlers.add(handler)
-        logging.debug("%s: '%s' successfully added to handlers."
-                      % (self.__class__.__name__,
-                         handler, ))
+        """ ..
+
+        :param method/function handler: The method or function to be connected to the signal.
+
+        Connects ``handler`` to the signal, getting it to call ``handler`` on :meth:`emit`.
+        """
+        if handler not in self.handlers:
+            self.handlers.append(handler)
+            logging.debug("%s: '%s' successfully added to handlers."
+                          % (self.__class__.__name__,
+                             handler, ))
+        else:
+            logging.debug("%s: '%s' is already connected."
+                          % (self.__class__.__name__,
+                             handler, ))
         return self
 
     def disconnect(self, handler):
-        """ * """
+        """ ..
+
+        :param method/function handler: The method or function to be disconnected from the signal.
+
+        Disconnects ``handler`` to the signal.
+        """
         try:
             self.handlers.remove(handler)
             logging.debug("%s: Handler '%s' successfully removed from event "
@@ -57,7 +82,10 @@ class Signal(object):
         return self
 
     def emit(self, *args, **kwargs):
-        """ * """
+        """ ..
+
+        Emits the signal. Any arguments and/or keyword-arguments can be passed to this method which will then be passed onto the called handler.
+        """
         # if a handler does not exist anymore (because its bound object has
         # been deleted e.g., disconnect the handler.
         # Otherwise, call it.
@@ -86,10 +114,6 @@ class Signal(object):
         # disconnect
         for handler_to_disconnect in handlers_to_disconnect:
             self.disconnect(handler_to_disconnect)
-
-    def num_handlers(self):
-        """ * """
-        return len(self.handlers)
 
     __iadd__ = connect
     __isub__ = disconnect

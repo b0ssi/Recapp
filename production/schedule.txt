@@ -23,7 +23,7 @@
 				> functions/methods
 			- check docstrings for validity
 				> parameters
-				> (r)types
+				> types
 				> description
 			> build docs
 > reset day-modification marks (".. x" -> "..")
@@ -190,6 +190,7 @@
 	[...] basic set-management view
 		[...] list widget for sets
 			[...] ability to create a new set
+				[...] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
 			[X] ability to delete an existing set
 			[X] edit an existing set
 				[X] add an existing unused source
@@ -209,10 +210,15 @@
 				[X] add name and use as title on node ("Files > 1GiB"/".pdf Files")
 				[X] display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
 				[...] start writing filter-type classes (path, size, date, ...) and db serialization of said
-					[ ] implement and/or association among filter rules
-					[ ] (better implicit that explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)__repr__: hide properties that are irrelevant for given combination or even contradictory/confusing
-					[ ] filterRule: implement "is/is not" per rule
-				[.] start implementing gui on filter node
+					[x] add filter manager
+						[x] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
+						[x] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
+					[X] implement "and/or" association among filter rules
+					[ ] filter rule representation
+						[ ] update representation to implement all changed/new attributes
+						[ ] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
+						[x] implement "is/is not" per rule
+				[...] start implementing gui on filter node
 			[.] targets
 				[X] Nest all targets in targets main node~
 				[.] BackupTargetCtrl: status-check method (online, offline, locked/in use, etc.)
@@ -310,11 +316,14 @@
 				[ ] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
 					[ ] implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
 						[ ] look into Qt animations (wading throbber e.g. while scanning~)
+			[ ] filters
+				[ ] add update signal so UIs update filter representation when changed (e.g. in filter manager)
 			[ ] targets
 				[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
 				[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
-			[ ] execution-panel...
-			[ ] Set-save: Optimize
+		[ ] arrows: implement and/or/xor selector
+		[ ] execution-panel...
+		[ ] Set-save: Optimize
 ################################
 [ ] ### Q/A ####################
 ################################

@@ -8,10 +8,13 @@ Synopsis
 
 Instance-Variables
 ==================
-	| :attr:`file_size`
+	| :attr:`num_handlers`
 
 Methods
 =======
+   | :meth:`connect`
+   | :meth:`disconnect`
+   | :meth:`emit`
 
 Detailed Description
 ********************

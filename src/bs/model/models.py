@@ -41,6 +41,7 @@ class Filters(bs.model.models_master.BSModel):
     id = ["INTEGER", "PRIMARY KEY"]
     user_id = ["INTEGER"]
     filter_rules_data = ["TEXT"]
+    filter_rules_mode = ["TEXT"]
     name = ["TEXT"]
 
     def __init__(self):

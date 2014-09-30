@@ -21,9 +21,8 @@ if "-dev" in sys.argv:
     json_obj = {}
     json_obj["BUILD_TIMESTAMP"] = time.time()
 
-    f = open(bs_config_path, "w")
-    json.dump(json_obj, f)
-    f.close()
+    with open(bs_config_path, "w") as f:
+        json.dump(json_obj, f)
 
 # ---------------------------------------------------------- read data from JSON
 d = {}
@@ -35,7 +34,7 @@ BUILD_TIMESTAMP = d.get("BUILD_TIMESTAMP", 0)
 
 # Static Data
 PROJECT_NAME = "Recapp"
-VERSION = "0.0.3.16"
+VERSION = "0.0.3.42"
 
 COPYRIGHT_TIMEFRAME = "2012-%s" % (time.strftime("%Y"), )
 COPYRIGHT_HOLDER = "Frieder Czeschla"

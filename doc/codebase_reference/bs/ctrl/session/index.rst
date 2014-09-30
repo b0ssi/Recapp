@@ -2,26 +2,26 @@ session
 #######
 
 .. automodule:: bs.ctrl.session
-	:platform: Windows
-	:synopsis: Package containing the backup-session, -set, -source, -filter, -target logic and all its infrastrucutre.
+   :platform: Windows
+   :synopsis: Package containing the backup-session, -set, -source, -filter, -target logic and all its infrastrucutre.
 
 .. toctree::
-	:titlesonly:
+   :titlesonly:
 
-	BackupFilterCtrl
-	BackupFilterRuleAttributesCtrl
-	BackupFilterRuleCtrl
-	BackupFilterRuleDateCtrl
-	BackupFilterRulePathCtrl
-	BackupFilterRuleSizeCtrl
-	BackupFiltersCtrl
-	BackupSetCtrl
-	BackupSetsCtrl
-	BackupSourceCtrl
-	BackupSourcesCtrl
-	BackupTargetCtrl
-	BackupTargetsCtrl
-	SessionCtrl
-	SessionGuiCtrl
-	SessionsCtrl
-	UserCtrl
+   BackupFilterCtrl
+   BackupFilterRuleCtrl
+   BackupFilterRuleAttributesCtrl
+   BackupFilterRuleDateCtrl
+   BackupFilterRulePathCtrl
+   BackupFilterRuleSizeCtrl
+   BackupFiltersCtrl
+   BackupSetCtrl
+   BackupSetsCtrl
+   BackupSourceCtrl
+   BackupSourcesCtrl
+   BackupTargetCtrl
+   BackupTargetsCtrl
+   SessionCtrl
+   SessionGuiCtrl
+   SessionsCtrl
+   UserCtrl

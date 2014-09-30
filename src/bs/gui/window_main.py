@@ -135,6 +135,13 @@ class WindowMain(QtGui.QMainWindow):
 
     @property
     def view(self):
+        """ ..
+
+        :rtype: :class:`bs.gui.view_login.ViewLogin`
+
+        The main view the window currently holds. This could be the
+        login- or the sets-view for instance.
+        """
         return self._view
 
     def _init_ui(self):
@@ -291,6 +298,11 @@ class WindowMain(QtGui.QMainWindow):
             # close backup-monitor
             if len(self._sessions.guis) == 1:
                 if not self._sessions.window_backup_monitor.request_exit():
+                    e.ignore()
+                    return False
+            # close filter-manager
+            if len(self._sessions.guis) == 1:
+                if not self._sessions.window_filter_manager.request_exit():
                     e.ignore()
                     return False
             # close main-window/exit application
@@ -560,12 +572,13 @@ class WindowMainMenuWindow(QtGui.QMenu):
     """
     _backup_sessions = None
     _action_backup_monitor = None
+    _action_filter_manager = None
 
     def __init__(self, window_main_menu, backup_sessions):
         """ ..
 
         """
-        super(WindowMainMenuWindow, self).__init__("Window", window_main_menu)
+        super(WindowMainMenuWindow, self).__init__("&Window", window_main_menu)
 
         self._backup_sessions = backup_sessions
 
@@ -576,9 +589,13 @@ class WindowMainMenuWindow(QtGui.QMenu):
 
         """
         # backup-manager
-        self._action_backup_monitor = QtGui.QAction("Backup-Monitor", self)
+        self._action_backup_monitor = QtGui.QAction("&Backup-Monitor", self)
         self._action_backup_monitor.triggered.connect(self._show_backup_monitor)
         self.addAction(self._action_backup_monitor)
+        # filter-manager
+        self._action_filter_manager = QtGui.QAction("&Filter-Manager", self)
+        self._action_filter_manager.triggered.connect(self._show_filter_manager)
+        self.addAction(self._action_filter_manager)
 
     def _show_backup_monitor(self):
         """ ..
@@ -587,3 +604,11 @@ class WindowMainMenuWindow(QtGui.QMenu):
         """
         self._backup_sessions.window_backup_monitor.show()
         self._backup_sessions.window_backup_monitor.raise_()
+
+    def _show_filter_manager(self):
+        """ ..
+
+        Shows (un-hides) the filters-manager if hidden.
+        """
+        self._backup_sessions.window_filter_manager.show()
+        self._backup_sessions.window_filter_manager.raise_()

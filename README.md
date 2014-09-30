@@ -18,7 +18,7 @@ Some of the main features include:
 
 Some facts & statistics about this project:
 
-- Codebase > **11.000 lines**
+- Codebase > **14.000 lines**
 - Written in **Python**; linked against: **PySide**
 - **Concurrent**, well **scalable architecture** for use on multi-PE systems to deliver **parallelized**, rapid execution-throughput and -speed
 - **Cross-Platform** (Linux, Windows (Windows 98 - Windows 7/8))
