@@ -1748,7 +1748,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
 
         Raises an `Exception` with a tuple as its ``args`` field that contains
         a boolean value for each of the following test outcomes:
-        ``((<set_name_valid>, <msg>), (<key_raw_valid>, <msg>), <<set_db_path_valid>, <msg>))``
+        ``((<set_name_valid>, <msg>), (<key_raw_valid>, <msg>), (<set_db_path_valid>, <msg>), (<target_objs_valid>, <msg>))``
 
         Creates a new (empty) backup-set.
         """
@@ -1759,6 +1759,8 @@ class BackupSetsCtrl(bs.model.models.Sets):
         key_raw_msg = ""
         set_db_path_valid = True
         set_db_path_msg = ""
+        target_objs_valid = True
+        target_objs_msg = ""
         # set_name
         if not re.match(bs.config.REGEX_PATTERN_NAME, set_name):
             msg = "The name contains invalid characters: It needs to "\
@@ -1822,18 +1824,24 @@ class BackupSetsCtrl(bs.model.models.Sets):
                 if not isinstance(filter_obj, BackupFilterCtrl):
                     check = True
         # target_objs
-        if not isinstance(target_objs, (list, tuple)):
+        if len(target_objs) == 0:
+            msg = "At least one target needs to be added to the new backup-set."
+            logging.warning("%s: %s" % (msg, self.__class__.__name__, ))
+            target_objs_valid = False
+            target_objs_msg = msg
             check = True
         else:
             for target_obj in target_objs:
                 if not isinstance(target_obj, BackupTargetCtrl):
                     check = True
         # raise exception if necessary
-        if not set_name_valid or not key_raw_valid or not set_db_path_valid:
+        if (not set_name_valid or not key_raw_valid or not set_db_path_valid or
+                not target_objs_valid):
             e = Exception()
             e.args = ((set_name_valid, set_name_msg),
                       (key_raw_valid, key_raw_msg),
-                      (set_db_path_valid, set_db_path_msg)
+                      (set_db_path_valid, set_db_path_msg),
+                      (target_objs_valid, target_objs_msg)
                       )
             raise(e)
 
@@ -2390,7 +2398,7 @@ class BackupTargetsCtrl(bs.model.models.Targets):
 
         :type: *list*
 
-        Returns a list of all targets objects.
+        Returns a list of all :class:`bs.ctrl.session.BackupTargetCtrl` objects.
         """
         # targets list is empty, load from db
         if len(self._targets) == 0:

@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-09-31
+- Adds target-selection list to set-creation-dialog; this also checks if at least one target was selected to be added to new set and complains if not.
+
 2014-09-30
 - Cleans up how the items in the list view of the filter-manager are refreshed, modifies the Signal class as it didn't connect a signal on a controller (BackupFilterCtrl) with an instance-method on a QListViewItem which seemed to have had to do with the fact that the Signal kept its handlers in a set(). When adding a handler to the set, code execution on that branch just stopped, w/o an exception, resulting in the list item not being initialized properly.
 

@@ -53,7 +53,7 @@ class BS(QtGui.QFrame):
 
         """
         self.setGeometry(0, 0, self.parent().width(), self.parent().height())
-        self._menu_sets = BSMenu(self, self._backup_sets)
+        self._menu_sets = BSMenu(self._session_gui.session, self, self._backup_sets)
         self._bs_sets_canvas = BSSetsCanvas(self, self._menu_sets, self._app)
 
     @property
@@ -405,17 +405,21 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
 class BSMenu(bs.gui.lib.BSDraggable):
     """ ..
 
-    """
-    _bs = None
-    _backup_sets = None
+    :param bs.ctrl.session.Session backup_session:
 
+    :param bs.gui.view_sets.BS bs:
+
+    :param bs.ctrl.session.BackupSetsCtrl backup_sets:
+
+    """
     _x_c = None
     _y_c = None
     _btn_save = None
 
-    def __init__(self, bs, backup_sets):
+    def __init__(self, backup_session, bs, backup_sets):
         super(BSMenu, self).__init__(bs)
 
+        self._backup_session = backup_session
         self._bs = bs
         self._backup_sets = backup_sets
 
@@ -468,7 +472,7 @@ class BSMenu(bs.gui.lib.BSDraggable):
             widget = BSMenuItem(self, backup_set, self._bs, self._backup_sets)
             self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
         # add button
-        btn_add = BSMenuItemAdd(self)
+        btn_add = BSMenuItemAdd(self._backup_session, self)
         self._layout.addWidget(btn_add, self._layout.count(), 0, 1, 1)
         # spacer widget
         widget = QtGui.QWidget(self)
@@ -640,18 +644,19 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
 class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
     """ ..
 
+    :param bs.ctrl.session.Session backup_session:
+
     :param bs.gui.view_sets.BSMenu bs_menu: The menu that hosts this button.
 
     This class represents the single button to be used in
     :class:`bs.gui.view_sets.BSMenu` that adds a new backup-set.
     """
-    _bs_menu = None
-
-    def __init__(self, bs_menu):
+    def __init__(self, backup_session, bs_menu):
         """ ..
         """
         super(BSMenuItemAdd, self).__init__(bs_menu)
 
+        self._backup_session = backup_session
         self._bs_menu = bs_menu
 
         self._init_ui()
@@ -698,8 +703,8 @@ class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
         """
         super(BSMenuItemAdd, self).mouseReleaseEvent(e)
 
-        # launch dialog to enter details and crete backup-set
-        BSMenuItemAddDialog(self._bs_menu.backup_sets)
+        # launch dialog to enter details and create backup-set
+        BSMenuItemAddDialog(self._backup_session)
         # refresh menu
         self._bs_menu.refresh()
 
@@ -707,13 +712,12 @@ class BSMenuItemAdd(bs.gui.lib.BSNodeItem):
 class BSMenuItemAddDialog(QtGui.QDialog):
     """ ..
 
-    :param bs.ctrl.session.BackupSetsCtrl backup_sets: The\
-    :class:`bs.ctrl.session.BackupSetsCtrl` of the current session.
+    :param bs.ctrl.session.Session backup_session: The\
+    :class:`bs.ctrl.session.Session` of the current session.
 
     This is the dialog window where particulars about the backup-set to be
     added are specified.
     """
-    _backup_sets = None
     _input_name = None
     _input_name_title = None
     _inpub_db_path = None
@@ -721,12 +725,13 @@ class BSMenuItemAddDialog(QtGui.QDialog):
     _input_pw = None
     _input_pw_title = None
 
-    def __init__(self, backup_sets):
+    def __init__(self, backup_session):
         """ ..
         """
         super(BSMenuItemAddDialog, self).__init__()
 
-        self._backup_sets = backup_sets
+        self._backup_session = backup_session
+        self._backup_sets = backup_session.backup_sets
 
         self._init_ui()
 
@@ -749,20 +754,32 @@ class BSMenuItemAddDialog(QtGui.QDialog):
         layout.addWidget(self._input_db_path_title, 2, 0, 1, 3)
         self._input_db_path = QtGui.QLineEdit()
         layout.addWidget(self._input_db_path, 3, 0, 1, 3)
+        # set filter
+        self._input_target_title = QtGui.QLabel("Please select the targets "\
+                                                "you wish to add to the new "\
+                                                "set.")
+        layout.addWidget(self._input_target_title, 4, 0, 1, 3)
+        self._input_target = QtGui.QListWidget(self)
+        self._input_target.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
+        for backup_target in self._backup_session.backup_targets.targets:
+            item = QtGui.QListWidgetItem(backup_target.target_name)
+            item.backup_target = backup_target
+            self._input_target.addItem(item)
+        layout.addWidget(self._input_target, 5, 0, 1, 3)
         # set pw
         self._input_pw_title = QtGui.QLabel("Please specify a password:")
-        layout.addWidget(self._input_pw_title, 4, 0, 1, 3)
+        layout.addWidget(self._input_pw_title, 6, 0, 1, 3)
         self._input_pw = QtGui.QLineEdit()
         self._input_pw.setEchoMode(QtGui.QLineEdit.Password)
-        layout.addWidget(self._input_pw, 5, 0, 1, 3)
+        layout.addWidget(self._input_pw, 7, 0, 1, 3)
         # add button
         btn_add = QtGui.QPushButton("&Add")
         btn_add.clicked.connect(self._submit)
-        layout.addWidget(btn_add, 6, 1, 1, 1)
+        layout.addWidget(btn_add, 8, 1, 1, 1)
         # cancel button
         btn_cancel = QtGui.QPushButton("&Cancel")
         btn_cancel.clicked.connect(self.close)
-        layout.addWidget(btn_cancel, 6, 2, 1, 1)
+        layout.addWidget(btn_cancel, 8, 2, 1, 1)
         self.exec_()
 
     def _submit(self):
@@ -772,12 +789,13 @@ class BSMenuItemAddDialog(QtGui.QDialog):
         Verifies entered data by attempting to add the backup-set.
         """
         try:
+            backup_targets = [x.backup_target for x in self._input_target.selectedItems()]
             self._backup_sets.create_backup_set(self._input_name.text(),
                                                 self._input_pw.text(),
                                                 self._input_db_path.text(),
                                                 [],
                                                 [],
-                                                []
+                                                backup_targets
                                                 )
             # close
             self.close()
@@ -801,7 +819,13 @@ class BSMenuItemAddDialog(QtGui.QDialog):
                 err += "- %s\n" % e.args[2][1]
             else:
                 self._input_db_path_title.setStyleSheet("")
-            # promt error dialog
+            # target_objs
+            if not e.args[3][0]:
+                self._input_target_title.setStyleSheet("color: red")
+                err += "- %s\n" % e.args[3][1]
+            else:
+                self._input_target_title.setStyleSheet("")
+            # prompt error dialog
             if err != "":
                 msg_box = QtGui.QMessageBox()
                 msg_box.setWindowTitle("Validation error")

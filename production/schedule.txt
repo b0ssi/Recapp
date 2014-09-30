@@ -184,13 +184,12 @@
 [...] ### NEXT MILESTONE: 0.0.4 ##
 ################################
 [...] views:
->>>>>>> feature_add_backup_set
 	[X] basic main-window
 	[X] basic login-view
 	[...] basic set-management view
-		[...] list widget for sets
-			[...] ability to create a new set
-				[...] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
+		[X] list widget for sets
+			[X] ability to create a new set
+				[X] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
 			[X] ability to delete an existing set
 			[X] edit an existing set
 				[X] add an existing unused source
@@ -214,9 +213,9 @@
 						[x] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
 						[x] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
 					[X] implement "and/or" association among filter rules
-					[ ] filter rule representation
-						[ ] update representation to implement all changed/new attributes
-						[ ] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
+					[...] filter rule representation
+>						[...] update representation to implement all changed/new attributes
+>						[...] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
 						[x] implement "is/is not" per rule
 				[...] start implementing gui on filter node
 			[.] targets
@@ -279,16 +278,6 @@
 							[ ] save to snapshot column in db
 							[ ] push log data to new log window in details-view
 	[X] window_about: Fill with simple info
-	[ ] refactor object/module/package/class names, implement consistent scheme
-		[ ] example!?
-		[ ] get rid of ``bs`` and move everything in ``bs`` into root of local path
-		[ ] move utils module into utils package
-		[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
-		[ ] view_sets.BS -> view_sets.BSMainView
-		[ ] view_sets -> view_bs
-		[ ] view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
-		[ ] view_login.ViewLogin -> view_login.LoginView
-		[ ] window_about.WindowAbout merge into window_main.WindowMainAbout
 	[X] implement consistent scheme for passing object-references into classes
 [X] controllers:
 	[X] refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
@@ -324,6 +313,17 @@
 		[ ] arrows: implement and/or/xor selector
 		[ ] execution-panel...
 		[ ] Set-save: Optimize
+[ ] misc:
+	[ ] refactor object/module/package/class names, implement consistent scheme
+		[ ] example!?
+		[ ] get rid of ``bs`` and move everything in ``bs`` into root of local path
+		[ ] move utils module into utils package
+		[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
+		[ ] view_sets.BS -> view_sets.BSMainView
+		[ ] view_sets -> view_bs
+		[ ] view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
+		[ ] view_login.ViewLogin -> view_login.LoginView
+		[ ] window_about.WindowAbout merge into window_main.WindowMainAbout
 ################################
 [ ] ### Q/A ####################
 ################################
