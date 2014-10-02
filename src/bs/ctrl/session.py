@@ -102,7 +102,6 @@ class BackupFilterCtrl(bs.model.models.Filters):
     @backup_filter_rules_mode.setter
     def backup_filter_rules_mode(self, backup_filter_rules_mode):
         self._backup_filter_rules_mode = backup_filter_rules_mode
-        self._update_signal.emit()
 
     @property
     def backup_filter_name(self):
@@ -119,7 +118,6 @@ class BackupFilterCtrl(bs.model.models.Filters):
     @backup_filter_name.setter
     def backup_filter_name(self, backup_filter_name):
         self._backup_filter_name = backup_filter_name
-        self._update_signal.emit()
 
     @property
     def backup_filter_rules(self):
@@ -353,6 +351,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
             filter_rules_data[filter_rule_id] = filter_rule_data
         filter_rules_data_json = json.dumps(filter_rules_data, indent=4)
         self._update([["filter_rules_data", filter_rules_data_json]], [["id", "=", self.backup_filter_id]])
+        self._update_signal.emit()
 
 
 class BackupFiltersCtrl(bs.model.models.Filters):

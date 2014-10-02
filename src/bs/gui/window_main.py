@@ -50,28 +50,24 @@ class Application(QtGui.QApplication):
     def idle_1s_timer(self, arg):
         self._idle_1s_timer = arg
 
-    def notify(self, *args, **kwargs):
+    def notify(self, receiver, e):
         """ ..
 
         """
-        receiver = args[0]
-        e = args[1]
-        if isinstance(e, QtCore.QEvent):
-            if (e.type() == QtCore.QEvent.KeyPress or
-                    e.type() == QtCore.QEvent.MouseMove and
-                    self._idle_1s_timer.isActive()):
-                self._idle_1s_timer.start()
-            # global_mouse_pos
-            if e.type() == QtCore.QEvent.Type.MouseMove:
-                self.global_mouse_pos_signal.emit(e)
-            # global_mouse_press
-            if e.type() == QtCore.QEvent.Type.MouseButtonPress:
-                self.global_mouse_press_signal.emit(receiver, e)
-            # global_mouse_release
-            if e.type() == QtCore.QEvent.Type.MouseButtonRelease:
-                self.global_mouse_release_signal.emit(receiver, e)
-            return QtGui.QApplication.notify(self, *args, **kwargs)
-        return True
+        if (e.type() == QtCore.QEvent.KeyPress or
+                e.type() == QtCore.QEvent.MouseMove and
+                self._idle_1s_timer.isActive()):
+            self._idle_1s_timer.start()
+        # global_mouse_pos
+        if e.type() == QtCore.QEvent.Type.MouseMove:
+            self.global_mouse_pos_signal.emit(e)
+        # global_mouse_press
+        if e.type() == QtCore.QEvent.Type.MouseButtonPress:
+            self.global_mouse_press_signal.emit(receiver, e)
+        # global_mouse_release
+        if e.type() == QtCore.QEvent.Type.MouseButtonRelease:
+            self.global_mouse_release_signal.emit(receiver, e)
+        return QtGui.QApplication.notify(self, receiver, e)
 
 
 class WindowMain(QtGui.QMainWindow):

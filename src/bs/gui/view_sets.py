@@ -235,6 +235,11 @@ class BSFilter(bs.gui.lib.BSNode):
 
         self._init_ui()
 
+        self._backup_entity.update_signal.connect(self._refresh)
+
+    def __del__(self):
+        self._backup_entity.update_signal.disconnect(self._refresh)
+
     @property
     def backup_entity(self):
         """ ..
@@ -246,7 +251,7 @@ class BSFilter(bs.gui.lib.BSNode):
         """ ..
 
         """
-        self.setMaximumWidth(400)
+#         self.setMaximumWidth(400)
         # css
         self.css = ((self,
                      ".",
@@ -269,15 +274,53 @@ class BSFilter(bs.gui.lib.BSNode):
                      ),
                     )
         # title
-        self.title_text = self._backup_entity.backup_filter_name
         self.title_size = 13
+        self._refresh()
+        self.show()
+
+    def _refresh(self):
+        """ ..
+
+        Refreshes the ui, (re-)populating it with its rules.
+        """
+        # title
+        self.title_text = self._backup_entity.backup_filter_name
         # backup-filter items
+        while True:
+            child = self._custom_contents_container._layout.takeAt(0)
+            if not child:
+                break
+            child.widget().deleteLater()
         for backup_filter_rule in self._backup_entity.backup_filter_rules:
             widget = BSFilterItem(self, backup_filter_rule)
             self._custom_contents_container._layout.addWidget(widget,
                                                               self._custom_contents_container._layout.count(),
                                                               0, 1, 1)
-        self.show()
+            widget.resize(widget.sizeHint())
+        self._custom_contents_container.resize(self._custom_contents_container.sizeHint())
+        self.resize(self.sizeHint())
+        try:
+            print("--------")
+            target = self
+            print("Node:            \t%s %s" % (target.geometry(),
+                                    target.sizeHint()))
+            target = self._layout
+            print("Own layout:      \t%s %s" % (target.geometry(),
+                                      target.sizeHint()))
+            target = self._layout.itemAt(0).widget()
+            print("Title:           \t%s %s" % (target.geometry(),
+                                      target.sizeHint()))
+            target = self._custom_contents_container
+            print("Container:       \t%s %s" % (target.geometry(),
+                                      target.sizeHint()))
+            target = self._custom_contents_container._layout
+            print("Container Layout:\t%s %s" % (target.geometry(),
+                                      target.sizeHint()))
+            target = self._custom_contents_container._layout.itemAt(0).widget()
+            print("Rule:            \t%s %s" % (target.geometry(),
+                                      target.sizeHint()))
+        except:
+            pass
 
     def mousePressEvent(self, e):
         """ ..

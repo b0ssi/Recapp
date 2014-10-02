@@ -2,7 +2,10 @@
 ## DONE TODAY ##################
 ################################
 
-2014-09-31
+2014-10-02
+- Fixes bug where a signal from a QWidgetItem would have been sent to QApplication.notify() due to a filter-rule widget/item not properly removed and deleted from the filter-view in the set manager.
+
+2014-10-01
 - Adds target-selection list to set-creation-dialog; this also checks if at least one target was selected to be added to new set and complains if not.
 
 2014-09-30
