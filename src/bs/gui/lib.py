@@ -1070,7 +1070,7 @@ class BSNode(BSDraggable):
             self._conn_pad = BSNodeConnPad()
             self._layout.addWidget(self._conn_pad, 0, 1, 2, 1)
         # geometry
-        self.setMinimumWidth(170)
+#         self.setMinimumWidth(170)
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
         gfx.setOffset(0)
@@ -1336,8 +1336,9 @@ class BSNodeItem(BSFrame):
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(11, 0, 6, 0)
-        self.setMinimumHeight(25)
+#         self.setMinimumHeight(25)
         self._title = QtGui.QLabel("")
+        self._title.setWordWrap(True)
         self._layout.addWidget(self._title, 0, 0, 1, 1)
 
     @property

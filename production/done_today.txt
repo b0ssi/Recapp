@@ -3,6 +3,9 @@
 ################################
 
 2014-10-03
+- Fixes a (terribly painful) layouting problem in the filter-(rule-)nodes' QLabels. They now display correctly and are not getting cropped.
+
+2014-10-03
 - Fixes and cleans up a whole lot in the bs-view-menu layouting; cleans up a few details around the core system
 
 2014-10-02

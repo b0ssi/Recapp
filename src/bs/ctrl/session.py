@@ -137,7 +137,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
                                   )[0][0]
             data_sets = json.loads(data_sets)
             # extract data_set, generate filter_rule objects
-            for key_id in data_sets.keys():
+            for key_id in sorted(data_sets.keys()):
                 category = data_sets[key_id]["category"]
                 file_folder = data_sets[key_id]["file_folder"]
                 include_subfolders = data_sets[key_id]["include_subfolders"]

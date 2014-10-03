@@ -225,10 +225,7 @@ class FilterEditView(FilterEditInterface):
         # register
         self._registered_widgets[widget] = False
         widget.update_signal.connect(self._update_signal.emit)
-        index = self._filter_rules_container._layout.count()
-        if index > 0:
-            index = index - 1
-        self._filter_rules_container._layout.insertWidget(index, widget)
+        self._filter_rules_container._layout.addWidget(widget)
 
         # set new widget modified so it is saved even if not edited
         if is_new:

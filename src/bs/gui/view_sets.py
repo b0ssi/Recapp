@@ -250,7 +250,8 @@ class BSFilter(bs.gui.lib.BSNode):
         """ ..
 
         """
-#         self.setMaximumWidth(400)
+        self.setMaximumWidth(200)
+        self.setMinimumWidth(200)
         # css
         self.css = ((self,
                      ".",
@@ -285,25 +286,45 @@ class BSFilter(bs.gui.lib.BSNode):
         # title
         self.title_text = self._backup_entity.backup_filter_name
         # backup-filter items
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self._custom_contents_container.layout().setContentsMargins(0, 0, 0, 0)
+
         while True:
             child = self._custom_contents_container._layout.takeAt(0)
             if not child:
                 break
             child.widget().deleteLater()
         for backup_filter_rule in self._backup_entity.backup_filter_rules:
-            widget = BSFilterItem(self, backup_filter_rule)
+            widget = BSFilterItem(self._custom_contents_container, backup_filter_rule)
             self._custom_contents_container._layout.addWidget(widget,
                                                               self._custom_contents_container._layout.count(),
                                                               0, 1, 1)
-            widget.resize(widget.sizeHint())
             widget.show()
-        self._custom_contents_container.resize(self._custom_contents_container.sizeHint())
-        self.show()
-        self.updateGeometry()
-        self.update()
-        self.resize(self.sizeHint())
+            # ------------------------------------------------------------------
+            # GETTING THE QLabel TO ADJUST IN SIZE **CORRECTLY**
+            # The width of the (label-)widget **as it displays** has to be
+            # taken and the ``heightForWidth`` be calculated from it and set as
+            # minimum/maximum height.
+            # ------------------------------------------------------------------
+#             w = widget._title.width()
+#             h = widget._title.heightForWidth(w)
+#             margins_v = widget.layout().contentsMargins().top() + widget.layout().contentsMargins().bottom()
+#             widget.setMinimumHeight(h + margins_v)
+#             widget.setMaximumHeight(h + margins_v)
+            # ------------------------------------------------------------------
+        # Here we "pull" the main node widget long enough for everything to fit
+        # in, calculating the ``heightForWidth`` for the whole lot.
+        w = self.width()
+        h = self.heightForWidth(w)
+
+        # if recommended height is > 0 (curiously only, if rule widgets are in layout...)
+        if h > 0:
+            self.resize(w, h)
+        # only adjustSize as this resizes to sizeHint, which would crop widgets
+        # in some cases in contrast to resizing to ``widthForHeight``.
+        if self._custom_contents_container.layout().count() == 0:
+            self.adjustSize()
+        # updates layout after resize
+        self._custom_contents_container.layout().update()
+        self.layout().update()
 
     def mousePressEvent(self, e):
         """ ..
@@ -311,14 +332,16 @@ class BSFilter(bs.gui.lib.BSNode):
         """
         super(BSFilter, self).mousePressEvent(e)
 
+        self._refresh()
+
         self._mouse_press_event_pos = e.globalPos()
 
     def mouseReleaseEvent(self, e):
         """ ..
-
+ 
         """
         super(BSFilter, self).mouseReleaseEvent(e)
-
+ 
         # emit modified-signal, only if mouse has actually moved
         if self._mouse_press_event_pos != e.globalPos():
             self._bs.set_modified()
@@ -414,8 +437,6 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
                       }
                      ),
                     )
-        self._title.setDisabled(True)
-        self._title.setWordWrap(True)
         self._layout.setContentsMargins(self._layout.contentsMargins().left(),
                                         5,
                                         self._layout.contentsMargins().right(),
