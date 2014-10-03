@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-10-04
+- Fixes minor regression; ensures that filter-rule-views are loaded in correct sequence order into filter-view in filter-manager. Also fixes minor file-creation-test issue in set-creation routines that worked unter linux fs but not on windows fs.
+
 2014-10-03
 - Fixes a (terribly painful) layouting problem in the filter-(rule-)nodes' QLabels. They now display correctly and are not getting cropped.
 

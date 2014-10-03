@@ -225,7 +225,12 @@ class FilterEditView(FilterEditInterface):
         # register
         self._registered_widgets[widget] = False
         widget.update_signal.connect(self._update_signal.emit)
-        self._filter_rules_container._layout.addWidget(widget)
+        if is_new:
+            index = self._filter_rules_container._layout.count() - 1
+        else:
+            index = self._filter_rules_container._layout.count()
+        self._filter_rules_container._layout.insertWidget(index,
+                                                          widget)
 
         # set new widget modified so it is saved even if not edited
         if is_new:
@@ -234,6 +239,7 @@ class FilterEditView(FilterEditInterface):
 
     def _add_view_attributes(self, backup_filter_rule=None):
         # create new controller if not provided
+        is_new = False
         if not backup_filter_rule:
             backup_filter_rule = bs.ctrl.session.BackupFilterRuleAttributesCtrl(key_id=None,
                                                                                 category=bs.ctrl.session.BackupFilterRuleCtrl.category_attributes,
@@ -243,13 +249,15 @@ class FilterEditView(FilterEditInterface):
                                                                                 attribute_type=bs.ctrl.session.BackupFilterRuleCtrl.attribute_owner,
                                                                                 attribute_value=["", None, None])
             self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+            is_new = True
         # add gui
         widget = FilterEditRuleAttributesView(self._filter_rules_container,
                                               backup_filter_rule)
-        self._add_view(widget, is_new=True)
+        self._add_view(widget, is_new)
 
     def _add_view_date(self, backup_filter_rule=None):
         # create new controller if not provided
+        is_new = False
         if not backup_filter_rule:
             backup_filter_rule = bs.ctrl.session.BackupFilterRuleDateCtrl(key_id=None,
                                                                           category=bs.ctrl.session.BackupFilterRuleCtrl.category_date,
@@ -262,13 +270,15 @@ class FilterEditView(FilterEditInterface):
                                                                           reference_date_time_timestamp=0,
                                                                           reference_date_time_offsets=[0, 0, 0, 0, 0, 0, 0, 0])
             self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+            is_new = True
         # add gui
         widget = FilterEditRuleDateView(self._filter_rules_container,
                                         backup_filter_rule)
-        self._add_view(widget, is_new=True)
+        self._add_view(widget, is_new)
 
     def _add_view_path(self, backup_filter_rule=None):
         # create new controller if not provided
+        is_new = False
         if not backup_filter_rule:
             backup_filter_rule = bs.ctrl.session.BackupFilterRulePathCtrl(key_id=None,
                                                                           category=bs.ctrl.session.BackupFilterRuleCtrl.category_path,
@@ -279,13 +289,15 @@ class FilterEditView(FilterEditInterface):
                                                                           match_case=False,
                                                                           path_pattern="")
             self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+            is_new = True
         # add gui
         widget = FilterEditRulePathView(self._filter_rules_container,
                                         backup_filter_rule)
-        self._add_view(widget, is_new=True)
+        self._add_view(widget, is_new)
 
     def _add_view_size(self, backup_filter_rule=None):
         # create new controller if not provided
+        is_new = False
         if not backup_filter_rule:
             backup_filter_rule = bs.ctrl.session.BackupFilterRuleSizeCtrl(key_id=None,
                                                                           category=bs.ctrl.session.BackupFilterRuleCtrl.category_size,
@@ -295,10 +307,11 @@ class FilterEditView(FilterEditInterface):
                                                                           mode_size=bs.ctrl.session.BackupFilterRuleCtrl.mode_size_smaller_equal,
                                                                           size=0)
             self._backup_filter.add_backup_filter_rule(backup_filter_rule)
+            is_new = True
         # add gui
         widget = FilterEditRuleSizeView(self._filter_rules_container,
                                         backup_filter_rule)
-        self._add_view(widget, is_new=True)
+        self._add_view(widget, is_new)
 
     def _init_ui(self):
         """ ..

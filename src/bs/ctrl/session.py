@@ -1799,7 +1799,7 @@ class BackupSetsCtrl(bs.model.models.Sets):
             try:
                 with open(set_db_path, "w") as f:
                     f.write(".")
-                    os.unlink(set_db_path)
+                os.unlink(set_db_path)
             except:
                 check = True
                 msg = "The location the database-path points to cannot be "\

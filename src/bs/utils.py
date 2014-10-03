@@ -16,7 +16,7 @@ import threading
 import time
 
 
-if platform.system().startswith("win"):
+if platform.system().lower() == "windows":
     import win32file
 
 

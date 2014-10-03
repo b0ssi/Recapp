@@ -338,10 +338,10 @@ class BSFilter(bs.gui.lib.BSNode):
 
     def mouseReleaseEvent(self, e):
         """ ..
- 
+
         """
         super(BSFilter, self).mouseReleaseEvent(e)
- 
+
         # emit modified-signal, only if mouse has actually moved
         if self._mouse_press_event_pos != e.globalPos():
             self._bs.set_modified()
