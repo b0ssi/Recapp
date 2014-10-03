@@ -52,7 +52,6 @@ class BS(QtGui.QFrame):
         """ ..
 
         """
-        self.setGeometry(0, 0, self.parent().width(), self.parent().height())
         self._menu_sets = BSMenu(self._session_gui.session, self, self._backup_sets)
         self._bs_sets_canvas = BSSetsCanvas(self, self._menu_sets, self._app)
 
@@ -286,6 +285,8 @@ class BSFilter(bs.gui.lib.BSNode):
         # title
         self.title_text = self._backup_entity.backup_filter_name
         # backup-filter items
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self._custom_contents_container.layout().setContentsMargins(0, 0, 0, 0)
         while True:
             child = self._custom_contents_container._layout.takeAt(0)
             if not child:
@@ -297,30 +298,12 @@ class BSFilter(bs.gui.lib.BSNode):
                                                               self._custom_contents_container._layout.count(),
                                                               0, 1, 1)
             widget.resize(widget.sizeHint())
+            widget.show()
         self._custom_contents_container.resize(self._custom_contents_container.sizeHint())
+        self.show()
+        self.updateGeometry()
+        self.update()
         self.resize(self.sizeHint())
-        try:
-            print("--------")
-            target = self
-            print("Node:            \t%s %s" % (target.geometry(),
-                                    target.sizeHint()))
-            target = self._layout
-            print("Own layout:      \t%s %s" % (target.geometry(),
-                                      target.sizeHint()))
-            target = self._layout.itemAt(0).widget()
-            print("Title:           \t%s %s" % (target.geometry(),
-                                      target.sizeHint()))
-            target = self._custom_contents_container
-            print("Container:       \t%s %s" % (target.geometry(),
-                                      target.sizeHint()))
-            target = self._custom_contents_container._layout
-            print("Container Layout:\t%s %s" % (target.geometry(),
-                                      target.sizeHint()))
-            target = self._custom_contents_container._layout.itemAt(0).widget()
-            print("Rule:            \t%s %s" % (target.geometry(),
-                                      target.sizeHint()))
-        except:
-            pass
 
     def mousePressEvent(self, e):
         """ ..
@@ -445,8 +428,10 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
         self.parent().mouseMoveEvent(e)
 
 
-class BSMenu(bs.gui.lib.BSDraggable):
+class BSMenu(bs.gui.lib.BSFrame):
     """ ..
+
+    :type: :class:`bs.gui.lib.BSFrame`
 
     :param bs.ctrl.session.Session backup_session:
 
@@ -455,8 +440,8 @@ class BSMenu(bs.gui.lib.BSDraggable):
     :param bs.ctrl.session.BackupSetsCtrl backup_sets:
 
     """
-    _x_c = None
-    _y_c = None
+#     _x_c = None
+#     _y_c = None
     _btn_save = None
 
     def __init__(self, backup_session, bs, backup_sets):
@@ -473,27 +458,18 @@ class BSMenu(bs.gui.lib.BSDraggable):
     def _init_ui(self):
         # layout
         self._layout = QtGui.QGridLayout(self)
+        self._layout.setSpacing(1)
         # these MUST be floats!
         self._x_c = float(0.0)
         self._y_c = float(0.0)
-        # title
-        title = QtGui.QLabel("Backup Sets")
-        title.setStyleSheet("font-size: 18")
-        self._layout.addWidget(title, 0, 0, 1, 1)
-        # refresh with set buttons
-        self.refresh()
-        self.setGeometry(20,
-                         self.parent().height() / 2 - self.height() / 2,
-                         self.width(),
-                         self.height())
-        self._x_c = self.x() + self.width() / 2
-        self._y_c = self.y() + self.height() / 2
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
         gfx.setOffset(0)
         gfx.setColor(QtGui.QColor(20, 20, 20))
         gfx.setBlurRadius(4)
         self.setGraphicsEffect(gfx)
+        # populate
+        self.refresh()
 
     def refresh(self):
         """ ..
@@ -503,54 +479,42 @@ class BSMenu(bs.gui.lib.BSDraggable):
         backup-set has been added or deleted.
         """
         # delete old widgets
-        count = self._layout.count() - 1
-        i = 0
-        while i < count:
-            widget_item = self._layout.takeAt(1)
-            widget_item.widget().deleteLater()
-            del(widget_item)
-            i += 1
+        while True:
+            item = self._layout.takeAt(0)
+            if not item:
+                break
+            item.widget().deleteLater()
         # re-populate with widgets
+        # title
+        title = QtGui.QLabel("Backup Sets")
+        title.setStyleSheet("font-size: 18px")
+        self._layout.addWidget(title, 0, 0, 1, 1)
+        title.show()
+        # set buttons
         for backup_set in self._backup_sets.sets:
             widget = BSMenuItem(self, backup_set, self._bs, self._backup_sets)
             self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
+            widget.show()
         # add button
         btn_add = BSMenuItemAdd(self._backup_session, self)
         self._layout.addWidget(btn_add, self._layout.count(), 0, 1, 1)
+        btn_add.show()
         # spacer widget
+        # (setRowMinimumHeight didn't scale down to the minimum set when
+        # removing buttons again, resulting in an increasingly stretched menu)
         widget = QtGui.QWidget(self)
-        widget.setMinimumHeight(10)
+        widget.setFixedHeight(10)
         self._layout.addWidget(widget, self._layout.count(), 0, 1, 1)
+        widget.show()
         # save button
         btn_save = BSMenuItemSave(self, self._bs)
         self._layout.addWidget(btn_save, self._layout.count(), 0, 1, 1)
+        btn_save.show()
         # refresh height
-        self._refresh_height()
-
-    def _refresh_height(self):
-        """ ..
-
-        Recalculates widget's size based on minimumHeight of all widgets in
-        its layout + spacing + margins and sets it.
-        """
-        # recalculate size
-        min_height = 0
-        # widget height
-        for i in range(self.layout().count()):
-            widget = self.layout().itemAt(i).widget()
-            min_height += widget.minimumHeight()
-        # spacing
-        min_height += self._layout.spacing() * (self.layout().count() - 1)
-        # margins
-        min_height += self._layout.contentsMargins().top()
-        min_height += self._layout.contentsMargins().bottom()
-        self.show()
-        # set pos
-        self.setGeometry(self.x(),
-                         self.y(),
-                         self.width(),
-                         min_height
-                         )
+        self.resize(self.sizeHint())
+        # geometry
+#         self._x_c = self.x() + self.width() / 2
+#         self._y_c = self.y() + self.height() / 2
 
     @property
     def backup_sets(self):
@@ -563,43 +527,46 @@ class BSMenu(bs.gui.lib.BSDraggable):
         """
         return self._backup_sets
 
-    def mouseMoveEvent(self, e):
-        """ ..
-
-        """
-        self._x_c = self.x() + self.width() / 2
-        self._y_c = self.y() + self.height() / 2
-
-        super(BSMenu, self).mouseMoveEvent(e)
+#     def mouseMoveEvent(self, e):
+#         """ ..
+#
+#         """
+#         self._x_c = self.x() + self.width() / 2
+#         self._y_c = self.y() + self.height() / 2
+#
+#         super(BSMenu, self).mouseMoveEvent(e)
 
     def resizeEvent(self, e):
         """ ..
 
         """
-        if e.oldSize().width() > 0:
-            x = self._x_c - self.width() / 2
-#             y = self._y_c - self.height() / 2
-            scale_factor_x = (e.size().width() / e.oldSize().width())
-            scale_factor_y = (e.size().height() / e.oldSize().height())
-            delta_y = e.size().height() - e.oldSize().height()
-            # x
-            if self.x() >= 0:
-                x_new = x * scale_factor_x
-            else:
-                x_new = x
-            # y
-            if self._y_c < 0:
-                y_new = self._y_c - self.height() / 2
-            elif self._y_c > e.size().height():
-                y_new = self._y_c - self.height() / 2 + delta_y
-            else:
-                y_new = self._y_c * scale_factor_y - self.height() / 2
-            self.setGeometry(x_new,
-                             y_new,
-                             self.width(),
-                             self.height())
-            self._x_c = x_new + self.width() / 2
-            self._y_c = y_new + self.height() / 2
+        y = (self.parent().height() - self.height()) / 2
+        self.move(10, y)
+
+#         if e.oldSize().width() > 0:
+#             x = self._x_c - self.width() / 2
+# #             y = self._y_c - self.height() / 2
+#             scale_factor_x = (e.size().width() / e.oldSize().width())
+#             scale_factor_y = (e.size().height() / e.oldSize().height())
+#             delta_y = e.size().height() - e.oldSize().height()
+#             # x
+#             if self.x() >= 0:
+#                 x_new = x * scale_factor_x
+#             else:
+#                 x_new = x
+#             # y
+#             if self._y_c < 0:
+#                 y_new = self._y_c - self.height() / 2
+#             elif self._y_c > e.size().height():
+#                 y_new = self._y_c - self.height() / 2 + delta_y
+#             else:
+#                 y_new = self._y_c * scale_factor_y - self.height() / 2
+#             self.setGeometry(x_new,
+#                              y_new,
+#                              self.width(),
+#                              self.height())
+#             self._x_c = x_new + self.width() / 2
+#             self._y_c = y_new + self.height() / 2
 
         super(BSMenu, self).resizeEvent(e)
 
@@ -798,8 +765,8 @@ class BSMenuItemAddDialog(QtGui.QDialog):
         self._input_db_path = QtGui.QLineEdit()
         layout.addWidget(self._input_db_path, 3, 0, 1, 3)
         # set filter
-        self._input_target_title = QtGui.QLabel("Please select the targets "\
-                                                "you wish to add to the new "\
+        self._input_target_title = QtGui.QLabel("Please select the targets "
+                                                "you wish to add to the new "
                                                 "set.")
         layout.addWidget(self._input_target_title, 4, 0, 1, 3)
         self._input_target = QtGui.QListWidget(self)
@@ -874,16 +841,9 @@ class BSMenuItemAddDialog(QtGui.QDialog):
                 msg_box.setWindowTitle("Validation error")
                 msg_box.setText("%s's a bit picky, sorry." % bs.config.PROJECT_NAME)
                 msg_box.setInformativeText(err)
-                msg_box.exec_()
+                msg_box.show()
 
     def closeEvent(self, e):
-        """ ..
-
-        Override.
-        """
-        self.deleteLater()
-
-    def hideEvent(self, e):
         """ ..
 
         Override.
@@ -2130,10 +2090,9 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
             bs.gui.window_backup_monitor.WindowDispatchCheck(self._backup_set,
                                                              bm_window)
 
-        if (self._backup_set.salt_dk and self._backup_set.is_authenticated):
-            if self._backup_set.is_authenticated:
-                self._password_prompt = PasswordPromptView(self._backup_set.authenticate,
-                                                           self._check_authentication)
+        if (self._backup_set.salt_dk and not self._backup_set.is_authenticated):
+            self._password_prompt = PasswordPromptView(self._backup_set.authenticate,
+                                                       self._check_authentication)
         else:
             _dispatch_backup_job()
 
@@ -2267,13 +2226,6 @@ class PasswordPromptView(QtGui.QDialog):
         verification_worker.start()
 
     def closeEvent(self, e):
-        """ ..
-
-        Override.
-        """
-        self.deleteLater()
-
-    def hideEvent(self, e):
         """ ..
 
         Override.

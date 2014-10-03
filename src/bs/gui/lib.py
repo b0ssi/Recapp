@@ -1036,8 +1036,13 @@ class BSNode(BSDraggable):
         self._arrows_outbound = []
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+        # layout
+        self._layout = QtGui.QGridLayout(self)
+        self._layout.setSpacing(1)
+        self._layout.setContentsMargins(0, 0, 0, 0)
         # title
         self._title = QtGui.QLabel("")
+        self._layout.addWidget(self._title, 0, 0, 1, 1)
         # custom_contents_container
 
         class CustomContentsContainer(QtGui.QWidget):
@@ -1059,16 +1064,12 @@ class BSNode(BSDraggable):
                 return True
         self._custom_contents_container = CustomContentsContainer(self)
         self._custom_contents_container._layout = QtGui.QGridLayout(self._custom_contents_container)
-        # layout
-        self._layout = QtGui.QGridLayout(self)
-        self._layout.addWidget(self._title, 0, 0, 1, 1)
+        self._layout.addWidget(self._custom_contents_container, 1, 0, 1, 1)
         # conn_pad
         if has_conn_pad:
             self._conn_pad = BSNodeConnPad()
             self._layout.addWidget(self._conn_pad, 0, 1, 2, 1)
-        self._layout.addWidget(self._custom_contents_container, 1, 0, 1, 1)
-        self._layout.setSpacing(1)
-        self._layout.setContentsMargins(0, 0, 0, 0)
+        # geometry
         self.setMinimumWidth(170)
         # Drop shadow
         gfx = QtGui.QGraphicsDropShadowEffect(self)
@@ -1332,10 +1333,10 @@ class BSNodeItem(BSFrame):
     def __init__(self, parent):
         super(BSNodeItem, self).__init__(parent)
 
-        self.setMinimumHeight(28)
         # layout
         self._layout = QtGui.QGridLayout(self)
         self._layout.setContentsMargins(11, 0, 6, 0)
+        self.setMinimumHeight(25)
         self._title = QtGui.QLabel("")
         self._layout.addWidget(self._title, 0, 0, 1, 1)
 
@@ -1397,6 +1398,9 @@ class BSNodeItemButton(BSFrame):
 
     def _init_ui(self):
         self._layout = QtGui.QGridLayout(self)
+        self._layout.setContentsMargins(3, 0, 3, 0)
+        self.setSizePolicy(QtGui.QSizePolicy.Fixed,
+                           QtGui.QSizePolicy.Preferred)
         title = QtGui.QLabel(self._title)
         self._layout.addWidget(title, 0, 0, 1, 1)
         # CSS

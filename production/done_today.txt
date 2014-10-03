@@ -2,8 +2,11 @@
 ## DONE TODAY ##################
 ################################
 
+2014-10-03
+- Fixes and cleans up a whole lot in the bs-view-menu layouting; cleans up a few details around the core system
+
 2014-10-02
-- Fixes bug where a signal from a QWidgetItem would have been sent to QApplication.notify() due to a filter-rule widget/item not properly removed and deleted from the filter-view in the set manager.
+- Fixes bug where a signal from a QWidgetItem would have been sent to QApplication.notify() due to a filter-rule widget/item not having been properly removed and deleted from the filter-view in the set manager.
 
 2014-10-01
 - Adds target-selection list to set-creation-dialog; this also checks if at least one target was selected to be added to new set and complains if not.

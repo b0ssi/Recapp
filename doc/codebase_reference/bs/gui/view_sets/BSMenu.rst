@@ -16,7 +16,6 @@ Methods
 
 Events
 ======
-	| :meth:`mouseMoveEvent`
 	| :meth:`resizeEvent`
 
 Detailed Description

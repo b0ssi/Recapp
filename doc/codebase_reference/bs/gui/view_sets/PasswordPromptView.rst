@@ -15,7 +15,6 @@ Methods
 Events
 ======
 	| :meth:`closeEvent`
-	| :meth:`hideEvent`
 
 Detailed Description
 ********************

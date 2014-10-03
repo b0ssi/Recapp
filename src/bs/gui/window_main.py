@@ -160,12 +160,6 @@ class WindowMain(QtGui.QMainWindow):
                                      % (bs.config.PROJECT_NAME, ))
         self.statusBar().setDisabled(True)
         self.setWindowTitle("%s" % (bs.config.PROJECT_NAME, ))
-        # central widget layout
-        widget = QtGui.QWidget()
-        self._layout = QtGui.QGridLayout()
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self.setCentralWidget(widget)
-        widget.setLayout(self._layout)
         # set initial view
         self.set_view('login')
         self.show()
@@ -265,20 +259,18 @@ class WindowMain(QtGui.QMainWindow):
         - ``view_sets``: The set-management interface widget
         """
         # clear layout
-        for i in range(self._layout.count()):
-            widget = self._layout.itemAt(i).widget()
-            self._layout.removeWidget(widget)
-            widget.deleteLater()
+        if self.centralWidget():
+            self.centralWidget().deleteLater()
         if view == "login":
             # ui: set
             self._view = bs.gui.view_login.ViewLogin(self._sessions,
                                                      self._session_gui)
-            self._layout.addWidget(self._view, 0, 0, 1, 1)
+            self.setCentralWidget(self._view)
             self._view.view_login_form.input_username.setFocus()
         elif view == "view_sets":
             self._view = bs.gui.view_sets.BS(self, self._session_gui,
                                              self._app)
-            self._layout.addWidget(self._view, 0, 0, 1, 1)
+            self.setCentralWidget(self._view)
         self._menu_bar.update()
 
     def closeEvent(self, e):
