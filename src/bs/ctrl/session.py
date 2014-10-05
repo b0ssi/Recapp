@@ -590,153 +590,201 @@ class BackupFilterRuleCtrl(object):
         """ *
         Building representational messages
         """
-        out_subject = ""
-        out_mode = ""
-        out_size = ""
-        out_object = ""
-        out_subfolders = ""
-        out_match_case = ""
-        out_attribution = ""
-        out_position = ""
-        out_reference_date = ""
-        out_offset = ""
-        out_attribute = ""
+        # [<sort-id>, [<msg_string>, <stylize_mode>, <prefix>]]
+        out = {"subject": [0, [None, None, None]],
+               "file_folder": [1, [None, None, None]],
+               "truth": [2, [None, None, None]],
+               "mode_size": [3, [None, None, None]],
+                "mode_path": [4, [None, None, None]],
+                "size": [5, [None, None, None]],
+#                "size": [3, [None, None, None]],
+#                "object": [4, [None, None, None]],
+#                "position": [7, [None, None, None]],
+#                "reference_date": [8, [None, None, None]],
+#                "offset": [9, [None, None, None]],
+#                "attribute": [10, [None, None, None]],
+               "path_pattern": [11, [None, None, None]],
+               "match_case": [12, [None, None, None]],
+               "include_subfolders": [13, [None, None, None]],
+               }
 
-        # file_folder
-        if self._file_folder == self.file_folder_file:
-            out_object = "<b>File</b> "
-        elif self._file_folder == self.file_folder_file_folder:
-            out_object = "<b>File/Folder</b> "
-        elif self._file_folder == self.file_folder_folder:
-            out_object = "<b>Folder</b> "
         # include_subfolders
         if self._include_subfolders:
-            out_subfolders += ", incl. all enclosed items"
+            out["include_subfolders"][1] = ["incl. subfolders", 1, ", "]
 
         # CATEGORY-SPECIFIC
         if isinstance(self, BackupFilterRuleSizeCtrl):
-            out_subject = "<b>Size of</b> "
-            if self._mode_size == self.mode_size_smaller:
-                out_mode = "<b><</b> "
-            if self._mode_size == self.mode_size_smaller_equal:
-                out_mode = "<b><=</b> "
-            if self._mode_size == self.mode_size_equal:
-                out_mode = "<b>=</b> "
-            if self._mode_size == self.mode_size_larger_equal:
-                out_mode = "<b>>=</b> "
-            if self._mode_size == self.mode_size_larger:
-                out_mode = "<b>></b> "
-            out_size = "<b>%s</b>" % (bs.utils.format_data_size(self._size), )
-        elif isinstance(self, BackupFilterRulePathCtrl):
-            out_subject = "<b>Path</b> of "
-            if self._mode_path == self.mode_path_match_pattern:
-                out_mode = "<b>matches pattern</b> "
-            if self._mode_path == self.mode_path_starts_with:
-                out_mode = "<b>starts with</b> "
-            if self._mode_path == self.mode_path_ends_with:
-                out_mode = "<b>ends with</b> "
-            if self._mode_path == self.mode_path_contains:
-                out_mode = "<b>contains</b> "
-            if self._mode_path == self.mode_path_match_pattern:
-                out_mode = "<b>matches pattern</b> "
-            if self._mode_path == self.mode_path_match_regex:
-                out_mode = "<b>matches regex</b> "
-            if self._match_case:
-                out_match_case = ", matching case"
-            out_attribution = "<b>%s</b>" % (self._path_pattern, )
-        elif isinstance(self, BackupFilterRuleDateCtrl):
-            if self._timestamp_type == self.timestamp_type_ctime:
-                out_subject = "<b>Creation time</b> of "
-            elif self._timestamp_type == self.timestamp_type_mtime:
-                out_subject = "<b>Modification time</b> of "
-            elif self._timestamp_type == self.timestamp_type_atime:
-                out_subject = "<b>Access time</b> of "
-            if self._position == self.position_before:
-                out_position = "is <b>before</b> "
-            elif self._position == self.position_on:
-                out_position = "is <b>on</b> "
-            elif self._position == self.position_after:
-                out_position = "is <b>after</b> "
-            if self._reference_date_time_type == self.reference_date_current_date:
-                out_reference_date = "<b>current date</b> "
-            elif self._reference_date_time_type == self.reference_date_file_backup:
-                out_reference_date = "<b>file backup</b> "
-            elif self._reference_date_time_type == self.reference_date_folder_backup:
-                out_reference_date = "<b>folder backup</b> "
-            elif self._reference_date_time_type == self.reference_date_volume_backup:
-                out_reference_date = "<b>volume backup</b> "
-            elif self._reference_date_time_type == self.reference_date_fixed:
-                out_reference_date = "<b>fixed date</b> "
-            # offset
-            if self._reference_date_time_offsets[1] == 1:
-                out_offset += ", <b>%s year</b>" % (self._reference_date_time_offsets[1], )
-            elif self._reference_date_time_offsets[1] > 1:
-                out_offset += ", <b>%s years</b>" % (self._reference_date_time_offsets[1], )
-            if self._reference_date_time_offsets[2] == 1:
-                out_offset += ", <b>%s month</b>" % (self._reference_date_time_offsets[2], )
-            elif self._reference_date_time_offsets[2] > 1:
-                out_offset += ", <b>%s months</b>" % (self._reference_date_time_offsets[2], )
-            if self._reference_date_time_offsets[3] == 1:
-                out_offset += ", <b>%s week</b>" % (self._reference_date_time_offsets[3], )
-            elif self._reference_date_time_offsets[3] > 1:
-                out_offset += ", <b>%s weeks</b>" % (self._reference_date_time_offsets[3], )
-            if self._reference_date_time_offsets[4] == 1:
-                out_offset += ", <b>%s day</b>" % (self._reference_date_time_offsets[4], )
-            elif self._reference_date_time_offsets[4] > 1:
-                out_offset += ", <b>%s days</b>" % (self._reference_date_time_offsets[4], )
-            if self._reference_date_time_offsets[5] == 1:
-                out_offset += ", <b>%s hour</b>" % (self._reference_date_time_offsets[5], )
-            elif self._reference_date_time_offsets[5] > 1:
-                out_offset += ", <b>%s hours</b>" % (self._reference_date_time_offsets[5], )
-            if self._reference_date_time_offsets[6] == 1:
-                out_offset += ", <b>%s minute</b>" % (self._reference_date_time_offsets[6], )
-            elif self._reference_date_time_offsets[6] > 1:
-                out_offset += ", <b>%s minutes</b>" % (self._reference_date_time_offsets[6], )
-            if self._reference_date_time_offsets[7] == 1:
-                out_offset += ", <b>%s second</b>" % (self._reference_date_time_offsets[7], )
-            elif self._reference_date_time_offsets[7] > 1:
-                out_offset += ", <b>%s seconds</b>" % (self._reference_date_time_offsets[7], )
-            if out_offset != "":
-                out_offset = out_offset[2:]
-                if self._reference_date_time_offsets[0] == 0:
-                    out_offset += " <b>subsequent</b> to "
-                if self._reference_date_time_offsets[0] == -1:
-                    out_offset += " <b>prior</b> to "
-        elif isinstance(self, BackupFilterRuleAttributesCtrl):
-            if self._attribute_type == self.attribute_hidden:
-                out_attribute_tmp = "<b>hidden</b> "
-            if self._attribute_type == self.attribute_group:
-                out_attribute_tmp = "<b>group</b> "
-            if self._attribute_type == self.attribute_owner:
-                out_attribute_tmp = "<b>owner</b> "
-            elif self._attribute_type == self.attribute_win_archive:
-                out_attribute_tmp = "<b>archive</b> "
-            elif self._attribute_type == self.attribute_win_encrypted:
-                out_attribute_tmp = "<b>encrypted</b> "
-            elif self._attribute_type == self.attribute_win_offline:
-                out_attribute_tmp = "<b>offline</b> "
-            elif self._attribute_type == self.attribute_unix_permissions:
-                out_attribute_tmp = "<b>permissions</b> "
-            elif self._attribute_type == self.attribute_win_read_only:
-                out_attribute_tmp = "<b>read only</b> "
-            elif self._attribute_type == self.attribute_win_system:
-                out_attribute_tmp = "<b>system</b> "
-            out_attribute = "has "
-            out_attribute += out_attribute_tmp
-            out_attribute += "flag set"
+            # file_folder
+            options = {self.file_folder_file: "File",
+                       self.file_folder_file_folder: "File/folder",
+                       self.file_folder_folder: "Folder"
+                       }
+            out["file_folder"][1] = [options[self._file_folder], 1, None]
+            # truth
+            if self._truth:
+                out["truth"][1] = ["is", 1, None]
+            else:
+                out["truth"][1] = ["is not", 1, None]
+            # mode_size
+            options = {self.mode_size_smaller: "&#60;",
+                       self.mode_size_smaller_equal: "&#60;=",
+                       self.mode_size_equal: "=",
+                       self.mode_size_larger_equal: "&#62;=",
+                       self.mode_size_larger: "&#62;"
+                       }
+            out["mode_size"][1] = [options[self._mode_size], 1, None]
+            # size
+            units = ["byte(s)",
+                     "KiB",
+                     "MiB",
+                     "GiB",
+                     "TiB",
+                     "PiB"]
+            unit_index = 0
+            size = self._size
+            while size >= 1024:
+                size = float(size) / 1024
+                unit_index += 1
+            print(unit_index)
+            size_s = "%s %s" % (size, units[unit_index], )
+            out["size"][1] = [size_s, 1, None]
+        if isinstance(self, BackupFilterRulePathCtrl):
+            out["subject"][1] = ["Path", 0, None]
+            # truth
+            if self._truth:
+                out["truth"][1] = ["does", 1, None]
+            else:
+                out["truth"][1] = ["does not", 1, None]
+            # mode_path
+            options = {self.mode_path_match_pattern: "match pattern",
+                       self.mode_path_starts_with: "start with",
+                       self.mode_path_ends_with: "end with",
+                       self.mode_path_ends_with: "contain",
+                       self.mode_path_match_regex: "match regex"
+                       }
+            out["mode_path"][1] = [options[self.mode_path], 1, None]
+            # path pattern
+            out["path_pattern"][1] = [self.path_pattern, 2, None]
+            # match case
+            if self.match_case:
+                out["match_case"][1] = ["matching case", 1, ", "]
+#         elif isinstance(self, BackupFilterRuleDateCtrl):
+#             if self._timestamp_type == self.timestamp_type_ctime:
+#                 out_subject = "<b>Creation time</b> of "
+#             elif self._timestamp_type == self.timestamp_type_mtime:
+#                 out_subject = "<b>Modification time</b> of "
+#             elif self._timestamp_type == self.timestamp_type_atime:
+#                 out_subject = "<b>Access time</b> of "
+#             if self._position == self.position_before:
+#                 out_position = "is <b>before</b> "
+#             elif self._position == self.position_on:
+#                 out_position = "is <b>on</b> "
+#             elif self._position == self.position_after:
+#                 out_position = "is <b>after</b> "
+#             if self._reference_date_time_type == self.reference_date_current_date:
+#                 out_reference_date = "<b>current date</b> "
+#             elif self._reference_date_time_type == self.reference_date_file_backup:
+#                 out_reference_date = "<b>file backup</b> "
+#             elif self._reference_date_time_type == self.reference_date_folder_backup:
+#                 out_reference_date = "<b>folder backup</b> "
+#             elif self._reference_date_time_type == self.reference_date_volume_backup:
+#                 out_reference_date = "<b>volume backup</b> "
+#             elif self._reference_date_time_type == self.reference_date_fixed:
+#                 out_reference_date = "<b>fixed date</b> "
+#             # offset
+#             if self._reference_date_time_offsets[1] == 1:
+#                 out_offset += ", <b>%s year</b>" % (self._reference_date_time_offsets[1], )
+#             elif self._reference_date_time_offsets[1] > 1:
+#                 out_offset += ", <b>%s years</b>" % (self._reference_date_time_offsets[1], )
+#             if self._reference_date_time_offsets[2] == 1:
+#                 out_offset += ", <b>%s month</b>" % (self._reference_date_time_offsets[2], )
+#             elif self._reference_date_time_offsets[2] > 1:
+#                 out_offset += ", <b>%s months</b>" % (self._reference_date_time_offsets[2], )
+#             if self._reference_date_time_offsets[3] == 1:
+#                 out_offset += ", <b>%s week</b>" % (self._reference_date_time_offsets[3], )
+#             elif self._reference_date_time_offsets[3] > 1:
+#                 out_offset += ", <b>%s weeks</b>" % (self._reference_date_time_offsets[3], )
+#             if self._reference_date_time_offsets[4] == 1:
+#                 out_offset += ", <b>%s day</b>" % (self._reference_date_time_offsets[4], )
+#             elif self._reference_date_time_offsets[4] > 1:
+#                 out_offset += ", <b>%s days</b>" % (self._reference_date_time_offsets[4], )
+#             if self._reference_date_time_offsets[5] == 1:
+#                 out_offset += ", <b>%s hour</b>" % (self._reference_date_time_offsets[5], )
+#             elif self._reference_date_time_offsets[5] > 1:
+#                 out_offset += ", <b>%s hours</b>" % (self._reference_date_time_offsets[5], )
+#             if self._reference_date_time_offsets[6] == 1:
+#                 out_offset += ", <b>%s minute</b>" % (self._reference_date_time_offsets[6], )
+#             elif self._reference_date_time_offsets[6] > 1:
+#                 out_offset += ", <b>%s minutes</b>" % (self._reference_date_time_offsets[6], )
+#             if self._reference_date_time_offsets[7] == 1:
+#                 out_offset += ", <b>%s second</b>" % (self._reference_date_time_offsets[7], )
+#             elif self._reference_date_time_offsets[7] > 1:
+#                 out_offset += ", <b>%s seconds</b>" % (self._reference_date_time_offsets[7], )
+#             if out_offset != "":
+#                 out_offset = out_offset[2:]
+#                 if self._reference_date_time_offsets[0] == 0:
+#                     out_offset += " <b>subsequent</b> to "
+#                 if self._reference_date_time_offsets[0] == -1:
+#                     out_offset += " <b>prior</b> to "
+#         elif isinstance(self, BackupFilterRuleAttributesCtrl):
+#             if self._attribute_type == self.attribute_hidden:
+#                 out_attribute_tmp = "<b>hidden</b> "
+#             if self._attribute_type == self.attribute_group:
+#                 out_attribute_tmp = "<b>group</b> "
+#             if self._attribute_type == self.attribute_owner:
+#                 out_attribute_tmp = "<b>owner</b> "
+#             elif self._attribute_type == self.attribute_win_archive:
+#                 out_attribute_tmp = "<b>archive</b> "
+#             elif self._attribute_type == self.attribute_win_encrypted:
+#                 out_attribute_tmp = "<b>encrypted</b> "
+#             elif self._attribute_type == self.attribute_win_offline:
+#                 out_attribute_tmp = "<b>offline</b> "
+#             elif self._attribute_type == self.attribute_unix_permissions:
+#                 out_attribute_tmp = "<b>permissions</b> "
+#             elif self._attribute_type == self.attribute_win_read_only:
+#                 out_attribute_tmp = "<b>read only</b> "
+#             elif self._attribute_type == self.attribute_win_system:
+#                 out_attribute_tmp = "<b>system</b> "
+#             out_attribute = "has "
+#             out_attribute += out_attribute_tmp
+#             out_attribute += "flag set"
 
-        out = out_subject
-        out += out_object
-        out += out_position
-        out += out_offset
-        out += out_reference_date
-        out += out_mode
-        out += out_size
-        out += out_attribution
-        out += out_attribute
-        out += out_match_case
-        out += out_subfolders
-        return out
+#         out = out_subject
+#         out += out_truth
+#         out += out_object
+#         out += out_position
+#         out += out_offset
+#         out += out_reference_date
+#         out += out_mode
+#         out += out_size
+#         out += out_path_pattern
+#         out += out_attribute
+#         out += out_match_case
+#         out += out_include_subfolders
+#         return out
+        out_s = ""
+        for item in sorted(out, key=lambda x: out[x][0]):
+            s = out[item][1][0]
+            type_code = out[item][1][1]
+            prefix = out[item][1][2]
+            if s:
+                # prefix
+                if prefix:
+                    out_s += prefix
+                else:
+                    out_s += " "
+                # string
+                if type_code == 0:
+                    out_s += "%s " % s
+                elif type_code == 1:
+                    out_s += "<span style='text-decoration: underline'>%s</span>" % s
+                elif type_code == 2:
+                    out_s += "<i>"
+                    for char in s:  # text-wrap hack
+                        out_s += "%s<span style='font-size: 1px'> </span>" % char
+                    out_s += "</i>"
+        print("|%s|" % out_s[1:])
+        return out_s[1:]  # Remove leading prefix (whitespace)
 
     @property
     def id(self):

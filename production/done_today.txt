@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-10-05
+- Filter rules: path & size in sets-view are now updated and display all properties completely.
+
 2014-10-04
 - Fixes minor regression; ensures that filter-rule-views are loaded in correct sequence order into filter-view in filter-manager. Also fixes minor file-creation-test issue in set-creation routines that worked unter linux fs but not on windows fs.
 
