@@ -999,10 +999,9 @@ class FilterEditRuleAttributesView(FilterEditRuleInterface):
             if isinstance(self._backup_filter_rule_ctrl.attribute_value[0], str):
                 self._attribute_value_widget.setText(self._backup_filter_rule_ctrl.attribute_value[0])
             elif isinstance(self._backup_filter_rule_ctrl.attribute_value[0], int):
-                if isinstance(self._backup_filter_rule_ctrl.attribute_value[0], int):
-                    self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0])
-                    self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1])
-                    self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2])
+                self._permissions_user_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[0])
+                self._permissions_group_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[1])
+                self._permissions_others_widget.setCurrentIndex(self._backup_filter_rule_ctrl.attribute_value[2])
 
     def _push_attribute_type(self):
         """ ..

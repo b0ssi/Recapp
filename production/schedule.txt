@@ -187,7 +187,7 @@
 	[X] basic main-window
 	[X] basic login-view
 	[...] basic set-management view
-		[X] list widget for sets
+		[X] sets-menu
 			[X] ability to create a new set
 				[X] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
 			[X] ability to delete an existing set
@@ -304,17 +304,20 @@
 	[ ] Implement sidecart-metadata files for backed-up datastreams
 [ ] views:
 	[ ] basic set-management view
-		[ ] details widget to visualize/edit/execute etc. sets
-			[ ] sources
-				[ ] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
-					[ ] implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
-						[ ] look into Qt animations (wading throbber e.g. while scanning~)
-			[ ] filters
-				[ ] add update signal so UIs update filter representation when changed (e.g. in filter manager)
-			[ ] targets
-				[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
-				[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
-		[ ] arrows: implement and/or/xor selector
+		[ ] sets-menu
+			[ ] add set-edit mode (rename, etc.)
+		[ ] sources
+			[ ] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+				[ ] implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
+					[ ] look into Qt animations (wading throbber e.g. while scanning~)
+		[ ] filters
+			[ ] add update signal so UIs update filter representation when changed (e.g. in filter manager)
+		[ ] targets
+			[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
+			[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
+		[ ] arrows
+			[ ] fix redraw issue
+			[ ] implement and/or/xor selector
 		[ ] filter nodes
 			[ ] add "edit" button to node that opens filter-edit-view
 		[ ] Set-save: Optimize

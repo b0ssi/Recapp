@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-10-06
+- Filter rules: date & attributes in sets-view are now updated and display all properties completely. This completes the update on all these rule-views in the set editor.
+
 2014-10-05
 - Filter rules: path & size in sets-view are now updated and display all properties completely.
 
