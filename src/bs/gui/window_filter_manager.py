@@ -452,11 +452,17 @@ class FilterEditView(FilterEditInterface):
 
         Reverts the view to its initial state, discarding any changes made.
         """
+        # pull data for existing rule-views
         self.pull_data()
-        # unhide all rule views
+
         for filter_edit_view in [self._filter_rules_container._layout.itemAt(i).widget() for i in range(self._filter_rules_container._layout.count() - 1)]:
+            # unhide all rule-views (previously marked for deletion)
             if filter_edit_view.isHidden():
                 filter_edit_view.show()
+            # hide all rule-views newly created, but not save to filter
+            elif filter_edit_view.is_new:
+                filter_edit_view.remove()
+        self.save()
         self._update_signal.emit()
 
     def pull_data(self):
@@ -625,7 +631,7 @@ class FilterEditRuleInterface(QtGui.QFrame):
         self._update_signal.connect(self._update_event)
 
         self._registered_widgets[self._revert_widget] = False
-        self._revert_widget.clicked.connect(self._remove)
+        self._revert_widget.clicked.connect(self.remove)
         # ======================================================================
         # set-up
         # ======================================================================
@@ -654,6 +660,20 @@ class FilterEditRuleInterface(QtGui.QFrame):
                     modified = True
                     break
         return modified
+
+    @property
+    def is_new(self):
+        """ ..
+
+        :type: `boolean`
+
+        Indicates whether or not the filter-rule is newly added to the filter (and not commited to the db yet).
+        """
+        return self._backup_filter_rule_ctrl.is_new
+
+    @is_new.setter
+    def is_new(self, is_new):
+        self._backup_filter_rule_ctrl.is_new = is_new
 
     @property
     def update_signal(self):
@@ -715,8 +735,11 @@ class FilterEditRuleInterface(QtGui.QFrame):
         """
         self._pull_truth("push")
 
-    def _remove(self):
+    def remove(self):
         """ ..
+
+        :rtype: `void`
+
         "Removes" the current rule-view from the layout, hiding it and sending \
         an update event.
         """

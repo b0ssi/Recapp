@@ -59,7 +59,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
     def __init__(self, session, backup_filter_id):
         self._session = session
         self._backup_filter_id = backup_filter_id
-        # if flter_id == None, this is a new filter, add to database
+        # if filter_id == None, this is a new filter, add to database
         if not self._backup_filter_id:
             res = self._add("user_id",
                             (self._session.user.id, ))
@@ -271,6 +271,7 @@ class BackupFilterCtrl(bs.model.models.Filters):
         # set default id
         if not backup_filter_rule.id:
             backup_filter_rule.id = str(len(self._backup_filter_rules))
+            backup_filter_rule.is_new = True
         if backup_filter_rule not in self._backup_filter_rules:
             self._backup_filter_rules.append(backup_filter_rule)
             self._backup_filter_rules = sorted(self._backup_filter_rules, key=lambda x: x.id)
@@ -349,6 +350,8 @@ class BackupFilterCtrl(bs.model.models.Filters):
                 filter_rule_data["mode_size"] = backup_filter_rule.mode_size
                 filter_rule_data["size"] = backup_filter_rule.size
             filter_rules_data[filter_rule_id] = filter_rule_data
+            # mark filter as "not new"
+            backup_filter_rule.is_new = False
         filter_rules_data_json = json.dumps(filter_rules_data, indent=4)
         self._update([["filter_rules_data", filter_rules_data_json]], [["id", "=", self.backup_filter_id]])
         self._update_signal.emit()
@@ -481,11 +484,20 @@ class BackupFiltersCtrl(bs.model.models.Filters):
 class BackupFilterRuleCtrl(object):
     """ ..
 
-    :param int id: The filter-rule-attribute's ID.
-    :param enum category: A *category* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum file_folder: A *file_folder* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param enum include_subfolders: An *include_subfolders* enum on :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
-    :param boolean truth: Indicates whether the rule is set to true ("is/does") or false ("is not/does not")
+    :param int id: The filter-rule-attribute's ID. Set this to ``None`` to \
+    indicate that this is a newly added rule not saved to db yet.
+
+    :param enum category: A *category* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum file_folder: A *file_folder* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param enum include_subfolders: An *include_subfolders* enum on \
+    :class:`~bs.ctrl.session.BackupFilterRuleCtrl`
+
+    :param boolean truth: Indicates whether the rule is set to true \
+    ("is/does") or false ("is not/does not")
 
     This class is not to be instantiated directly but serves as an abstract
     superclass to
@@ -585,6 +597,7 @@ class BackupFilterRuleCtrl(object):
         self._file_folder = file_folder
         self._include_subfolders = include_subfolders
         self._truth = truth
+        self._is_new = False
 
     def __repr__(self):
         """ *
@@ -646,7 +659,6 @@ class BackupFilterRuleCtrl(object):
             while size >= 1024:
                 size = float(size) / 1024
                 unit_index += 1
-            print(unit_index)
             size_s = "%s %s" % (size, units[unit_index], )
             out["size"][1] = [size_s, 1, None]
         elif isinstance(self, BackupFilterRulePathCtrl):
@@ -790,6 +802,20 @@ class BackupFilterRuleCtrl(object):
     @id.setter
     def id(self, id):
         self._id = id
+
+    @property
+    def is_new(self):
+        """ ..
+
+        :type: `boolean`
+
+        Indicates whether the rule is newly added to the filter or not. Requires ``None`` to be passed to the constructer as the rule's id.
+        """
+        return self._is_new
+
+    @is_new.setter
+    def is_new(self, is_new):
+        self._is_new = is_new
 
     @property
     def category(self):

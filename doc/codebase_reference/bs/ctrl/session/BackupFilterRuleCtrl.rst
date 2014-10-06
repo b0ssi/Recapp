@@ -52,6 +52,7 @@ Instance-Variables
    | :attr:`file_folder`
    | :attr:`id`
    | :attr:`include_subfolders`
+   | :attr:`is_new`
    | :attr:`truth`
 
 Methods

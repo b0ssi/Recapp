@@ -10,11 +10,13 @@ Instance-Variables
 ==================
    | :attr:`backup_filter_rule_ctrl`
    | :attr:`is_modified`
+   | :attr:`is_new`
 
 Methods
 =======
    | :meth:`get_row_layout`
    | :meth:`pull_data`
+   | :meth:`remove`
 
 Signals
 =======
