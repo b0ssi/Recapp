@@ -1659,6 +1659,11 @@ class FilterEditRuleDateView(FilterEditRuleInterface):
                 self._time_widget.show()
             elif state == QtCore.Qt.Unchecked:
                 self._time_widget.hide()
+        else:
+            if state == QtCore.Qt.Checked:
+                self._time_widget.setTime(QtCore.QTime(0, 0, 1))
+            elif state == QtCore.Qt.Unchecked:
+                self._time_widget.setTime(QtCore.QTime(0, 0, 0))
 
     def _time_update_event(self, text_state):
         """ ..

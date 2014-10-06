@@ -2,6 +2,9 @@
 ## DONE TODAY ##################
 ################################
 
+2014-10-07
+- Fixes bug in filter-manager: rule-widget: date/time where "and time" attribute would not have been saved.
+
 2014-10-06
 - Filter-manager: When rule is newly added, the revert button now removes it again and commits the changes to the db.
 
