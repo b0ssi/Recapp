@@ -295,6 +295,7 @@ class BSFilter(bs.gui.lib.BSNode):
                      % (self._backup_entity.backup_filter_name,
                         modus_subtitle)
         self._title.setWordWrap(True)
+        self._title.mouseMoveEvent = self.mouseMoveEvent  # css seems to override in child: title otherwise
         self.title_text = title_text
         # backup-filter items
 
@@ -342,8 +343,6 @@ class BSFilter(bs.gui.lib.BSNode):
 
         """
         super(BSFilter, self).mousePressEvent(e)
-
-        self._refresh()
 
         self._mouse_press_event_pos = e.globalPos()
 
@@ -422,6 +421,7 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
 
         """
         self.title_text = self._backup_filter_rule
+        self._title.mouseMoveEvent = self.mouseMoveEvent
         # CSS
         self.css = ((self,
                      ".",
@@ -455,7 +455,7 @@ class BSFilterItem(bs.gui.lib.BSNodeItem):
 
     def mouseMoveEvent(self, e):
         """ ..
-
+ 
         """
         self.parent().mouseMoveEvent(e)
 

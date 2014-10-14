@@ -1041,7 +1041,7 @@ class BSNode(BSDraggable):
         self._layout.setSpacing(1)
         self._layout.setContentsMargins(0, 0, 0, 0)
         # title
-        self._title = QtGui.QLabel("")
+        self._title = QtGui.QLabel("", self)
         self._layout.addWidget(self._title, 0, 0, 1, 1)
         # custom_contents_container
 
