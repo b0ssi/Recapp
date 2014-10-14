@@ -630,13 +630,13 @@ class BSMenuItem(bs.gui.lib.BSNodeItem):
         # title
         self.title_text = self._backup_set.set_name
         # buttons
-        self._btn_del = BSMenuItemBtnDel(self._bs_menu,
-                                         self,
-                                         "DEL",
-                                         self._backup_set,
-                                         self._backup_sets,
-                                         self._bs)
-        self._layout.addWidget(self._btn_del, 0, 1, 1, 1)
+        btn_del = BSMenuItemBtnDel(self._bs_menu,
+                                   self,
+                                   "DEL",
+                                   self._backup_set,
+                                   self._backup_sets,
+                                   self._bs)
+        self._layout.addWidget(btn_del, 0, 1, 1, 1)
         # CSS
         self.css = ((self,
                      "",
@@ -2035,6 +2035,9 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
         """ ..
 
         """
+        self.setMaximumWidth(200)
+        self.setMinimumWidth(200)
+
         target_name = self._backup_target.target_name
         target_path = self._backup_target.target_path
         if target_path == "":
@@ -2077,6 +2080,15 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
                       }
                      ),
                     )
+        # progress-bar
+        self._layout.addWidget(bs.gui.lib.BSNodeItemVProgressBar(self), 0, 1, 1, 1)
+
+    def mouseMoveEvent(self, e):
+        """ ..
+
+        Override to capture mouse-drag on this child-widget as well.
+        """
+        self.parent().mouseMoveEvent(e)
 
 
 class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):

@@ -1331,7 +1331,7 @@ class BSNodeItem(BSFrame):
 
         # layout
         self._layout = QtGui.QGridLayout(self)
-        self._layout.setContentsMargins(11, 0, 6, 0)
+        self._layout.setContentsMargins(11, 0, 0, 0)
 #         self.setMinimumHeight(25)
         self._title = QtGui.QLabel("")
         self._title.setWordWrap(True)
@@ -1426,6 +1426,55 @@ class BSNodeItemButton(BSFrame):
         """
         self.setStyleSheet("background: None; color: #%s"
                            % (bs.config.PALETTE[6], ))
+
+
+class BSNodeItemVProgressBar(QtGui.QFrame):
+    """ ..
+
+    :param QtGui.QWidget parent: The widget to act as the parent.
+
+    This is a simple vertical progress-bar indicator.
+    """
+
+    def __init__(self, parent):
+        super(BSNodeItemVProgressBar, self).__init__(parent)
+
+        self._init_ui()
+
+    def _init_ui(self):
+        self.setMinimumWidth(7)
+        self.setMaximumWidth(7)
+        self.setLayout(QtGui.QVBoxLayout(self))
+        self.layout().setContentsMargins(1, 0, 0, 0)
+        self.layout().setSpacing(0)
+        # css
+        css = ("background: #%s;"
+               "border-top-right-radius: 3px;"
+               "border-bottom-right-radius: 3px"
+               % bs.config.PALETTE[10])
+        self.setStyleSheet(css)
+        # progress bar
+        self.layout().addStretch()
+        widget = QtGui.QFrame(self)
+        self.layout().addWidget(widget)
+
+    def set_progress(self, progress):
+        """ ..
+
+        :param int progress: An integer between 0 and 100: The positive \
+        percentage to set the progress bar to.
+        """
+        remainder = int(100 - progress)
+        # set round corner
+        border_radius = 3
+        if self.height() * (remainder * 0.01) > border_radius:
+            border_radius = 0
+        self.layout().itemAt(1).widget().setStyleSheet("background: #%s; border-top-right-radius: %spx"
+                                                       % (bs.config.PALETTE[1],
+                                                          border_radius))
+        # set stretch distribution
+        self.layout().setStretch(0, 100 - progress)
+        self.layout().setStretch(1, progress)
 
 
 class ScrollArea(QtGui.QFrame):

@@ -3,6 +3,9 @@
 ################################
 
 2014-10-14
+- Implements graphical indicator on node ui.
+
+2014-10-14
 - Gets node to drag on all passive children as well.
 
 2014-10-14

@@ -12,6 +12,10 @@ Instance-Variables
 Methods
 =======
 
+Events
+======
+	:meth:`mouseMoveEvent`
+
 Detailed Description
 ********************
 .. autoclass:: bs.gui.view_sets.BSTargetItem

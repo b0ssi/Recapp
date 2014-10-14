@@ -19,5 +19,6 @@ lib
 	BSNodeConnPad
 	BSNodeItem
 	BSNodeItemButton
+	BSNodeItemVProgressBar
 	ScrollArea
 	ScrollAreaAnimation
