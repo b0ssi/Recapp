@@ -284,7 +284,18 @@ class BSFilter(bs.gui.lib.BSNode):
         Refreshes the ui, (re-)populating it with its rules.
         """
         # title
-        self.title_text = self._backup_entity.backup_filter_name
+        if self._backup_entity.backup_filter_rules_mode == self._backup_entity.backup_filter_rules_mode_and:
+            modus_subtitle = "Mode: AND"
+        elif self._backup_entity.backup_filter_rules_mode == self._backup_entity.backup_filter_rules_mode_or:
+            modus_subtitle = "Mode: OR"
+        elif self._backup_entity.backup_filter_rules_mode == self._backup_entity.backup_filter_rules_mode_xor:
+            modus_subtitle = "Mode: XOR"
+        title_text = "%s<br />"\
+                     "<span style='font-size: 10px'>%s</span>"\
+                     % (self._backup_entity.backup_filter_name,
+                        modus_subtitle)
+        self._title.setWordWrap(True)
+        self.title_text = title_text
         # backup-filter items
 
         while True:

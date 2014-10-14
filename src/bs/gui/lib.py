@@ -1204,10 +1204,6 @@ class BSNode(BSDraggable):
                                      self._title_size - 8,
                                      self._title_size,
                                      bs.config.PALETTE[0]))
-        self._layout.setContentsMargins(self._layout.contentsMargins().left(),
-                                        self._layout.contentsMargins().top(),
-                                        self._layout.contentsMargins().right(),
-                                        self._layout.contentsMargins().bottom())  # self._title_size * 2 + 5)
         self._title.setMinimumHeight(self._title_size + (self._title_size / 9) + (self._title_size - 8))
 
     def unassign_from_arrow(self, arrow):

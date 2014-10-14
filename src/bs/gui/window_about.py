@@ -7,6 +7,7 @@ from PySide import QtCore, QtGui
 import bs.config
 import math
 import platform
+import PySide
 import time
 
 
@@ -89,3 +90,13 @@ class WindowAbout(QtGui.QDialog):
         widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByKeyboard)
         widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         self._layout.addWidget(widget, 3, 1, 1, 1)
+        # PySide version
+        widget = QtGui.QLabel("PySide:")
+        self._layout.addWidget(widget, 4, 0, 1, 1)
+        widget = QtGui.QLabel(PySide.__version__)
+        self._layout.addWidget(widget, 4, 1, 1, 1)
+        # Qt version
+        widget = QtGui.QLabel("Qt:")
+        self._layout.addWidget(widget, 5, 0, 1, 1)
+        widget = QtGui.QLabel(QtCore.__version__)
+        self._layout.addWidget(widget, 5, 1, 1, 1)

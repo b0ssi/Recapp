@@ -1,9 +1,3 @@
-## TYPES OF COMMITS
-################################
-[<runCode>] Milestone Completed Commit		Just at the end of a major Q/A cycle before initiating work on the next milestone
-[<runCode>] Q/A Start Commit				Just before starting a Q/A run
-[<runCode>] End of Day Commit				Periodic routine End of Day commit
-
 ## DAILY PROCEDURE #############
 - clean-up
 	- new/updated code
@@ -37,304 +31,280 @@
 	> 7zip google drive
 
 
-################################################################################
-### SCHEDULE ###################################################################
-################################################################################
-################################################################################
-[X] ### NEXT MILESTONE: 0.0.1 ##
-################################
-[X] automatically create default user
-[X] user can log in, out
-[X] sources, targets, sets, filters can be loaded/saved/removed
-################################
-[X] ### Q/A ####################
-################################
-[X] clean-up old code
-[X] check module-structure
-[X] maintain integrity:
-	[X] document code
-		[X] validate user-input
-		[X] write test/test
-		[X] manage conditional exception-handling
-		[X] implement correct return data for *everything*
-		[X] address warnings/errors
-		[X] standardize logging-messages
-		[X] make sure all logging messages are very *specific* in regards to
-			- origin of message
-[X] clean-up current code:
-		[X] update representations
-		[X] any code-warnings/errors
-################################################################################
-[X] ### NEXT MILESTONE: 0.0.2 ##
-################################
-[X] Controllers: Restrict methods to logged_in only
-[X] Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
-[X] figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
-	> possibly irrelevant as sessions will operate in their local scope. Methods requiring a global scope across all sessions can refer to the sessions parent and iterate through active sessions.
-[X] models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
-[X] SessionsModel:
-	[X] figure out how to identify a session
-		> address when actually needed (refer to "switch between sessions" task)
-		[X] remove_session()
-[X] Do I need objects to represent sources, targets, filters, etc. or do lists suffice?
-	> yes, done!
-[X] SourcesModel:
-	[X] add_source(source)
-	[X] remove_source(source)
-	[X] sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
-	[X] Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-		[X] source_name
-		[X] source_path
-[X] TargetsModel:
-	[X] add_target(target, password)
-	[X] remove_target(target)
-	[X] targets property (return list of targets)
-	[X] Transform separate targets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-		[X] target_name
-		[X] target_id
-[X] FiltersModel
-	[X] add_filter(filter)
-	[X] remove_filter(filter)
-	[X] filters property (return list of filters)
-	[X] define format for filters, add validation to filters.add()
-		> filters will be regex patterns for now (or, sets of such); leave it unvalidated for now
-	[X] Transform separate filters into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-		[X] filter_pattern
-[X] SetsModel
-	[X] add_set(sources, targets, filters)
-	[X] remove_set(set)
-	[X] sets property (return list of sets)
-	[X] Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
-		[X] set_name
-		[X] sources? (recurse sources stack to get obj pointers?)
-		[X] filters? (recurse filters stack to get obj pointers?)
-		[X] targets? (recurse targets stack to get obj pointers?)
-	[X] BackupSetCtrl
-		[X] set_name
-		[X] sources
-		[X] filters
-		[X] targets
-[X] Start with backup-factory
-	[X] Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
-	[X] Implement conditional matrixes to handle different cases
-	[X] Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
-		> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
-	[X] Implement 2-threaded hash-calculation into backup-routines
-	[X] Implement organizational plan for file-data
-	[X] Implement compression
-	[X] Implement sidecart-metadata files for backed-up datastreams
-		> Not for now~
-	[X] Integrate code properly into bs structure (from current tmp working files)
-	[X] benchmark/optimize for speed
-	[X] Implement backup-process into system
-		[X] pass in/check etc. password
-		[X] ...
-	[X] BackupRestore:
-		[X] BackupSetCtrl/db: add field to store (last known) database location
-		[X] BackupSetCtrl/db: If db could not be found at stored path, prompt for new path
-		[X] Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
-	[X] Implement mechanism to check password on extract before starting (on one specifically selected target...)
-	[X] Store *one* password hash with a whole *backup-SET*
-	[X] Pass password into backup-method and check for validity before starting backup-process ()
-		[X] Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
-			> Simplicity: All data-sets related to a specific set in all targets associated with the set always have the same password
-[X] Backup obj/Database
-		[X] Implement mechanism to mark an entity as absent in a snapshot
-		[X] Table `path` still needed? Unique per entity anyway, so won't change between snapshots
-			> no subsequent snapshot columns added after. Only `id` and `path` exist.
-################################
-[.] ### Q/A ####################
-################################
-[X] clean-up old, obsolete code (commented out etc.)
-[X] check module-structure
-[.] maintain integrity:
-	[.] document code
-		> done: bs
-			bs.ctrl
-			bs.ctrl._db
-			bs.ctrl.backup.*
-			bs.ctrl.session.*
-			bs.gui
-			bs.model
-			bs.model.models_master.*
-			bs.gui.lib.*
-			bs.gui.window_about.*
-		> todo: bs.gui.view_login.*
-			bs.gui.view_sets.*
-			bs.gui.window_main.*
-	[ ] validate user-input
-	[ ] write test/test
-	[ ] manage conditional exception-handling
-	[ ] implement correct return data for *everything*
-	[ ] address warnings/errors
-	[ ] standardize logging-messages
-	[ ] make sure all logging messages are very *specific* in regards to
-		- origin of message
-[ ] clean-up current code:
-	[ ] update representations
-	[ ] any code-warnings/errors
-	[ ] sort methods, variables alphabetically
-	[ ] remove unused imports
-	[ ] Make sure all modified-flags (*) are reset
-################################################################################
-[(X)] ### NEXT MILESTONE: 0.0.3 ##
-################################
-(skipped due to inconsistency in version counting)
-################################################################################
-[...] ### NEXT MILESTONE: 0.0.4 ##
-################################
-[...] views:
-	[X] basic main-window
-	[X] basic login-view
-	[...] basic set-management view
-		[X] sets-menu
-			[X] ability to create a new set
-				[X] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
-			[X] ability to delete an existing set
-			[X] edit an existing set
-				[X] add an existing unused source
-				[X] add an existing unused filter
-				[X] remove a source in use by current set
-				[X] remove a filter in use by current set
-		[...] details widget to visualize/edit/execute etc. sets
-			[X] sources
-				[X] ability to add a source
-				[X] ability to remove a source
-				[X] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
-					[(X)] install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
-						> installed on each backup_source, so central location can iterate over all backup_sources to do a batch-process
-			[...] filters
-				[X] ability to add a filter
-				[X] ability to remove a filter
-				[X] add name and use as title on node ("Files > 1GiB"/".pdf Files")
-				[X] display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
-				[...] start writing filter-type classes (path, size, date, ...) and db serialization of said
-					[ ] add filter manager
-						[x] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
-						[x] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
-						[ ] add "add/remove filter" support to manager.
-					[...] filter nodes
-						[X] implement "and/or" association among filter rules
-						[...] filter rule representation
->							[...] update representation to implement all changed/new attributes
->							[...] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
-							[x] hook up set-view filter-widgets to filter-ctrl update signal.
-							[x] implement "is/is not" per rule
-						[ ] add mode-label to node (and/or/xor)
-				[...] start implementing gui on filter node
-			[.] targets
-				[X] Nest all targets in targets main node~
-				[.] BackupTargetCtrl: status-check method (online, offline, locked/in use, etc.)
-				[X] BS: request_exit: request exit from active threads!
-				[ ] think about: ?ability to measure/visualize the space left on the target?
-			[X] Arrows
-				[X] Implement support to connect multiple arrows to multiple nodes
-					[X] Del button on arrow
-			[X] Canvas
-				[X] bug: on reconnect: scrolling canvas causes canvas rush
-	[.] Backup Manager
-		[X] ScrollView
-			[X] refactor into library
-			[X] scrollbars
-			[X] scroll on arrow keys
-			[X] finally: fully test for x, y scrolling
-				[X] extend to support vertical scrolling (mouseWheel *and* cursor keys)
-		[X] active-backup-job
-			[X] backup-job
-				[X] integrate progress bar
-				[X] implement expand/collapse functionality
-					NB: expand only for now
-			[X] queue:
-				[X] get to move backup-job from queue to pole-position
-				[X] get to remove backup-job from pole-position
-				[X] get to move first in queue to pole-position on adding backup-job
-				[X] yellow/orange "currently active" LED below queue
-					[X] add UI
-					[X] add controls to "switch on/off" on queue/backup-job focus
-		[.] integration with controllers, backup-sets interface
-			[X] bind backup-set controllers to sets
-				[X] dispatch backup-set controller from backup-set into backup-manager
-			[X]	get backup-job to execute backup-set
-				[X] on job-move into pole position
-				[X] on job-completed (invoke next in queue)
-				[X] after pre-process, get to execute actual backup
-			[X] get backup-set to dismiss backup-job on finish (and move-in next backup-job in queue)
-			[ ] restrict control of backup-jobs to logged in users only
-			[X] link up backup controller with details UI/progress, etc.
-		[X] make UIs loop through all BackupCtrl that are processed
-		[.] Extend/test parallel operation of queues
-			[.] backupJobView
-				[.] implement method that
-					[ ] activates specific details view (backup, restore, etc. for future)
-					[X] Connects/disconnects signals accordingly
-			[ ] detailsView
-				[ ] log window (tab?)
-			[ ] backupCtrl
-				[ ] use self._mode or self._thread.*signals/isRunning() to protect UIs on initialization/activation so that new process on backupCtrl can't be started when one already runs
-				[ ] implement pause/resume/stop(cancel) method, implement into GUI
-					[ ] Make sure data gets committed to db before (pausing/)stopping
-				[ ] _execute
-					[ ] implement file-list that gets built on simulate and iterated through on backup (avoid double hashing, ...)
-						[ ] handle changed state of files
-						[ ] handle permission denied
-						[ ] handle file not found
-						[ ] generate report
-							[ ] save to snapshot column in db
-							[ ] push log data to new log window in details-view
-	[X] window_about: Fill with simple info
-	[X] implement consistent scheme for passing object-references into classes
-[X] controllers:
-	[X] refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
-################################
-[ ] ### Q/A ####################
-################################
-[ ] .
-################################################################################
-[ ] ### NEXT MILESTONE: 0.0.5 ##
-################################
-[ ] .
-################################
-[ ] ### Q/A ####################
-################################
-[ ] .
-################################################################################
-[ ] ### LATER ##################
-################################
-[ ] File-Backup
-	[ ] Implement sidecart-metadata files for backed-up datastreams
-[ ] views:
-	[ ] basic set-management view
-		[ ] sets-menu
-			[ ] add set-edit mode (rename, etc.)
-		[ ] sources
-			[ ] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
-				[ ] implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
-					[ ] look into Qt animations (wading throbber e.g. while scanning~)
-		[ ] filters
-			[ ] add update signal so UIs update filter representation when changed (e.g. in filter manager)
-		[ ] targets
-			[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
-			[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
-		[ ] arrows
-			[ ] fix redraw issue
-			[ ] implement and/or/xor selector
-		[ ] filter nodes
-			[ ] add "edit" button to node that opens filter-edit-view
-		[ ] Set-save: Optimize
-	[ ] execution-panel...
-[ ] misc:
-	[ ] refactor object/module/package/class names, implement consistent scheme
-		[ ] example!?
-		[ ] get rid of ``bs`` and move everything in ``bs`` into root of local path
-		[ ] move utils module into utils package
-		[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
-		[ ] view_sets.BS -> view_sets.BSMainView
-		[ ] view_sets -> view_bs
-		[ ] view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
-		[ ] view_login.ViewLogin -> view_login.LoginView
-		[ ] window_about.WindowAbout merge into window_main.WindowMainAbout
-################################
-[ ] ### Q/A ####################
-################################
-[ ] .
-################################
+
+
+
+[...] 1.0.0-0
+	[...] 0.1.0-0
+		[x] 0.0.1-0
+			[x] develop
+				[X] automatically create default user
+				[X] user can log in, out
+				[X] sources, targets, sets, filters can be loaded/saved/removed
+			[x] Q/A
+				[X] clean-up old code
+				[X] check module-structure
+				[X] maintain integrity:
+					[X] document code
+						[X] validate user-input
+						[X] write test/test
+						[X] manage conditional exception-handling
+						[X] implement correct return data for *everything*
+						[X] address warnings/errors
+						[X] standardize logging-messages
+						[X] make sure all logging messages are very *specific* in regards to
+							- origin of message
+				[X] clean-up current code:
+						[X] update representations
+						[X] any code-warnings/errors
+		[x] 0.0.2-0
+			[x] develop
+				[X] Controllers: Restrict methods to logged_in only
+				[X] Implement methodology to restrict inherited model functionality conditionally (e.g. get/set data only if... (user is logged in, e.g.))
+				[X] figure out how to switch between sessions (relative "current session" vs. absolute sessions...)
+					> possibly irrelevant as sessions will operate in their local scope. Methods requiring a global scope across all sessions can refer to the sessions parent and iterate through active sessions.
+				[X] models_master.BSModel._get_model_superclass: *iterate* through superclasses, not only the first...
+				[X] SessionsModel:
+					[X] figure out how to identify a session
+						> address when actually needed (refer to "switch between sessions" task)
+						[X] remove_session()
+				[X] Do I need objects to represent sources, targets, filters, etc. or do lists suffice?
+					> yes, done!
+				[X] SourcesModel:
+					[X] add_source(source)
+					[X] remove_source(source)
+					[X] sources property (returns list of sources, needs to return full set inc. id as it will be used as identifier to address a source (removing etc.))
+					[X] Transform separate sources into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+						[X] source_name
+						[X] source_path
+				[X] TargetsModel:
+					[X] add_target(target, password)
+					[X] remove_target(target)
+					[X] targets property (return list of targets)
+					[X] Transform separate targets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+						[X] target_name
+						[X] target_id
+				[X] FiltersModel
+					[X] add_filter(filter)
+					[X] remove_filter(filter)
+					[X] filters property (return list of filters)
+					[X] define format for filters, add validation to filters.add()
+						> filters will be regex patterns for now (or, sets of such); leave it unvalidated for now
+					[X] Transform separate filters into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+						[X] filter_pattern
+				[X] SetsModel
+					[X] add_set(sources, targets, filters)
+					[X] remove_set(set)
+					[X] sets property (return list of sets)
+					[X] Transform separate sets into objects that manage their data, setters, getters autonomously and sync across object and db dataset. add/remove methods stay on container class
+						[X] set_name
+						[X] sources? (recurse sources stack to get obj pointers?)
+						[X] filters? (recurse filters stack to get obj pointers?)
+						[X] targets? (recurse targets stack to get obj pointers?)
+					[X] BackupSetCtrl
+						[X] set_name
+						[X] sources
+						[X] filters
+						[X] targets
+				[X] Start with backup-factory
+					[X] Think about and lock down approach/philosophy of how to look at file data/individual entities, tracking, ...
+					[X] Implement conditional matrixes to handle different cases
+					[X] Profile 1 vs. 2-threaded hash-calculation (1 thread read/buffer data, 2nd thread calculates hash)
+						> 2 threaded always faster. low sleeper-times speed up but are still necessary to keep cpu load under control (free while loops maximize cpu load unnecessarily)
+					[X] Implement 2-threaded hash-calculation into backup-routines
+					[X] Implement organizational plan for file-data
+					[X] Implement compression
+					[X] Implement sidecart-metadata files for backed-up datastreams
+						> Not for now~
+					[X] Integrate code properly into bs structure (from current tmp working files)
+					[X] benchmark/optimize for speed
+					[X] Implement backup-process into system
+						[X] pass in/check etc. password
+						[X] ...
+					[X] BackupRestore:
+						[X] BackupSetCtrl/db: add field to store (last known) database location
+						[X] BackupSetCtrl/db: If db could not be found at stored path, prompt for new path
+						[X] Fully implement into DB-environment; only pass in set, password, entity_id, restore_location (auto-picks target from available)
+					[X] Implement mechanism to check password on extract before starting (on one specifically selected target...)
+					[X] Store *one* password hash with a whole *backup-SET*
+					[X] Pass password into backup-method and check for validity before starting backup-process ()
+						[X] Think: How to handle password management when multiple targets with different passwords are used in a backup set/process~
+							> Simplicity: All data-sets related to a specific set in all targets associated with the set always have the same password
+				[X] Backup obj/Database
+						[X] Implement mechanism to mark an entity as absent in a snapshot
+						[X] Table `path` still needed? Unique per entity anyway, so won't change between snapshots
+							> no subsequent snapshot columns added after. Only `id` and `path` exist.
+			[x] Q/A
+				[X] clean-up old, obsolete code (commented out etc.)
+				[X] check module-structure
+				[.] maintain integrity:
+					[.] document code
+						> done: bs
+							bs.ctrl
+							bs.ctrl._db
+							bs.ctrl.backup.*
+							bs.ctrl.session.*
+							bs.gui
+							bs.model
+							bs.model.models_master.*
+							bs.gui.lib.*
+							bs.gui.window_about.*
+						> todo: bs.gui.view_login.*
+							bs.gui.view_sets.*
+							bs.gui.window_main.*
+					[ ] validate user-input
+					[ ] write test/test
+					[ ] manage conditional exception-handling
+					[ ] implement correct return data for *everything*
+					[ ] address warnings/errors
+					[ ] standardize logging-messages
+					[ ] make sure all logging messages are very *specific* in regards to
+						- origin of message
+				[ ] clean-up current code:
+					[ ] update representations
+					[ ] any code-warnings/errors
+					[ ] sort methods, variables alphabetically
+					[ ] remove unused imports
+					[ ] Make sure all modified-flags (*) are reset
+		[x] 0.0.3-0
+			[x] (skipped due to inconsistency in version counting)
+		[...] 0.0.4-0
+			[...] views:
+				[X] basic main-window
+				[X] basic login-view
+				[...] basic set-management view
+					[X] sets-menu
+						[X] ability to create a new set
+							[X] figure out what to do about targets in backup-set-creation process: Add at this point or, more complicatedly, later (needs to sync to other already existing backup-targets, etc.)
+						[X] ability to delete an existing set
+						[X] edit an existing set
+							[X] add an existing unused source
+							[X] add an existing unused filter
+							[X] remove a source in use by current set
+							[X] remove a filter in use by current set
+					[...] details widget to visualize/edit/execute etc. sets
+						[X] sources
+							[X] ability to add a source
+							[X] ability to remove a source
+							[X] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+								[(X)] install pre-backup-sim on central location to backup_set so it can be called from any backup_source-node and update all backup_source nodes in set as it simulates
+									> installed on each backup_source, so central location can iterate over all backup_sources to do a batch-process
+						[...] filters
+							[X] ability to add a filter
+							[X] ability to remove a filter
+							[X] add name and use as title on node ("Files > 1GiB"/".pdf Files")
+							[X] display list of regex patterns (for now only this internal detail; more advanced user-friendly front-end representations later)
+							[...] start writing filter-type classes (path, size, date, ...) and db serialization of said
+								[x] filter manager
+									[x] create manager window that lists all filters (for user) and hosts the corresponding filter-edit widget
+									[x] create filter-edit widget that can be hosted by the manager or sit in a separate window on its own (for ad-hoc editing)
+								[...] filter nodes
+									[X] implement "and/or" association among filter rules
+									[x] filter rule representation
+										[x] update representation to implement all changed/new attributes
+										[x] hide properties that are irrelevant for given combination or even contradictory/confusing (better implicit than explicit (in input ui, don't save irrelevant data in DB JSON obj), less overhead)
+										[x] hook up set-view filter-widgets to filter-ctrl update signal.
+									[x] implement "is/is not" per rule
+>									[...] add mode-label to node (and/or/xor)
+							[...] start implementing gui on filter node
+						[.] targets
+							[X] Nest all targets in targets main node~
+							[.] BackupTargetCtrl: status-check method (online, offline, locked/in use, etc.)
+							[X] BS: request_exit: request exit from active threads!
+							[ ] think about: ?ability to measure/visualize the space left on the target?
+						[X] Arrows
+							[X] Implement support to connect multiple arrows to multiple nodes
+								[X] Del button on arrow
+						[X] Canvas
+							[X] bug: on reconnect: scrolling canvas causes canvas rush
+				[.] Backup Manager
+					[X] ScrollView
+						[X] refactor into library
+						[X] scrollbars
+						[X] scroll on arrow keys
+						[X] finally: fully test for x, y scrolling
+							[X] extend to support vertical scrolling (mouseWheel *and* cursor keys)
+					[X] active-backup-job
+						[X] backup-job
+							[X] integrate progress bar
+							[X] implement expand/collapse functionality
+								NB: expand only for now
+						[X] queue:
+							[X] get to move backup-job from queue to pole-position
+							[X] get to remove backup-job from pole-position
+							[X] get to move first in queue to pole-position on adding backup-job
+							[X] yellow/orange "currently active" LED below queue
+								[X] add UI
+								[X] add controls to "switch on/off" on queue/backup-job focus
+					[.] integration with controllers, backup-sets interface
+						[X] bind backup-set controllers to sets
+							[X] dispatch backup-set controller from backup-set into backup-manager
+						[X]	get backup-job to execute backup-set
+							[X] on job-move into pole position
+							[X] on job-completed (invoke next in queue)
+							[X] after pre-process, get to execute actual backup
+						[X] get backup-set to dismiss backup-job on finish (and move-in next backup-job in queue)
+						[ ] restrict control of backup-jobs to logged in users only
+						[X] link up backup controller with details UI/progress, etc.
+					[X] make UIs loop through all BackupCtrl that are processed
+					[.] Extend/test parallel operation of queues
+						[.] backupJobView
+							[.] implement method that
+								[ ] activates specific details view (backup, restore, etc. for future)
+								[X] Connects/disconnects signals accordingly
+						[ ] detailsView
+							[ ] log window (tab?)
+						[ ] backupCtrl
+							[ ] use self._mode or self._thread.*signals/isRunning() to protect UIs on initialization/activation so that new process on backupCtrl can't be started when one already runs
+							[ ] implement pause/resume/stop(cancel) method, implement into GUI
+								[ ] Make sure data gets committed to db before (pausing/)stopping
+							[ ] _execute
+								[ ] implement file-list that gets built on simulate and iterated through on backup (avoid double hashing, ...)
+									[ ] handle changed state of files
+									[ ] handle permission denied
+									[ ] handle file not found
+									[ ] generate report
+										[ ] save to snapshot column in db
+										[ ] push log data to new log window in details-view
+				[X] window_about: Fill with simple info
+				[X] implement consistent scheme for passing object-references into classes
+			[X] controllers:
+				[X] refactor (session) controllers to follow a paradigm where "add" and "remove" perform associative changes, while "create" and "delete" do integral changes (to model/database)
+	[ ] 0.2.0-0
+[ ] 2.0.0-0
+[ ] backlog
+	[ ] File-Backup
+		[ ] Implement sidecart-metadata files for backed-up datastreams
+	[ ] views:
+		[ ] filter-manager
+			[ ] add "add/remove filter" support to manager.
+		[ ] set-manager
+			[ ] sets-menu
+				[ ] add set-edit mode (rename, etc.)
+			[ ] sources
+				[ ] ability to measure/visualize accumulated new data amount in relation to all other sources (comparing bar)
+					[ ] implement graphical visualization (percentage bar relative to the backup_source with highest accumulated data to be backed up)
+						[ ] look into Qt animations (wading throbber e.g. while scanning~)
+			[ ] filters
+				[ ] add update signal so UIs update filter representation when changed (e.g. in filter manager)
+			[ ] targets
+				[ ] ability to add a target (will require full mirroring of existing target backup data onto new target)
+				[ ] ability to remove a target (permanently, will require contingency checking, database-updating, pysical deletion of data on target)
+			[ ] arrows
+				[ ] fix redraw issue
+				[ ] implement and/or/xor selector
+			[ ] filter nodes
+				[ ] add "edit" button to node that opens filter-edit-view
+			[ ] Set-save: Optimize
+		[ ] execution-panel...
+	[ ] misc:
+		[ ] refactor object/module/package/class names, implement consistent scheme
+			[ ] example!?
+			[ ] get rid of ``bs`` and move everything in ``bs`` into root of local path
+			[ ] move utils module into utils package
+			[ ] view_sets.BSSetsCanvas -> BSSetsCanvasView
+			[ ] view_sets.BS -> view_sets.BSMainView
+			[ ] view_sets -> view_bs
+			[ ] view_backup_monitor.WindowBackupMonitor -> view_bm.WindowBM
+			[ ] view_login.ViewLogin -> view_login.LoginView
+			[ ] window_about.WindowAbout merge into window_main.WindowMainAbout

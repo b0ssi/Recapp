@@ -353,7 +353,10 @@ class BackupFilterCtrl(bs.model.models.Filters):
             # mark filter as "not new"
             backup_filter_rule.is_new = False
         filter_rules_data_json = json.dumps(filter_rules_data, indent=4)
-        self._update([["filter_rules_data", filter_rules_data_json]], [["id", "=", self.backup_filter_id]])
+        self._update([["filter_rules_data", filter_rules_data_json],
+                      ["filter_rules_mode", self._backup_filter_rules_mode]
+                      ],
+                     [["id", "=", self.backup_filter_id]])
         self._update_signal.emit()
 
 

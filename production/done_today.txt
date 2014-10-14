@@ -2,6 +2,13 @@
 ## DONE TODAY ##################
 ################################
 
+2014-10-14
+- Discards idea for tooltips on node titles: Qt bug crops tooltips when css font-size is set on widget.
+- Adds PySide and Qt version to about window.
+
+2014-10-13
+- Adds mode-label to filter-nodes in the sets-view (and/or/xor).
+
 2014-10-07
 - Fixes bug in filter-manager: rule-widget: date/time where "and time" attribute would not have been saved.
 
