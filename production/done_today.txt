@@ -3,6 +3,9 @@
 ################################
 
 2014-10-14
+- Sets-view: Target-node: Adds control arithmetic for space-indicator.
+
+2014-10-14
 - Implements graphical indicator on node ui.
 
 2014-10-14

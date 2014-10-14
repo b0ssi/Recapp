@@ -12,11 +12,12 @@ from PySide import QtCore
 import binascii
 import bs.config
 import bs.ctrl.backup
-import bs.gui.window_main
 import bs.gui.window_backup_monitor
 import bs.gui.window_filter_manager
+import bs.gui.window_main
 import bs.messages
 import bs.model.models
+import collections
 import Crypto.Protocol.KDF
 import hashlib
 import json
@@ -26,8 +27,10 @@ import platform
 import random
 import re
 import sqlite3
+import sys
 import time
-if platform.system().startswith("win"):
+if os.name == "nt":
+    import ctypes
     import win32file
 
 
@@ -2341,11 +2344,11 @@ class BackupTargetCtrl(bs.model.models.Targets):
     _target_device_id = None
     # enums
     #: ..
-    status_online = "status_online"
+    status_online_idle = "status_online_idle"
     #: ..
     status_offline = "status_offline"
     #: ..
-    status_in_use = "status_in_use"
+    status_online_in_use = "status_online_in_use"
 
     def __init__(self, session_gui, target_id, target_name, target_device_id):
         self._session = session_gui
@@ -2362,6 +2365,79 @@ class BackupTargetCtrl(bs.model.models.Targets):
 
     def __repr__(self):
         return "Target #%d <%s>" % (self._target_id, self.__class__.__name__, )
+
+    @property
+    def is_offline(self):
+        """ ..
+
+        :type: `boolean`
+
+        Returns ``true`` if the target is online, ``false`` if offline.
+        """
+        return not self.is_online
+
+    @property
+    def is_online(self):
+        """ ..
+
+        :type: `boolean`
+
+        Returns ``true`` if the target is online, ``false`` if offline.
+        """
+        try:
+            path = self.target_path
+        except Exception as e:
+            if e.args[0] == 1:
+                return False
+        if os.path.isdir(path):
+            return True
+        else:
+            return False
+
+    @property
+    def space_free(self):
+        """
+
+        :type: `int`
+
+        Returns the number of bytes remaining on drive where target is located.
+        Returns ``-1`` if target is not available.
+        """
+        stats = self._get_disk_space_stats()
+        if stats == -1:
+            return -1
+        else:
+            return stats[2]
+
+    @property
+    def space_total(self):
+        """ ..
+
+        :type: `int`
+
+        Returns the total size of the target in bytes.
+        Returns ``-1`` if target is not available
+        """
+        stats = self._get_disk_space_stats()
+        if stats == -1:
+            return -1
+        else:
+            return stats[0]
+
+    @property
+    def space_used(self):
+        """
+
+        :type: `int`
+
+        Returns the number of bytes used on drive where target is located.
+        Returns ``-1`` if target is not available.
+        """
+        stats = self._get_disk_space_stats()
+        if stats == -1:
+            return -1
+        else:
+            return stats[1]
 
     @property
     def target_name(self):
@@ -2399,6 +2475,11 @@ class BackupTargetCtrl(bs.model.models.Targets):
 
         :type: *str*
 
+        Throws ``Exception`` with the following error-codes:
+
+            - 0: More than one drive with same ID was found on system.
+            - 1: Device with ID was not found on system, assuming it's offline.
+
         Gets physical path that currently points to target.
 
         Scans all connected drives and looks for valid backup folders that \
@@ -2423,20 +2504,61 @@ class BackupTargetCtrl(bs.model.models.Targets):
                 f.close()
         # out
         if len(out) > 1:
-            logging.critical("%s: More than one drive carry the same ID. "
-                             "Please make sure there are no duplicates on the "
-                             "system: %s" % (self.__class__.__name__,
-                                             out, ))
-            raise SystemExit
+            msg = ("More than one drive carry the same ID. Please make sure "
+                   "there are no duplicates on the system: %s"
+                   % self._target_device_id)
+            logging.critical("%s: %s" % (self.__class__.__name__, msg))
+            # throw exception
+            e = Exception()
+            e.args = (0, msg, )
+            raise e
         elif len(out) == 0:
-            logging.info("%s: The physical location of this target could "
-                         "not be found. The volume is probably offline "
-                         " (target_device_id: %s)"
-                         % (self.__class__.__name__,
-                            self._target_device_id, ))
-            return ""
+            msg = ("The physical location of this target could not be found. "
+                   "The volume is probably offline (target_device_id: %s)"
+                   % self._target_device_id)
+            logging.info("%s: %s" % (self.__class__.__name__, msg, ))
+            # throw exception
+            e = Exception()
+            e.args = (1, msg, )
+            raise e
         else:
             return out[0]
+
+    def _get_disk_space_stats(self):
+        """ ..
+
+        :rtype: `tuple`
+
+        Returns a triplet of the format (<total_space>, <used_space>, <free_space>).
+        [source: http://code.activestate.com/recipes/577972-disk-usage]
+        """
+        if self.is_online:
+            _ntuple_diskusage = collections.namedtuple('usage', 'total used free')
+            if hasattr(os, 'statvfs'):  # POSIX
+                st = os.statvfs(self.target_path)
+                free = st.f_bavail * st.f_frsize
+                total = st.f_blocks * st.f_frsize
+                used = (st.f_blocks - st.f_bfree) * st.f_frsize
+                return _ntuple_diskusage(total, used, free)
+            elif os.name == 'nt':       # Windows
+                _, total, free = (ctypes.c_ulonglong(), ctypes.c_ulonglong(),
+                                  ctypes.c_ulonglong(), )
+                if sys.version_info >= (3,) or isinstance(self.target_path, str):
+                    fun = ctypes.windll.kernel32.GetDiskFreeSpaceExW
+                else:
+                    fun = ctypes.windll.kernel32.GetDiskFreeSpaceExA
+                ret = fun(self.target_path,
+                          ctypes.byref(_),
+                          ctypes.byref(total),
+                          ctypes.byref(free))
+                if ret == 0:
+                    raise ctypes.WinError()
+                used = total.value - free.value
+                return _ntuple_diskusage(total.value, used, free.value)
+            else:
+                raise NotImplementedError("platform not supported")
+        else:
+            return -1
 
 
 class BackupTargetsCtrl(bs.model.models.Targets):

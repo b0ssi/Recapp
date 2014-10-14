@@ -1464,10 +1464,9 @@ class BSNodeItemVProgressBar(QtGui.QFrame):
         :param int progress: An integer between 0 and 100: The positive \
         percentage to set the progress bar to.
         """
-        remainder = int(100 - progress)
         # set round corner
         border_radius = 3
-        if self.height() * (remainder * 0.01) > border_radius:
+        if self.height() * ((100 - progress) * 0.01) > border_radius:
             border_radius = 0
         self.layout().itemAt(1).widget().setStyleSheet("background: #%s; border-top-right-radius: %spx"
                                                        % (bs.config.PALETTE[1],
@@ -1475,6 +1474,8 @@ class BSNodeItemVProgressBar(QtGui.QFrame):
         # set stretch distribution
         self.layout().setStretch(0, 100 - progress)
         self.layout().setStretch(1, progress)
+
+        self.setToolTip("%.2f%% free on target" % progress)
 
 
 class ScrollArea(QtGui.QFrame):

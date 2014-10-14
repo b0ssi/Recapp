@@ -2037,13 +2037,6 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
         """
         self.setMaximumWidth(200)
         self.setMinimumWidth(200)
-
-        target_name = self._backup_target.target_name
-        target_path = self._backup_target.target_path
-        if target_path == "":
-            target_path = "Target Offline"
-        self.title_text = "%s (%s)" % (target_name,
-                                       target_path, )
         # CSS
         self.css = ((self,
                      ".",
@@ -2082,6 +2075,30 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
                     )
         # progress-bar
         self._layout.addWidget(bs.gui.lib.BSNodeItemVProgressBar(self), 0, 1, 1, 1)
+        # contents
+        self.refresh()
+
+    def refresh(self):
+        """ ..
+
+        :rtype: `void`
+
+        Refreshes contents of the widget.
+        """
+        # name, path
+        target_name = self._backup_target.target_name
+        try:
+            target_path = self._backup_target.target_path
+        except Exception as e:
+            if e.args[0] == 1:
+                target_path = "Target Offline"
+        self.title_text = ("<b>%s</b><br /><span style='font-size: 10px'>%s</span>"
+                           % (target_name,
+                              target_path, )
+                           )
+        # capacity
+        percentage = (1 - (self._backup_target.space_free / self._backup_target.space_total)) * 100
+        self.layout().itemAtPosition(0, 1).widget().set_progress(percentage)
 
     def mouseMoveEvent(self, e):
         """ ..

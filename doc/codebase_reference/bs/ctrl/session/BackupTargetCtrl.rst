@@ -8,6 +8,11 @@ Synopsis
 
 Instance-Variables
 ==================
+	| :attr:`is_offline`
+	| :attr:`is_online`
+	| :attr:`space_free`
+	| :attr:`space_total`
+	| :attr:`space_used`
 	| :attr:`status_in_use`
 	| :attr:`status_offline`
 	| :attr:`status_online`

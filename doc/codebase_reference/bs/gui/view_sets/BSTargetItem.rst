@@ -11,10 +11,11 @@ Instance-Variables
 
 Methods
 =======
+	| :meth:`refresh`
 
 Events
 ======
-	:meth:`mouseMoveEvent`
+	| :meth:`mouseMoveEvent`
 
 Detailed Description
 ********************
