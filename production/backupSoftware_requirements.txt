@@ -1,0 +1,8 @@
+backupSoftware_requirements.txt
+
+- exclude folders within root/on higher levels
+- snapshots of single files
+- externally accessible (zip e.g.)
+- compression
+- delta shit
+- optional: restore whole snapshots/sets of (directories e.g.)

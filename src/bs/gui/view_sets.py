@@ -1762,7 +1762,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                       {"enabled":
                        ((bs.config.PALETTE[1], ),
                         (bs.config.PALETTE[0], ),
-                        (bs.config.PALETTE[1], ),
+                        (bs.config.PALETTE[0], ),
                         ),
                        "disabled":
                        ((bs.config.PALETTE[1], ),
@@ -1779,7 +1779,7 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
                       {"enabled":
                        ((bs.config.PALETTE[3], ),
                         (bs.config.PALETTE[4], ),
-                        (bs.config.PALETTE[3], ),
+                        (bs.config.PALETTE[4], ),
                         ),
                        "disabled":
                        ((bs.config.PALETTE[3], ),
@@ -1864,25 +1864,26 @@ class BSSourceItem(bs.gui.lib.BSNodeItem):
 
         Override. Opens a password prompt if the backup-set is encrypted.
         """
-        # if backup_set is encrypted, prompt for key
-        if self._backup_set.salt_dk:
-            err_msg = "The Backup-Set seems to be encrypted. Please enter password:"
-            while not self._backup_set.is_authenticated:
-                key_raw, ok = QtGui.QInputDialog.getText(self,
-                                                         "Backup-Set Authentication",
-                                                         err_msg,
-                                                         echo=QtGui.QLineEdit.Password,
-                                                         text="",
-                                                         flags=0)
-                if ok:
-                    self._backup_set.authenticate(key_raw)
-                else:
-                    break
-                if self._backup_set.is_authenticated:
-                    break
-                err_msg = "Invalid password. Please try again:"
-        if self._backup_set.is_authenticated:
-            self.update()
+        if self.rect().contains(e.pos()):
+            # if backup_set is encrypted, prompt for key
+            if self._backup_set.salt_dk:
+                err_msg = "The Backup-Set seems to be encrypted. Please enter password:"
+                while not self._backup_set.is_authenticated:
+                    key_raw, ok = QtGui.QInputDialog.getText(self,
+                                                             "Backup-Set Authentication",
+                                                             err_msg,
+                                                             echo=QtGui.QLineEdit.Password,
+                                                             text="",
+                                                             flags=0)
+                    if ok:
+                        self._backup_set.authenticate(key_raw)
+                    else:
+                        break
+                    if self._backup_set.is_authenticated:
+                        break
+                    err_msg = "Invalid password. Please try again:"
+            if self._backup_set.is_authenticated:
+                self.update()
 
 
 class BSTarget(bs.gui.lib.BSNode):
@@ -2035,6 +2036,7 @@ class BSTargetItem(bs.gui.lib.BSNodeItem):
         """ ..
 
         """
+        self._title.mouseMoveEvent = self.mouseMoveEvent
         self.setMaximumWidth(200)
         self.setMinimumWidth(200)
         # CSS
@@ -2138,24 +2140,24 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
         Checks if backup-set is authenticated and opens a password prompt if
         not. Dispatches the job to the queue on success.
         """
-        def _dispatch_backup_job():
-            """ ..
-
-            :rtype: *void*
-
-            Prompts for the password if *backup-set* is encrypted and
-            dispatches it as a new *backup-job* to the *backup-monitor*'s queue
-            for execution.
-            """
-            bm_window = self._bs.session_gui.sessions.window_backup_monitor
-            bs.gui.window_backup_monitor.WindowDispatchCheck(self._backup_set,
-                                                             bm_window)
-
         if (self._backup_set.salt_dk and not self._backup_set.is_authenticated):
             self._password_prompt = PasswordPromptView(self._backup_set.authenticate,
                                                        self._check_authentication)
         else:
-            _dispatch_backup_job()
+            self._dispatch_backup_job()
+
+    def _dispatch_backup_job(self):
+        """ ..
+
+        :rtype: *void*
+
+        Prompts for the password if *backup-set* is encrypted and
+        dispatches it as a new *backup-job* to the *backup-monitor*'s queue
+        for execution.
+        """
+        bm_window = self._bs.session_gui.sessions.window_backup_monitor
+        bs.gui.window_backup_monitor.WindowDispatchCheck(self._backup_set,
+                                                         bm_window)
 
     def _init_ui(self):
         """ ..
@@ -2198,7 +2200,7 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
                      ),
                     )
 
-    def mousePressEvent(self, e):
+    def mouseReleaseEvent(self, e):
         """ ..
 
         :param QtCore.QEvent e:
@@ -2206,7 +2208,8 @@ class BSTargetItemDispatch(bs.gui.lib.BSNodeItem):
 
         Override. Calls :meth:`dispatch_backup_job`.
         """
-        self._check_authentication()
+        if self.rect().contains(e.pos()):
+            self._check_authentication()
 
 
 class PasswordPromptView(QtGui.QDialog):
